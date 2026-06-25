@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Web2MD — Page to Markdown",
+  "version": "0.1.0",
+  "description": "Convert any web page to clean, AI-ready Markdown with one click.",
+  "permissions": ["activeTab", "clipboardWrite", "contextMenus", "storage", "scripting"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["main_world.js"],
+      "world": "MAIN",
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

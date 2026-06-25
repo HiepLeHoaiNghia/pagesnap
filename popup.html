@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web2MD Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">⚡</span>
+        <h1 class="logo-text">Web2<span class="highlight">MD</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-settings" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Status/Stats Info -->
+      <div class="stats-panel">
+        <div class="stat-badge">
+          <span class="stat-label">Characters:</span>
+          <span id="char-count" class="stat-value">0</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-label">Est. Tokens:</span>
+          <span id="token-count" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <!-- Project Banner (Visible only when full project source is detected) -->
+      <div id="project-banner" class="project-banner hidden">
+        <span class="banner-icon">📦</span>
+        <span id="project-banner-text" class="banner-text">VFS Project Detected</span>
+        <button id="btn-download-project" class="banner-action-btn">Download Project</button>
+      </div>
+
+      <!-- Preview Box -->
+      <div class="preview-container">
+        <div class="preview-header">
+          <span class="preview-title">Markdown Preview</span>
+          <span id="preview-mode" class="mode-badge">Local Extraction</span>
+        </div>
+        <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
+      </div>
+
+      <!-- Actions Footer -->
+      <div class="action-grid">
+        <button id="btn-extract" class="primary-btn">
+          <span class="btn-icon">⚡</span> Extract Page
+        </button>
+        <div class="secondary-actions">
+          <button id="btn-copy" class="secondary-btn" disabled>
+            Copy
+          </button>
+          <button id="btn-download" class="secondary-btn" disabled>
+            Download
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Settings Pane (Slide-in/Hidden by default) -->
+    <section id="settings-pane" class="settings-pane hidden">
+      <div class="settings-header">
+        <h2>Configuration</h2>
+        <button id="btn-close-settings" class="close-btn">&times;</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-frontmatter" checked>
+            <span class="slider"></span>
+            <span class="label-text">Include YAML Frontmatter</span>
+          </label>
+        </div>
+        <div class="setting-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-raw">
+            <span class="slider"></span>
+            <span class="label-text">Full Page (Skip Readability)</span>
+          </label>
+        </div>
+        <div class="setting-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-images" checked>
+            <span class="slider"></span>
+            <span class="label-text">Keep Images</span>
+          </label>
+        </div>
+        <div class="setting-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-links" checked>
+            <span class="slider"></span>
+            <span class="label-text">Keep Links</span>
+          </label>
+        </div>
+        <div class="setting-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setting-obsidian">
+            <span class="slider"></span>
+            <span class="label-text">Obsidian-friendly Wikilinks</span>
+          </label>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="lib/turndown.js"></script>
+  <script src="lib/turndown-plugin-gfm.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

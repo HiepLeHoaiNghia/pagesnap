@@ -1,0 +1,233 @@
+(function() {
+  function findVFS(obj, depth = 0, visited = new Set()) {
+    if (depth > 12) return null;
+    if (!obj || typeof obj !== 'object' || visited.has(obj)) return null;
+    visited.add(obj);
+
+    // Support Map objects
+    if (obj instanceof Map) {
+      try {
+        const keys = Array.from(obj.keys());
+        if (keys.length >= 2) {
+          let fileKeysCount = 0;
+          let isValidVFS = true;
+          
+          for (const k of keys) {
+            if (typeof k === 'string' && (k.includes('/') || k.includes('.'))) {
+              fileKeysCount++;
+              const val = obj.get(k);
+              const isString = typeof val === 'string';
+              const isFileObj = val && typeof val === 'object' && (typeof val.content === 'string' || typeof val.text === 'string' || typeof val.source === 'string');
+              if (!isString && !isFileObj) {
+                isValidVFS = false;
+                break;
+              }
+            }
+          }
+
+          if (isValidVFS && fileKeysCount >= 2) {
+            const norm = {};
+            obj.forEach((val, key) => {
+              norm[key] = val;
+            });
+            return norm;
+          }
+        }
+      } catch (e) {}
+    }
+
+    const keys = Object.keys(obj);
+    if (keys.length >= 2) {
+      let fileKeysCount = 0;
+      let isValidVFS = true;
+      
+      for (const k of keys) {
+        if (typeof k === 'string' && (k.includes('/') || k.includes('.'))) {
+          fileKeysCount++;
+          const val = obj[k];
+          const isString = typeof val === 'string';
+          const isFileObj = val && typeof val === 'object' && (typeof val.content === 'string' || typeof val.text === 'string' || typeof val.source === 'string');
+          if (!isString && !isFileObj) {
+            isValidVFS = false;
+            break;
+          }
+        }
+      }
+
+      if (isValidVFS && fileKeysCount >= 2) {
+        return obj;
+      }
+    }
+
+    if (Array.isArray(obj) && obj.length > 0) {
+      const first = obj[0];
+      if (first && typeof first === 'object' && ('path' in first || 'name' in first) && ('content' in first || 'text' in first || 'source' in first)) {
+        return obj;
+      }
+    }
+
+    // Traverse keys recursively
+    for (const k of keys) {
+      try {
+        const res = findVFS(obj[k], depth + 1, visited);
+        if (res) return res;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function scoreVFS(vfs) {
+    if (!vfs) return -1;
+    let score = 0;
+    let fileCount = 0;
+    let keys = [];
+    
+    if (vfs instanceof Map) {
+      keys = Array.from(vfs.keys());
+    } else if (Array.isArray(vfs)) {
+      keys = vfs.map(f => f.path || f.name || '');
+    } else {
+      keys = Object.keys(vfs);
+    }
+    
+    for (const k of keys) {
+      if (typeof k === 'string') {
+        const lowerK = k.toLowerCase();
+        if (lowerK.endsWith('.tsx') || lowerK.endsWith('.ts') || lowerK.endsWith('.jsx') || lowerK.endsWith('.js') || lowerK.endsWith('.html') || lowerK.endsWith('.css') || lowerK.endsWith('.json')) {
+          score += 15; // High points for code files
+          fileCount++;
+        }
+        
+        let content = '';
+        if (vfs instanceof Map) {
+          const val = vfs.get(k);
+          content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
+        } else if (Array.isArray(vfs)) {
+          const item = vfs.find(f => (f.path || f.name) === k);
+          content = item ? (item.content || item.text || item.source || '') : '';
+        } else {
+          const val = vfs[k];
+          content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
+        }
+        
+        if (content.trim().startsWith('http://') || content.trim().startsWith('https://')) {
+          score -= 20; // Penalize import map mappings
+        } else {
+          score += Math.min(content.length / 50, 30); // Add points based on code size
+        }
+      }
+    }
+    
+    if (fileCount === 0) return -1;
+    return score;
+  }
+
+  function getAllElements(root = document, list = []) {
+    if (!root) return list;
+    try {
+      const elements = root.querySelectorAll('*');
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        list.push(el);
+        if (el.shadowRoot) {
+          getAllElements(el.shadowRoot, list);
+        }
+      }
+    } catch (e) {}
+    return list;
+  }
+
+  function scanDOMForVFS() {
+    const candidates = [];
+
+    // Helper to evaluate and track a VFS candidate
+    function trackCandidate(obj) {
+      if (!obj) return;
+      const score = scoreVFS(obj);
+      if (score > 0) {
+        candidates.push({ obj, score });
+      }
+    }
+
+    // 1. Scan global window properties
+    const windowKeys = Object.keys(window);
+    for (const k of windowKeys) {
+      if (k !== 'window' && k !== 'self' && k !== 'top' && k !== 'parent' && k !== 'frames' && k !== 'globalThis') {
+        try {
+          const vfs = findVFS(window[k], 0);
+          if (vfs) trackCandidate(vfs);
+        } catch (e) {}
+      }
+    }
+
+    // 2. Scan DOM elements including Shadow DOM
+    const allElements = getAllElements(document);
+    for (const el of allElements) {
+      const fiberKey = Object.keys(el).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+      if (fiberKey) {
+        const fiber = el[fiberKey];
+        let curr = fiber;
+        while (curr) {
+          if (curr.memoizedProps) {
+            const vfs = findVFS(curr.memoizedProps, 0);
+            if (vfs) trackCandidate(vfs);
+          }
+          if (curr.memoizedState) {
+            const vfs = findVFS(curr.memoizedState, 0);
+            if (vfs) trackCandidate(vfs);
+          }
+          curr = curr.return;
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    
+    // Sort by score descending and return the best candidate
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0].obj;
+  }
+
+  // Define global scan function for manual user debugging in DevTools
+  window.web2mdScan = function() {
+    console.log("[Web2MD] Running manual VFS diagnostic scan...");
+    const vfs = scanDOMForVFS();
+    if (vfs) {
+      console.log("[Web2MD] Match found:", vfs);
+      return vfs;
+    }
+    console.warn("[Web2MD] No VFS found in React Fiber trees.");
+    return null;
+  };
+
+  // Periodically scan for VFS and send to content script
+  let lastFilesStr = '';
+  function performScan() {
+    const vfs = scanDOMForVFS();
+    if (!vfs) return;
+
+    let files = [];
+    if (Array.isArray(vfs)) {
+      files = vfs.map(f => ({
+        path: f.path || f.name || '',
+        content: f.content || f.text || f.source || ''
+      }));
+    } else {
+      Object.keys(vfs).forEach(path => {
+        const val = vfs[path];
+        const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
+        files.push({ path, content });
+      });
+    }
+
+    const filesStr = JSON.stringify(files);
+    if (filesStr !== lastFilesStr) {
+      lastFilesStr = filesStr;
+      console.log(`[Web2MD] Project VFS loaded: ${files.length} files found.`);
+      window.postMessage({ type: 'WEB2MD_VFS_EXTRACTED', files: files }, '*');
+    }
+  }
+
+  setInterval(performScan, 1500);
+  performScan();
+})();
