@@ -369,193 +369,22 @@ window.addEventListener('message', (event) => {
 
 /**
  * Serializes the entire DOM into a single, self-contained HTML page
- * with consolidated stylesheets and inlined images/fonts.
+ * with inline-replaced stylesheets, adoptedStyleSheets, and inlined images/fonts.
  */
 async function serializePageToSelfContainedHtml() {
   const baseHref = window.location.href;
-  const URL_REGEX = /url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g;
-  
-  // 1. Gather all CSS rules
-  let consolidatedStyles = '';
+  const styleMap = new Map();
   const stylesheetPromises = [];
-  
+
   function getRulesFromSheet(sheet) {
     try {
       if (sheet.cssRules) {
         return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
       }
-    } catch (e) {
-      // Cross-origin stylesheet access blocked
-    }
+    } catch (e) {}
     return null;
   }
-  
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i];
-    const localRules = getRulesFromSheet(sheet);
-    
-    if (localRules !== null) {
-      consolidatedStyles += resolveCssUrls(localRules, sheet.href || baseHref) + '\n';
-    } else if (sheet.href) {
-      const url = sheet.href;
-      stylesheetPromises.push(
-        new Promise((resolve) => {
-          chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url }, (response) => {
-            if (response && response.success) {
-              resolve(resolveCssUrls(response.text, url));
-            } else {
-              resolve(`/* Failed to load styles from ${url} */`);
-            }
-          });
-        })
-      );
-    }
-  }
-  
-  const externalStyles = await Promise.all(stylesheetPromises);
-  consolidatedStyles += externalStyles.join('\n');
-  
-  // 2. Extract asset URLs (images and fonts)
-  const assetUrls = new Set();
-  
-  // From <img> tags
-  document.querySelectorAll('img').forEach(img => {
-    if (img.src && !img.src.startsWith('data:')) {
-      assetUrls.add(img.src);
-    }
-  });
-  
-  // From CSS url(...) declarations
-  let match;
-  const cssUrlMatches = [];
-  while ((match = URL_REGEX.exec(consolidatedStyles)) !== null) {
-    const url = match[1].trim();
-    if (!url.startsWith('data:') && !url.startsWith('blob:')) {
-      try {
-        const absUrl = new URL(url, baseHref).href;
-        cssUrlMatches.push({ raw: match[0], url: absUrl });
-        assetUrls.add(absUrl);
-      } catch (e) {}
-    }
-  }
-  
-  // 3. Fetch assets in parallel and convert to Base64
-  const assetMap = new Map();
-  const assetPromises = Array.from(assetUrls).map(url => {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "fetchAssetAsBase64", url }, (response) => {
-        if (response && response.success) {
-          assetMap.set(url, response.dataUrl);
-        }
-        resolve();
-      });
-    });
-  });
-  
-  // Set a 5 seconds max timeout for asset fetching to prevent hang
-  await Promise.race([
-    Promise.all(assetPromises),
-    new Promise(resolve => setTimeout(resolve, 5000))
-  ]);
-  
-  // 4. Inline assets in CSS
-  let finalizedStyles = consolidatedStyles;
-  for (const matchInfo of cssUrlMatches) {
-    const base64 = assetMap.get(matchInfo.url);
-    if (base64) {
-      const escapedRaw = matchInfo.raw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      finalizedStyles = finalizedStyles.replace(new RegExp(escapedRaw, 'g'), `url("${base64}")`);
-    }
-  }
-  
-  // 5. Recursively serialize DOM including Shadow DOM
-  function serializeNode(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return escapeHtml(node.textContent);
-    }
-    if (node.nodeType === Node.COMMENT_NODE) {
-      return `<!--${node.textContent}-->`;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return '';
-    }
-    
-    const tagName = node.tagName.toLowerCase();
-    
-    // Ignore script tags and original link stylesheets
-    if (tagName === 'script') {
-      return '';
-    }
-    if (tagName === 'link' && node.getAttribute('rel') === 'stylesheet') {
-      return '';
-    }
-    
-    let html = `<${tagName}`;
-    
-    // Serialize attributes
-    for (let i = 0; i < node.attributes.length; i++) {
-      const attr = node.attributes[i];
-      let value = attr.value;
-      
-      // Replace image src with base64
-      if (tagName === 'img' && attr.name === 'src') {
-        try {
-          const absSrc = new URL(value, baseHref).href;
-          if (assetMap.has(absSrc)) {
-            value = assetMap.get(absSrc);
-          }
-        } catch(e) {}
-      }
-      
-      // Replace inline background-image url() with base64
-      if (attr.name === 'style' && value.includes('url(')) {
-        let match;
-        const inlineCssRegex = /url\(\s*['"]?([^'")]+)['"]?\s*\)/g;
-        while ((match = inlineCssRegex.exec(attr.value)) !== null) {
-          const url = match[1].trim();
-          try {
-            const absUrl = new URL(url, baseHref).href;
-            if (assetMap.has(absUrl)) {
-              value = value.replace(match[0], `url("${assetMap.get(absUrl)}")`);
-            }
-          } catch(e) {}
-        }
-      }
-      
-      html += ` ${attr.name}="${escapeHtml(value)}"`;
-    }
-    
-    // Self-closing tags
-    const selfClosing = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-    if (selfClosing.includes(tagName)) {
-      return html + ' />';
-    }
-    
-    html += '>';
-    
-    // Append Declarative Shadow DOM if exists
-    if (node.shadowRoot) {
-      html += '<template shadowrootmode="open">';
-      for (let i = 0; i < node.shadowRoot.childNodes.length; i++) {
-        html += serializeNode(node.shadowRoot.childNodes[i]);
-      }
-      html += '</template>';
-    }
-    
-    // Insert consolidated styles under the head tag
-    if (tagName === 'head') {
-      html += `<style id="web2md-consolidated-styles">${finalizedStyles}</style>`;
-    }
-    
-    // Serialize child nodes
-    for (let i = 0; i < node.childNodes.length; i++) {
-      html += serializeNode(node.childNodes[i]);
-    }
-    
-    html += `</${tagName}>`;
-    return html;
-  }
-  
+
   // Helper to resolve CSS relative urls
   function resolveCssUrls(cssText, baseUrl) {
     return cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
@@ -570,7 +399,295 @@ async function serializePageToSelfContainedHtml() {
       }
     });
   }
-  
+
+  // 1. Map each stylesheet created by an ownerNode to its resolved rules
+  for (let i = 0; i < document.styleSheets.length; i++) {
+    const sheet = document.styleSheets[i];
+    const ownerNode = sheet.ownerNode;
+    if (!ownerNode) continue;
+
+    const localRules = getRulesFromSheet(sheet);
+    if (localRules !== null) {
+      styleMap.set(ownerNode, resolveCssUrls(localRules, sheet.href || baseHref));
+    } else if (sheet.href) {
+      const url = sheet.href;
+      stylesheetPromises.push(
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url }, (response) => {
+            if (response && response.success) {
+              styleMap.set(ownerNode, resolveCssUrls(response.text, url));
+            } else {
+              styleMap.set(ownerNode, `/* Failed to load styles from ${url} */`);
+            }
+            resolve();
+          });
+        })
+      );
+    }
+  }
+
+  await Promise.all(stylesheetPromises);
+
+  // 2. Extract asset URLs (images and fonts)
+  const assetUrls = new Set();
+
+  // From <img> tags
+  document.querySelectorAll('img').forEach(img => {
+    if (img.src && !img.src.startsWith('data:')) {
+      assetUrls.add(img.src);
+    }
+  });
+
+  // From stylesheets in styleMap
+  const URL_REGEX = /url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g;
+  for (const [node, cssText] of styleMap.entries()) {
+    let match;
+    const baseUrl = node.href || baseHref;
+    while ((match = URL_REGEX.exec(cssText)) !== null) {
+      const url = match[1].trim();
+      if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+        try {
+          const absUrl = new URL(url, baseUrl).href;
+          assetUrls.add(absUrl);
+        } catch (e) {}
+      }
+    }
+  }
+
+  // 3. Fetch assets in parallel and convert to Base64
+  const assetMap = new Map();
+  const assetPromises = Array.from(assetUrls).map(url => {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: "fetchAssetAsBase64", url }, (response) => {
+        if (response && response.success) {
+          assetMap.set(url, response.dataUrl);
+        }
+        resolve();
+      });
+    });
+  });
+
+  // Set a 5 seconds max timeout for asset fetching to prevent hang
+  await Promise.race([
+    Promise.all(assetPromises),
+    new Promise(resolve => setTimeout(resolve, 5000))
+  ]);
+
+  // 4. Inline assets in CSS rules inside styleMap
+  for (const [node, cssText] of styleMap.entries()) {
+    const baseUrl = node.href || baseHref;
+    const inlinedCss = cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
+      try {
+        const absUrl = new URL(url, baseUrl).href;
+        if (assetMap.has(absUrl)) {
+          return `url("${assetMap.get(absUrl)}")`;
+        }
+      } catch (e) {}
+      return match;
+    });
+    styleMap.set(node, inlinedCss);
+  }
+
+  // 5. Serialize adoptedStyleSheets helper
+  function serializeAdoptedStyleSheets(container) {
+    if (container && container.adoptedStyleSheets && container.adoptedStyleSheets.length > 0) {
+      let cssText = '';
+      for (const sheet of container.adoptedStyleSheets) {
+        try {
+          cssText += Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n') + '\n';
+        } catch (e) {}
+      }
+      if (cssText) {
+        const inlined = resolveCssUrls(cssText, baseHref).replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
+          try {
+            const absUrl = new URL(url, baseHref).href;
+            if (assetMap.has(absUrl)) {
+              return `url("${assetMap.get(absUrl)}")`;
+            }
+          } catch (e) {}
+          return match;
+        });
+        return `<style class="web2md-adopted-styles">${inlined}</style>`;
+      }
+    }
+    return '';
+  }
+
+  // 6. Recursively serialize DOM including Shadow DOM
+  function serializeNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return escapeHtml(node.textContent);
+    }
+    if (node.nodeType === Node.COMMENT_NODE) {
+      return `<!--${node.textContent}-->`;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return '';
+    }
+
+    const tagName = node.tagName.toLowerCase();
+
+    // Ignore script tags
+    if (tagName === 'script') {
+      return '';
+    }
+
+    // Convert canvas to static img
+    if (tagName === 'canvas') {
+      try {
+        const dataUrl = node.toDataURL('image/png');
+        let canvasHtml = `<img src="${dataUrl}"`;
+        // Copy other attributes except style/width/height (to let it fit container)
+        for (let i = 0; i < node.attributes.length; i++) {
+          const attr = node.attributes[i];
+          if (attr.name !== 'style' && attr.name !== 'width' && attr.name !== 'height') {
+            canvasHtml += ` ${attr.name}="${escapeHtml(attr.value)}"`;
+          }
+        }
+        canvasHtml += ' />';
+        return canvasHtml;
+      } catch (e) {}
+    }
+
+    // In-place inline stylesheet replacement
+    if (tagName === 'link' && node.getAttribute('rel') === 'stylesheet') {
+      if (styleMap.has(node)) {
+        return `<style id="web2md-inlined-${Math.random().toString(36).substr(2, 5)}">${styleMap.get(node)}</style>`;
+      }
+      // If we couldn't load rules, keep link but resolve absolute href
+      const href = node.getAttribute('href');
+      if (href) {
+        try {
+          const absHref = new URL(href, baseHref).href;
+          return `<link rel="stylesheet" href="${escapeHtml(absHref)}" />`;
+        } catch(e) {}
+      }
+      return '';
+    }
+
+    if (tagName === 'style') {
+      if (styleMap.has(node)) {
+        return `<style>${styleMap.get(node)}</style>`;
+      }
+      return `<style>${resolveCssUrls(node.textContent, baseHref)}</style>`;
+    }
+
+    let html = `<${tagName}`;
+
+    // Serialize attributes
+    for (let i = 0; i < node.attributes.length; i++) {
+      const attr = node.attributes[i];
+      let value = attr.value;
+
+      // Skip srcset to force img fallback to inlined src
+      if (tagName === 'img' && attr.name === 'srcset') {
+        continue;
+      }
+
+      // Replace image src with base64
+      if (tagName === 'img' && attr.name === 'src') {
+        try {
+          const absSrc = new URL(value, baseHref).href;
+          if (assetMap.has(absSrc)) {
+            value = assetMap.get(absSrc);
+          } else {
+            value = absSrc;
+          }
+        } catch(e) {}
+      }
+
+      // Replace inline background-image url() with base64
+      if (attr.name === 'style' && value.includes('url(')) {
+        value = value.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
+          try {
+            const absUrl = new URL(url, baseHref).href;
+            if (assetMap.has(absUrl)) {
+              return `url("${assetMap.get(absUrl)}")`;
+            }
+          } catch(e) {}
+          return match;
+        });
+      }
+
+      // Resolve relative urls for links and other subresources
+      if (['src', 'href', 'data', 'poster'].includes(attr.name) && value && !value.startsWith('data:') && !value.startsWith('blob:') && !value.startsWith('#')) {
+        try {
+          value = new URL(value, baseHref).href;
+        } catch(e) {}
+      }
+
+      html += ` ${attr.name}="${escapeHtml(value)}"`;
+    }
+
+    // Capture dynamic state of interactive form elements
+    if (tagName === 'input') {
+      const type = node.getAttribute('type') ? node.getAttribute('type').toLowerCase() : 'text';
+      if (['checkbox', 'radio'].includes(type)) {
+        if (node.checked && !html.includes('checked')) {
+          html += ' checked="checked"';
+        }
+      } else if (!['button', 'submit', 'reset', 'image', 'file'].includes(type)) {
+        if (node.value && !html.includes('value=')) {
+          html += ` value="${escapeHtml(node.value)}"`;
+        }
+      }
+    }
+
+    // Self-closing tags
+    const selfClosing = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+    if (selfClosing.includes(tagName)) {
+      return html + ' />';
+    }
+
+    html += '>';
+
+    // Append Declarative Shadow DOM if exists
+    if (node.shadowRoot) {
+      html += '<template shadowrootmode="open">';
+      html += serializeAdoptedStyleSheets(node.shadowRoot);
+      for (let i = 0; i < node.shadowRoot.childNodes.length; i++) {
+        html += serializeNode(node.shadowRoot.childNodes[i]);
+      }
+      html += '</template>';
+    }
+
+    // Insert document adoptedStyleSheets under the head tag
+    if (tagName === 'head') {
+      html += serializeAdoptedStyleSheets(document);
+    }
+
+    // Serialize child nodes or text area dynamic value
+    if (tagName === 'textarea') {
+      html += escapeHtml(node.value);
+    } else if (tagName === 'select') {
+      // For select tag, make sure selected options get their selected attribute set
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        if (child.tagName && child.tagName.toLowerCase() === 'option') {
+          let optionHtml = '<option';
+          for (let j = 0; j < child.attributes.length; j++) {
+            const attr = child.attributes[j];
+            optionHtml += ` ${attr.name}="${escapeHtml(attr.value)}"`;
+          }
+          if (child.selected) {
+            optionHtml += ' selected="selected"';
+          }
+          optionHtml += `>${escapeHtml(child.textContent)}</option>`;
+          html += optionHtml;
+        } else {
+          html += serializeNode(child);
+        }
+      }
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        html += serializeNode(node.childNodes[i]);
+      }
+    }
+
+    html += `</${tagName}>`;
+    return html;
+  }
+
   // Helper to escape HTML characters
   function escapeHtml(str) {
     return str
@@ -580,6 +697,6 @@ async function serializePageToSelfContainedHtml() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
-  
+
   return serializeNode(document.documentElement);
 }

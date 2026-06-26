@@ -267,40 +267,79 @@ document.addEventListener('DOMContentLoaded', () => {
           cachedProjectFiles = projResponse.projectFiles;
         }
 
-        // Send extraction request to content.js (target top-level frame only)
-        chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: 0 }, (response) => {
-          // Handle runtime error (e.g. content script not loaded yet)
-          if (chrome.runtime.lastError) {
-            console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
-            injectScriptsAndRetry(activeTab.id);
-            return;
+        // Determine target frameId dynamically
+        chrome.scripting.executeScript({
+          target: { tabId: activeTab.id, allFrames: true },
+          func: () => {
+            return {
+              url: window.location.href,
+              title: document.title,
+              htmlLength: document.body ? document.body.innerHTML.length : 0,
+              isFocused: document.hasFocus ? document.hasFocus() : false
+            };
+          }
+        }, (results) => {
+          let targetFrameId = 0;
+          if (results && results.length > 0) {
+            let bestFrame = null;
+            // Filter out internal about: urls if possible
+            const validFrames = results.filter(r => r.result && r.result.url && !r.result.url.startsWith('about:'));
+            const candidates = validFrames.length > 0 ? validFrames : results;
+
+            // Try to find a focused frame with substantial content first
+            bestFrame = candidates.find(r => r.result && r.result.isFocused && r.result.htmlLength > 200);
+
+            // Otherwise, pick the frame with the maximum HTML length (most likely the main content frame)
+            if (!bestFrame) {
+              let maxLen = -1;
+              candidates.forEach(r => {
+                if (r.result && r.result.htmlLength > maxLen) {
+                  maxLen = r.result.htmlLength;
+                  bestFrame = r;
+                }
+              });
+            }
+
+            if (bestFrame) {
+              targetFrameId = bestFrame.frameId;
+            }
           }
 
-          if (response && response.success) {
-            extractedData = response;
-            if (cachedProjectFiles) {
-              extractedData.projectFiles = cachedProjectFiles;
+          // Send extraction request to content.js in target frame
+          chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
+            // Handle runtime error (e.g. content script not loaded yet)
+            if (chrome.runtime.lastError) {
+              console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
+              injectScriptsAndRetry(activeTab.id, targetFrameId);
+              return;
             }
-            
-            // Request page clone HTML
-            chrome.tabs.sendMessage(activeTab.id, { action: "clonePage" }, { frameId: 0 }, (cloneResponse) => {
-              if (cloneResponse && cloneResponse.success) {
-                currentHtml = cloneResponse.html;
-                if (htmlPreviewFrame) {
-                  htmlPreviewFrame.srcdoc = currentHtml;
-                }
-              } else {
-                console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-                currentHtml = "<!-- HTML cloning failed -->";
+
+            if (response && response.success) {
+              extractedData = response;
+              if (cachedProjectFiles) {
+                extractedData.projectFiles = cachedProjectFiles;
               }
               
-              loadSettings().then((settings) => {
-                processAndDisplayMarkdown(extractedData, settings);
+              // Request page clone HTML
+              chrome.tabs.sendMessage(activeTab.id, { action: "clonePage" }, { frameId: targetFrameId }, (cloneResponse) => {
+                if (cloneResponse && cloneResponse.success) {
+                  currentHtml = cloneResponse.html;
+                  if (htmlPreviewFrame) {
+                    htmlPreviewFrame.srcdoc = currentHtml;
+                  }
+                } else {
+                  console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
+                  currentHtml = "<!-- HTML cloning failed -->";
+                }
+                
+                loadSettings().then((settings) => {
+                  processAndDisplayMarkdown(extractedData, settings);
+                });
               });
-            });
-          } else {
-            showError(response ? response.error : "Failed to extract clean HTML content.");
-          }
+            } else {
+              showError(response ? response.error : "Failed to extract clean HTML content.");
+            }
+          });
         });
       });
     });
@@ -309,16 +348,16 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Helper to dynamically inject content scripts if not pre-loaded, then retry extraction
    */
-  function injectScriptsAndRetry(tabId) {
+  function injectScriptsAndRetry(tabId, frameId = 0) {
     const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
     
     // Inject scripts sequentially
     let p = Promise.resolve();
     
-    // Inject main world script first to top-level frame only
+    // Inject main world script first to target frame only
     p = p.then(() => {
       return chrome.scripting.executeScript({
-        target: { tabId: tabId, frameIds: [0] },
+        target: { tabId: tabId, frameIds: [frameId] },
         files: ["main_world.js"],
         world: "MAIN"
       });
@@ -329,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scripts.forEach(script => {
       p = p.then(() => {
         return chrome.scripting.executeScript({
-          target: { tabId: tabId, frameIds: [0] },
+          target: { tabId: tabId, frameIds: [frameId] },
           files: [script]
         });
       });
@@ -344,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cachedProjectFiles = projResponse.projectFiles;
           }
 
-          chrome.tabs.sendMessage(tabId, { action: "extractContent" }, { frameId: 0 }, (response) => {
+          chrome.tabs.sendMessage(tabId, { action: "extractContent" }, { frameId: frameId }, (response) => {
             if (chrome.runtime.lastError) {
               showError("Could not connect to page. Refresh the page and try again.");
               return;
@@ -357,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               
               // Request HTML cloning on retry
-              chrome.tabs.sendMessage(tabId, { action: "clonePage" }, { frameId: 0 }, (cloneResponse) => {
+              chrome.tabs.sendMessage(tabId, { action: "clonePage" }, { frameId: frameId }, (cloneResponse) => {
                 if (cloneResponse && cloneResponse.success) {
                   currentHtml = cloneResponse.html;
                   if (htmlPreviewFrame) {
@@ -598,7 +637,10 @@ document.addEventListener('DOMContentLoaded', () => {
         filename: filename,
         saveAs: true
       }, () => {
-        URL.revokeObjectURL(url);
+        // Delay URL revocation to allow Save As dialog directory choice to complete
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 10000);
       });
     } else {
       const a = document.createElement('a');
@@ -609,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      }, 0);
+      }, 10000);
     }
   }
 
