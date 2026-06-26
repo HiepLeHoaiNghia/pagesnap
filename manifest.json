@@ -17,6 +17,15 @@
     "service_worker": "background.js"
   },
 
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["main_world.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    }
+  ],
+
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",

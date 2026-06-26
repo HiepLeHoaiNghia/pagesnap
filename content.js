@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "convertPage") {
     handlePageConversion();
   } else if (request.action === "clonePage") {
-    serializePageToSelfContainedHtml()
+    serializePageToSelfContainedHtml({ preserveJs: request.preserveJs })
       .then(html => sendResponse({ success: true, html }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
@@ -371,7 +371,8 @@ window.addEventListener('message', (event) => {
  * Serializes the entire DOM into a single, self-contained HTML page
  * with inline-replaced stylesheets, adoptedStyleSheets, and inlined images/fonts.
  */
-async function serializePageToSelfContainedHtml() {
+async function serializePageToSelfContainedHtml(options = {}) {
+  const preserveJs = !!options.preserveJs;
   const baseHref = window.location.href;
   const styleMap = new Map();
   const stylesheetPromises = [];
@@ -469,7 +470,72 @@ async function serializePageToSelfContainedHtml() {
 
   await Promise.all(stylesheetPromises);
 
-  // 2. Extract asset URLs (images and fonts)
+  // 2. Fetch API cache if preserveJs is active
+  let apiCache = [];
+  if (preserveJs) {
+    apiCache = await new Promise((resolve) => {
+      const onApiMessage = (event) => {
+        if (event.source === window && event.data && event.data.type === 'WEB2MD_API_CALLS_RESPONSE') {
+          window.removeEventListener('message', onApiMessage);
+          resolve(event.data.apiCalls || []);
+        }
+      };
+      window.addEventListener('message', onApiMessage);
+      window.postMessage({ type: 'WEB2MD_REQUEST_API_CALLS' }, '*');
+      setTimeout(() => {
+        window.removeEventListener('message', onApiMessage);
+        resolve([]);
+      }, 500);
+    });
+  }
+
+  // 3. Fetch/Inline Scripts if preserveJs is active
+  const scriptContentMap = new Map();
+  const scriptPromises = [];
+  const TRACKER_REGEX = /google-analytics\.com|googletagmanager\.com|sentry\.io|mixpanel\.com|facebook\.net|doubleclick\.net|hotjar\.com|amplitude\.com|browser\.sentry-cdn\.com/i;
+
+  if (preserveJs) {
+    document.querySelectorAll('script').forEach(script => {
+      const src = script.getAttribute('src');
+      if (src) {
+        try {
+          const absUrl = new URL(src, baseHref).href;
+          if (!TRACKER_REGEX.test(absUrl)) {
+            scriptPromises.push(
+              new Promise((resolve) => {
+                chrome.runtime.sendMessage({ action: "fetchExternalScript", url: absUrl }, (response) => {
+                  if (response && response.success) {
+                    scriptContentMap.set(script, response.text);
+                  } else {
+                    scriptContentMap.set(script, `/* Failed to load external script: ${absUrl} */`);
+                  }
+                  resolve();
+                });
+              })
+            );
+          } else {
+            scriptContentMap.set(script, null); // Skip tracker
+          }
+        } catch (e) {
+          scriptContentMap.set(script, `/* Failed to resolve URL: ${src} */`);
+        }
+      } else {
+        const inlineText = script.textContent || '';
+        if (!TRACKER_REGEX.test(inlineText)) {
+          scriptContentMap.set(script, inlineText);
+        } else {
+          scriptContentMap.set(script, null); // Skip tracker
+        }
+      }
+    });
+
+    await Promise.race([
+      Promise.all(scriptPromises),
+      new Promise(resolve => setTimeout(resolve, 5000))
+    ]);
+  }
+
+  // 4. Extract asset URLs (images and fonts)
   const assetUrls = new Set();
 
   // From <img> tags
@@ -495,7 +561,7 @@ async function serializePageToSelfContainedHtml() {
     }
   }
 
-  // 3. Fetch assets in parallel and convert to Base64
+  // 5. Fetch assets in parallel and convert to Base64
   const assetMap = new Map();
   const assetPromises = Array.from(assetUrls).map(url => {
     return new Promise((resolve) => {
@@ -514,7 +580,7 @@ async function serializePageToSelfContainedHtml() {
     new Promise(resolve => setTimeout(resolve, 5000))
   ]);
 
-  // 4. Inline assets in CSS rules inside styleMap
+  // 6. Inline assets in CSS rules inside styleMap
   for (const [node, cssText] of styleMap.entries()) {
     const baseUrl = node.href || baseHref;
     const inlinedCss = cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
@@ -529,7 +595,7 @@ async function serializePageToSelfContainedHtml() {
     styleMap.set(node, inlinedCss);
   }
 
-  // 5. Serialize adoptedStyleSheets helper
+  // 7. Serialize adoptedStyleSheets helper
   function serializeAdoptedStyleSheets(container) {
     if (container && container.adoptedStyleSheets && container.adoptedStyleSheets.length > 0) {
       let cssText = '';
@@ -554,7 +620,185 @@ async function serializePageToSelfContainedHtml() {
     return '';
   }
 
-  // 6. Recursively serialize DOM including Shadow DOM
+  function generateMockInterceptorCode() {
+    return `
+(function() {
+  const apiCache = ${JSON.stringify(apiCache)};
+  
+  function matchUrl(reqUrl) {
+    try {
+      const parsedReq = new URL(reqUrl, window.location.href);
+      const reqPath = parsedReq.origin + parsedReq.pathname;
+      
+      for (const entry of apiCache) {
+        try {
+          const parsedCache = new URL(entry.url, window.location.href);
+          const cachePath = parsedCache.origin + parsedCache.pathname;
+          if (reqPath === cachePath) {
+            return entry;
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+    
+    for (const entry of apiCache) {
+      if (reqUrl.includes(entry.url) || entry.url.includes(reqUrl)) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  const originalFetch = window.fetch;
+  window.fetch = async function(input, init) {
+    let url = '';
+    let method = 'GET';
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else if (input && typeof input === 'object' && 'url' in input) {
+      url = input.url;
+      method = input.method || 'GET';
+    }
+    if (init && init.method) {
+      method = init.method;
+    }
+    
+    const matched = matchUrl(url);
+    if (matched) {
+      console.log('[Web2MD Mock Fetch] Intercepted:', url);
+      const responseText = matched.responseText || '';
+      return new Response(responseText, {
+        status: matched.status || 200,
+        statusText: matched.statusText || 'OK',
+        headers: new Headers(matched.responseHeaders || {})
+      });
+    }
+    
+    console.warn('[Web2MD Mock Fetch] Request not in cache, returning 404:', url);
+    return new Response('Not Found (Offline Mock)', { status: 404, statusText: 'Not Found' });
+  };
+
+  const originalXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = function() {
+    const xhr = new originalXHR();
+    let matchedEntry = null;
+    let requestMethod = 'GET';
+    let requestUrl = '';
+
+    const originalOpen = xhr.open;
+    xhr.open = function(method, url, ...rest) {
+      requestMethod = method.toUpperCase();
+      requestUrl = url;
+      matchedEntry = matchUrl(url);
+      return originalOpen.apply(this, [method, url, ...rest]);
+    };
+
+    Object.defineProperties(xhr, {
+      status: {
+        get: () => matchedEntry ? (matchedEntry.status || 200) : 404,
+        configurable: true
+      },
+      statusText: {
+        get: () => matchedEntry ? (matchedEntry.statusText || 'OK') : 'Not Found',
+        configurable: true
+      },
+      responseText: {
+        get: () => matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)',
+        configurable: true
+      },
+      response: {
+        get: () => {
+          const text = matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)';
+          if (xhr.responseType === 'json') {
+            try { return JSON.parse(text); } catch (e) { return null; }
+          }
+          return text;
+        },
+        configurable: true
+      },
+      readyState: {
+        get: () => 4,
+        configurable: true
+      },
+      getAllResponseHeaders: {
+        value: () => {
+          if (!matchedEntry || !matchedEntry.responseHeaders) return '';
+          return Object.entries(matchedEntry.responseHeaders)
+            .map(([k, v]) => \`\${k}: \${v}\`)
+            .join('\\r\\n');
+        },
+        configurable: true
+      },
+      getResponseHeader: {
+        value: (header) => {
+          if (!matchedEntry || !matchedEntry.responseHeaders) return null;
+          return matchedEntry.responseHeaders[header.toLowerCase()] || null;
+        },
+        configurable: true
+      }
+    });
+
+    const originalSend = xhr.send;
+    xhr.send = function(body) {
+      console.log('[Web2MD Mock XHR] Intercepted:', requestUrl);
+      setTimeout(() => {
+        if (xhr.onreadystatechange) xhr.onreadystatechange();
+        if (xhr.onload) xhr.onload();
+        xhr.dispatchEvent(new Event('load'));
+        xhr.dispatchEvent(new Event('readystatechange'));
+      }, 1);
+    };
+
+    return xhr;
+  };
+  window.XMLHttpRequest.prototype = originalXHR.prototype;
+  Object.keys(originalXHR).forEach(key => {
+    window.XMLHttpRequest[key] = originalXHR[key];
+  });
+
+  const originalWebSocket = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    console.log('[Web2MD Mock WebSocket] Blocked connection to:', url);
+    const self = this;
+    this.url = url;
+    this.readyState = 1;
+    this.send = function(data) {
+      console.log('[Web2MD Mock WebSocket] Sent data:', data);
+    };
+    this.close = function() {
+      self.readyState = 3;
+      if (self.onclose) self.onclose({ wasClean: true, code: 1000, reason: 'Offline Mode' });
+    };
+    setTimeout(() => {
+      if (self.onopen) self.onopen();
+    }, 1);
+  };
+  window.WebSocket.prototype = originalWebSocket.prototype;
+  window.WebSocket.CONNECTING = 0;
+  window.WebSocket.OPEN = 1;
+  window.WebSocket.CLOSING = 2;
+  window.WebSocket.CLOSED = 3;
+
+  const originalEventSource = window.EventSource;
+  window.EventSource = function(url, configuration) {
+    console.log('[Web2MD Mock EventSource] Blocked connection to:', url);
+    this.url = url;
+    this.readyState = 1;
+    this.close = function() {
+      this.readyState = 2;
+    };
+  };
+  window.EventSource.prototype = originalEventSource.prototype;
+  window.EventSource.CONNECTING = 0;
+  window.EventSource.OPEN = 1;
+  window.EventSource.CLOSED = 2;
+})();
+`;
+  }
+
+  // 8. Recursively serialize DOM including Shadow DOM
   function serializeNode(node) {
     if (node.nodeType === Node.TEXT_NODE) {
       return escapeHtml(node.textContent);
@@ -568,8 +812,17 @@ async function serializePageToSelfContainedHtml() {
 
     const tagName = node.tagName.toLowerCase();
 
-    // Ignore script tags
+    // Ignore or inline script tags
     if (tagName === 'script') {
+      if (preserveJs) {
+        if (scriptContentMap.has(node)) {
+          const content = scriptContentMap.get(node);
+          if (content === null) {
+            return '';
+          }
+          return `<script>${content}</script>`;
+        }
+      }
       return '';
     }
 
@@ -692,9 +945,12 @@ async function serializePageToSelfContainedHtml() {
       html += '</template>';
     }
 
-    // Insert document adoptedStyleSheets under the head tag
+    // Insert document adoptedStyleSheets and Mock Interceptor DB under the head tag
     if (tagName === 'head') {
       html += serializeAdoptedStyleSheets(document);
+      if (preserveJs) {
+        html += `<script id="web2md-api-mock-db">${generateMockInterceptorCode()}</script>`;
+      }
     }
 
     // Serialize child nodes or text area dynamic value

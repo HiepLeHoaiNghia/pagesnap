@@ -128,6 +128,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
+  } else if (message.action === "fetchExternalScript") {
+    fetch(message.url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then(text => sendResponse({ success: true, text }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
   }
   return true;
 });

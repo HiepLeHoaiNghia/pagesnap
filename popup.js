@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkImages = document.getElementById('setting-images');
   const checkLinks = document.getElementById('setting-links');
   const checkObsidian = document.getElementById('setting-obsidian');
+  const checkPreserveJs = document.getElementById('setting-preserve-js');
 
   // State Variables
   let extractedData = null;
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     includeImages: true,
     includeLinks: true,
     obsidianMode: false,
+    preserveJs: false,
     headingStyle: 'atx',
     bulletStyle: '-',
     codeBlockStyle: 'fenced'
@@ -188,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Save settings on checkbox changes and re-convert
-  [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian].forEach(checkbox => {
+  [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian, checkPreserveJs].forEach(checkbox => {
     if (checkbox) {
       checkbox.addEventListener('change', () => {
         saveSettings().then((newSettings) => {
@@ -219,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
       includeImages: checkImages ? checkImages.checked : true,
       includeLinks: checkLinks ? checkLinks.checked : true,
       obsidianMode: checkObsidian ? checkObsidian.checked : false,
+      preserveJs: checkPreserveJs ? checkPreserveJs.checked : false,
       headingStyle: 'atx',
       bulletStyle: '-',
       codeBlockStyle: 'fenced'
@@ -236,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkImages) checkImages.checked = settings.includeImages;
     if (checkLinks) checkLinks.checked = settings.includeLinks;
     if (checkObsidian) checkObsidian.checked = settings.obsidianMode;
+    if (checkPreserveJs) checkPreserveJs.checked = settings.preserveJs || false;
   }
 
   /**
@@ -321,18 +325,23 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               
               // Request page clone HTML
-              chrome.tabs.sendMessage(activeTab.id, { action: "clonePage" }, { frameId: targetFrameId }, (cloneResponse) => {
-                if (cloneResponse && cloneResponse.success) {
-                  currentHtml = cloneResponse.html;
-                  if (htmlPreviewFrame) {
-                    htmlPreviewFrame.srcdoc = currentHtml;
+              loadSettings().then((settings) => {
+                chrome.tabs.sendMessage(activeTab.id, { action: "clonePage", preserveJs: settings.preserveJs }, { frameId: targetFrameId }, (cloneResponse) => {
+                  if (cloneResponse && cloneResponse.success) {
+                    currentHtml = cloneResponse.html;
+                    if (htmlPreviewFrame) {
+                      if (settings.preserveJs) {
+                        htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                      } else {
+                        htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                      }
+                      htmlPreviewFrame.srcdoc = currentHtml;
+                    }
+                  } else {
+                    console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
+                    currentHtml = "<!-- HTML cloning failed -->";
                   }
-                } else {
-                  console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-                  currentHtml = "<!-- HTML cloning failed -->";
-                }
-                
-                loadSettings().then((settings) => {
+                  
                   processAndDisplayMarkdown(extractedData, settings);
                 });
               });
@@ -396,17 +405,22 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               
               // Request HTML cloning on retry
-              chrome.tabs.sendMessage(tabId, { action: "clonePage" }, { frameId: frameId }, (cloneResponse) => {
-                if (cloneResponse && cloneResponse.success) {
-                  currentHtml = cloneResponse.html;
-                  if (htmlPreviewFrame) {
-                    htmlPreviewFrame.srcdoc = currentHtml;
+              loadSettings().then((settings) => {
+                chrome.tabs.sendMessage(tabId, { action: "clonePage", preserveJs: settings.preserveJs }, { frameId: frameId }, (cloneResponse) => {
+                  if (cloneResponse && cloneResponse.success) {
+                    currentHtml = cloneResponse.html;
+                    if (htmlPreviewFrame) {
+                      if (settings.preserveJs) {
+                        htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                      } else {
+                        htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                      }
+                      htmlPreviewFrame.srcdoc = currentHtml;
+                    }
+                  } else {
+                    currentHtml = "<!-- HTML cloning failed -->";
                   }
-                } else {
-                  currentHtml = "<!-- HTML cloning failed -->";
-                }
-                
-                loadSettings().then((settings) => {
+                  
                   processAndDisplayMarkdown(extractedData, settings);
                 });
               });

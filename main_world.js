@@ -204,26 +204,190 @@
     return null;
   };
 
-  // Listen to scan request from Content Script
-  window.addEventListener('message', (event) => {
-    if (event.source === window && event.data && event.data.type === 'WEB2MD_REQUEST_VFS_SCAN') {
-      const vfs = scanDOMForVFS();
-      let files = [];
-      if (vfs) {
-        if (Array.isArray(vfs)) {
-          files = vfs.map(f => ({
-            path: f.path || f.name || '',
-            content: f.content || f.text || f.source || ''
-          }));
+  // Intercept Fetch and XHR calls to sniff API endpoints and payloads
+  const apiCalls = [];
+  window.__web2md_api_calls = apiCalls;
+
+  // Intercept Fetch
+  const originalFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const input = args[0];
+    const init = args[1];
+    let url = '';
+    let method = 'GET';
+    let headers = {};
+    let body = null;
+
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else if (input && typeof input === 'object' && 'url' in input) {
+      url = input.url;
+      method = input.method || 'GET';
+      headers = input.headers || {};
+    }
+
+    if (init) {
+      if (init.method) method = init.method;
+      if (init.headers) headers = init.headers;
+      if (init.body) body = init.body;
+    }
+
+    // Format request body if possible
+    let reqBodyStr = null;
+    if (body) {
+      if (typeof body === 'string') {
+        reqBodyStr = body;
+      } else if (body instanceof URLSearchParams) {
+        reqBodyStr = body.toString();
+      } else if (body instanceof FormData) {
+        try {
+          const obj = {};
+          body.forEach((value, key) => { obj[key] = value; });
+          reqBodyStr = JSON.stringify(obj);
+        } catch (e) {}
+      } else {
+        try {
+          reqBodyStr = JSON.stringify(body);
+        } catch (e) {}
+      }
+    }
+
+    const callLog = {
+      type: 'fetch',
+      url: url,
+      method: method.toUpperCase(),
+      requestHeaders: headers,
+      requestBody: reqBodyStr,
+      timestamp: Date.now()
+    };
+
+    try {
+      const response = await originalFetch.apply(this, args);
+      const clonedResponse = response.clone();
+      callLog.status = clonedResponse.status;
+      callLog.statusText = clonedResponse.statusText;
+
+      const responseHeaders = {};
+      clonedResponse.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      callLog.responseHeaders = responseHeaders;
+
+      try {
+        const text = await clonedResponse.text();
+        callLog.responseText = text;
+      } catch (e) {
+        callLog.responseText = '';
+      }
+      apiCalls.push(callLog);
+      return response;
+    } catch (error) {
+      callLog.error = error.message;
+      apiCalls.push(callLog);
+      throw error;
+    }
+  };
+
+  // Intercept XHR
+  const originalXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = function() {
+    const xhr = new originalXHR();
+    const callLog = {
+      type: 'xhr',
+      method: 'GET',
+      url: '',
+      requestHeaders: {},
+      requestBody: null,
+      timestamp: Date.now()
+    };
+
+    const originalOpen = xhr.open;
+    xhr.open = function(method, url, ...rest) {
+      callLog.method = method.toUpperCase();
+      callLog.url = url;
+      return originalOpen.apply(this, [method, url, ...rest]);
+    };
+
+    const originalSetRequestHeader = xhr.setRequestHeader;
+    xhr.setRequestHeader = function(header, value) {
+      callLog.requestHeaders[header] = value;
+      return originalSetRequestHeader.apply(this, [header, value]);
+    };
+
+    const originalSend = xhr.send;
+    xhr.send = function(body) {
+      if (body) {
+        if (typeof body === 'string') {
+          callLog.requestBody = body;
         } else {
-          Object.keys(vfs).forEach(path => {
-            const val = vfs[path];
-            const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
-            files.push({ path, content });
-          });
+          try {
+            callLog.requestBody = JSON.stringify(body);
+          } catch (e) {}
         }
       }
-      window.postMessage({ type: 'WEB2MD_VFS_RESPONSE', files: files }, '*');
+      
+      xhr.addEventListener('readystatechange', () => {
+        if (xhr.readyState === 4) {
+          callLog.status = xhr.status;
+          callLog.statusText = xhr.statusText;
+          
+          const responseHeaders = {};
+          const headersStr = xhr.getAllResponseHeaders();
+          if (headersStr) {
+            headersStr.split('\r\n').forEach(line => {
+              const parts = line.split(': ');
+              if (parts.length >= 2) {
+                responseHeaders[parts[0].toLowerCase()] = parts.slice(1).join(': ');
+              }
+            });
+          }
+          callLog.responseHeaders = responseHeaders;
+          
+          try {
+            callLog.responseText = xhr.responseText;
+          } catch (e) {
+            callLog.responseText = '';
+          }
+          apiCalls.push(callLog);
+        }
+      });
+
+      return originalSend.apply(this, [body]);
+    };
+
+    return xhr;
+  };
+  window.XMLHttpRequest.prototype = originalXHR.prototype;
+  Object.keys(originalXHR).forEach(key => {
+    window.XMLHttpRequest[key] = originalXHR[key];
+  });
+
+  // Listen to scan request and API call request from Content Script
+  window.addEventListener('message', (event) => {
+    if (event.source === window && event.data) {
+      if (event.data.type === 'WEB2MD_REQUEST_VFS_SCAN') {
+        const vfs = scanDOMForVFS();
+        let files = [];
+        if (vfs) {
+          if (Array.isArray(vfs)) {
+            files = vfs.map(f => ({
+              path: f.path || f.name || '',
+              content: f.content || f.text || f.source || ''
+            }));
+          } else {
+            Object.keys(vfs).forEach(path => {
+              const val = vfs[path];
+              const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
+              files.push({ path, content });
+            });
+          }
+        }
+        window.postMessage({ type: 'WEB2MD_VFS_RESPONSE', files: files }, '*');
+      } else if (event.data.type === 'WEB2MD_REQUEST_API_CALLS') {
+        window.postMessage({ type: 'WEB2MD_API_CALLS_RESPONSE', apiCalls: apiCalls }, '*');
+      }
     }
   });
 })();
