@@ -126,19 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .substring(0, 50) || 'webpage';
 
       const filename = `${sanitizedTitle}.md`;
-      const blob = new Blob([currentMarkdown], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 0);
+      downloadFile(currentMarkdown, filename);
     });
   }
 
@@ -519,23 +507,42 @@ document.addEventListener('DOMContentLoaded', () => {
       markdown += `---\n\n`;
     });
 
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
     const sanitizedTitle = (appTitle || 'project')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
       .substring(0, 50) || 'project';
-    a.href = url;
-    a.download = `${sanitizedTitle}-all-files.md`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+    const filename = `${sanitizedTitle}-all-files.md`;
+    downloadFile(markdown, filename);
+  }
+
+  /**
+   * Helper to download file using chrome.downloads if available, falling back to <a> link
+   */
+  function downloadFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    if (typeof chrome !== 'undefined' && chrome.downloads) {
+      chrome.downloads.download({
+        url: url,
+        filename: filename,
+        saveAs: true
+      }, () => {
+        URL.revokeObjectURL(url);
+      });
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 0);
+    }
   }
 
   /**
