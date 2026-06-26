@@ -55,6 +55,7 @@ body {
   font-size: 20px;
   background: var(--accent-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -67,6 +68,7 @@ body {
 .logo-text .highlight {
   background: var(--accent-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -144,10 +146,58 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
-.preview-title {
+.tabs-header {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+  background: var(--accent-gradient);
+}
+
+.preview-viewport {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+#html-preview-wrapper {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+#html-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .mode-badge {

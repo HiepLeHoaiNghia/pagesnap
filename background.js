@@ -83,7 +83,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   delete tabProjects[tabId];
 });
 
-// Handle registration and query of project files
+// Handle registration, query of project files, and CORS fetching for HTML cloning
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "registerProject" && sender.tab) {
     tabProjects[sender.tab.id] = {
@@ -102,6 +102,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       sendResponse({ hasProject: false });
     }
+  } else if (message.action === "fetchExternalStyleSheet") {
+    fetch(message.url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then(text => sendResponse({ success: true, text }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
+  } else if (message.action === "fetchAssetAsBase64") {
+    fetch(message.url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const contentType = response.headers.get("content-type") || "application/octet-stream";
+        return response.arrayBuffer().then(buffer => ({ buffer, contentType }));
+      })
+      .then(({ buffer, contentType }) => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode.apply(null, chunk);
+        }
+        const base64 = btoa(binary);
+        const dataUrl = `data:${contentType};base64,${base64}`;
+        sendResponse({ success: true, dataUrl });
+      })
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
   }
   return true;
 });

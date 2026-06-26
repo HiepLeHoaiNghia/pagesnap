@@ -46,10 +46,18 @@
       <!-- Preview Box -->
       <div class="preview-container">
         <div class="preview-header">
-          <span class="preview-title">Markdown Preview</span>
+          <div class="tabs-header">
+            <button id="tab-md" class="tab-btn active">Markdown</button>
+            <button id="tab-html" class="tab-btn">HTML Clone</button>
+          </div>
           <span id="preview-mode" class="mode-badge">Local Extraction</span>
         </div>
-        <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
+        <div class="preview-viewport">
+          <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
+          <div id="html-preview-wrapper" class="hidden">
+            <iframe id="html-preview-frame" sandbox="allow-same-origin"></iframe>
+          </div>
+        </div>
       </div>
 
       <!-- Actions Footer -->

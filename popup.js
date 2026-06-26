@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const tokenCountEl = document.getElementById('token-count');
   const previewModeEl = document.getElementById('preview-mode');
   
+  // Tab elements
+  const tabMd = document.getElementById('tab-md');
+  const tabHtml = document.getElementById('tab-html');
+  const htmlPreviewWrapper = document.getElementById('html-preview-wrapper');
+  const htmlPreviewFrame = document.getElementById('html-preview-frame');
+  
   // Project Banner Elements
   const projectBanner = document.getElementById('project-banner');
   const projectBannerText = document.getElementById('project-banner-text');
@@ -31,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // State Variables
   let extractedData = null;
   let currentMarkdown = '';
+  let currentHtml = '';
+  let activePreviewTab = 'markdown';
 
   // Default Settings
   const defaultSettings = {
@@ -95,11 +103,40 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnExtract) {
     btnExtract.addEventListener('click', autoExtractPage);
   }
+
+  if (tabMd && tabHtml) {
+    tabMd.addEventListener('click', () => {
+      activePreviewTab = 'markdown';
+      tabMd.classList.add('active');
+      tabHtml.classList.remove('active');
+      if (markdownPreview) markdownPreview.classList.remove('hidden');
+      if (htmlPreviewWrapper) htmlPreviewWrapper.classList.add('hidden');
+      updateStats();
+    });
+
+    tabHtml.addEventListener('click', () => {
+      activePreviewTab = 'html';
+      tabHtml.classList.add('active');
+      tabMd.classList.remove('active');
+      if (markdownPreview) markdownPreview.classList.add('hidden');
+      if (htmlPreviewWrapper) htmlPreviewWrapper.classList.remove('hidden');
+      updateStats();
+    });
+  }
+
+  function updateStats() {
+    const text = activePreviewTab === 'markdown' ? currentMarkdown : currentHtml;
+    const charCount = text ? text.length : 0;
+    const estTokens = Math.ceil(charCount / 4);
+    charCountEl.innerText = charCount.toLocaleString();
+    tokenCountEl.innerText = estTokens.toLocaleString();
+  }
   
   if (btnCopy) {
     btnCopy.addEventListener('click', () => {
-      if (!currentMarkdown) return;
-      navigator.clipboard.writeText(currentMarkdown).then(() => {
+      const textToCopy = activePreviewTab === 'markdown' ? currentMarkdown : currentHtml;
+      if (!textToCopy) return;
+      navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = btnCopy.innerText;
         btnCopy.innerText = 'Copied! ✓';
         btnCopy.classList.add('success-flash');
@@ -115,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnDownload) {
     btnDownload.addEventListener('click', () => {
-      if (!currentMarkdown || !extractedData) return;
+      if (!extractedData) return;
       
       // Sanitize title for filename
       const sanitizedTitle = extractedData.title
@@ -125,8 +162,15 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'webpage';
 
-      const filename = `${sanitizedTitle}.md`;
-      downloadFile(currentMarkdown, filename);
+      if (activePreviewTab === 'markdown') {
+        if (!currentMarkdown) return;
+        const filename = `${sanitizedTitle}.md`;
+        downloadFile(currentMarkdown, filename);
+      } else {
+        if (!currentHtml) return;
+        const filename = `${sanitizedTitle}.html`;
+        downloadFile(currentHtml, filename, 'text/html;charset=utf-8');
+      }
     });
   }
 
@@ -237,8 +281,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cachedProjectFiles) {
               extractedData.projectFiles = cachedProjectFiles;
             }
-            loadSettings().then((settings) => {
-              processAndDisplayMarkdown(extractedData, settings);
+            
+            // Request page clone HTML
+            chrome.tabs.sendMessage(activeTab.id, { action: "clonePage" }, { frameId: 0 }, (cloneResponse) => {
+              if (cloneResponse && cloneResponse.success) {
+                currentHtml = cloneResponse.html;
+                if (htmlPreviewFrame) {
+                  htmlPreviewFrame.srcdoc = currentHtml;
+                }
+              } else {
+                console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
+                currentHtml = "<!-- HTML cloning failed -->";
+              }
+              
+              loadSettings().then((settings) => {
+                processAndDisplayMarkdown(extractedData, settings);
+              });
             });
           } else {
             showError(response ? response.error : "Failed to extract clean HTML content.");
@@ -297,8 +355,21 @@ document.addEventListener('DOMContentLoaded', () => {
               if (cachedProjectFiles) {
                 extractedData.projectFiles = cachedProjectFiles;
               }
-              loadSettings().then((settings) => {
-                processAndDisplayMarkdown(extractedData, settings);
+              
+              // Request HTML cloning on retry
+              chrome.tabs.sendMessage(tabId, { action: "clonePage" }, { frameId: 0 }, (cloneResponse) => {
+                if (cloneResponse && cloneResponse.success) {
+                  currentHtml = cloneResponse.html;
+                  if (htmlPreviewFrame) {
+                    htmlPreviewFrame.srcdoc = currentHtml;
+                  }
+                } else {
+                  currentHtml = "<!-- HTML cloning failed -->";
+                }
+                
+                loadSettings().then((settings) => {
+                  processAndDisplayMarkdown(extractedData, settings);
+                });
               });
             } else {
               showError(response ? response.error : "Fallback injection extraction failed.");
@@ -438,11 +509,8 @@ document.addEventListener('DOMContentLoaded', () => {
       currentMarkdown = markdown;
       markdownPreview.value = currentMarkdown;
       
-      // Update stats counts
-      const charCount = currentMarkdown.length;
-      const estTokens = Math.ceil(charCount / 4);
-      charCountEl.innerText = charCount.toLocaleString();
-      tokenCountEl.innerText = estTokens.toLocaleString();
+      // Update stats counts using current tab state
+      updateStats();
 
       const isRawMode = settings.rawMode;
       previewModeEl.innerText = isRawMode ? "Full Page Mode" : (data.readabilitySuccess ? "Article Mode" : "Raw Fallback");
@@ -520,8 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Helper to download file using chrome.downloads if available, falling back to <a> link
    */
-  function downloadFile(content, filename) {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
 
     if (typeof chrome !== 'undefined' && chrome.downloads) {
