@@ -376,15 +376,6 @@ async function serializePageToSelfContainedHtml() {
   const styleMap = new Map();
   const stylesheetPromises = [];
 
-  function getRulesFromSheet(sheet) {
-    try {
-      if (sheet.cssRules) {
-        return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
-      }
-    } catch (e) {}
-    return null;
-  }
-
   // Helper to resolve CSS relative urls
   function resolveCssUrls(cssText, baseUrl) {
     return cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
@@ -400,30 +391,80 @@ async function serializePageToSelfContainedHtml() {
     });
   }
 
+  async function resolveStyleSheetRules(sheet, baseUrl) {
+    let rulesText = '';
+    try {
+      if (sheet && sheet.cssRules) {
+        for (let i = 0; i < sheet.cssRules.length; i++) {
+          const rule = sheet.cssRules[i];
+          if (rule.type === 3 && rule.styleSheet) { // CSSRule.IMPORT_RULE
+            const importHref = rule.href || rule.styleSheet.href;
+            if (importHref) {
+              const absImportHref = new URL(importHref, baseUrl).href;
+              let importedCss = '';
+              try {
+                importedCss = await resolveStyleSheetRules(rule.styleSheet, absImportHref);
+              } catch (e) {
+                // If same-origin access failed, fetch via background
+                importedCss = await new Promise((resolve) => {
+                  chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url: absImportHref }, (response) => {
+                    if (response && response.success) {
+                      resolve(response.text);
+                    } else {
+                      resolve(`/* Failed to load @import from ${absImportHref} */`);
+                    }
+                  });
+                });
+              }
+              if (rule.media && rule.media.mediaText) {
+                rulesText += `@media ${rule.media.mediaText} {\n${importedCss}\n}\n`;
+              } else {
+                rulesText += importedCss + '\n';
+              }
+            }
+          } else {
+            rulesText += rule.cssText + '\n';
+          }
+        }
+        return resolveCssUrls(rulesText, baseUrl);
+      }
+    } catch (e) {
+      throw e;
+    }
+    return '';
+  }
+
   // 1. Map each stylesheet created by an ownerNode to its resolved rules
   for (let i = 0; i < document.styleSheets.length; i++) {
     const sheet = document.styleSheets[i];
     const ownerNode = sheet.ownerNode;
     if (!ownerNode) continue;
 
-    const localRules = getRulesFromSheet(sheet);
-    if (localRules !== null) {
-      styleMap.set(ownerNode, resolveCssUrls(localRules, sheet.href || baseHref));
-    } else if (sheet.href) {
-      const url = sheet.href;
-      stylesheetPromises.push(
-        new Promise((resolve) => {
-          chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url }, (response) => {
-            if (response && response.success) {
-              styleMap.set(ownerNode, resolveCssUrls(response.text, url));
-            } else {
-              styleMap.set(ownerNode, `/* Failed to load styles from ${url} */`);
-            }
-            resolve();
-          });
-        })
-      );
-    }
+    const href = sheet.href || baseHref;
+    stylesheetPromises.push(
+      (async () => {
+        try {
+          const resolvedRules = await resolveStyleSheetRules(sheet, href);
+          styleMap.set(ownerNode, resolvedRules);
+        } catch (e) {
+          if (sheet.href) {
+            const url = sheet.href;
+            await new Promise((resolve) => {
+              chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url }, (response) => {
+                if (response && response.success) {
+                  styleMap.set(ownerNode, resolveCssUrls(response.text, url));
+                } else {
+                  styleMap.set(ownerNode, `/* Failed to load styles from ${url} */`);
+                }
+                resolve();
+              });
+            });
+          } else {
+            styleMap.set(ownerNode, `/* Failed to access local stylesheet rules */`);
+          }
+        }
+      })()
+    );
   }
 
   await Promise.all(stylesheetPromises);

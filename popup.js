@@ -629,20 +629,19 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
     const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
 
     if (typeof chrome !== 'undefined' && chrome.downloads) {
-      chrome.downloads.download({
-        url: url,
-        filename: filename,
-        saveAs: true
-      }, () => {
-        // Delay URL revocation to allow Save As dialog directory choice to complete
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-        }, 10000);
-      });
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.downloads.download({
+          url: e.target.result,
+          filename: filename,
+          saveAs: true
+        });
+      };
+      reader.readAsDataURL(blob);
     } else {
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
