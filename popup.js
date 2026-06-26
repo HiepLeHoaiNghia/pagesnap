@@ -86,10 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // 1. Initial Load: load settings and extract content
+  // 1. Initial Load: load settings
   loadSettings().then((settings) => {
     updateSettingsUI(settings);
-    autoExtractPage();
   });
 
   // 2. Event Listeners
@@ -458,13 +457,13 @@ document.addEventListener('DOMContentLoaded', () => {
       tokenCountEl.innerText = estTokens.toLocaleString();
 
       const isRawMode = settings.rawMode;
-      previewModeEl.innerText = isRawMode ? "Full Page Mode" : (data.success ? "Article Mode" : "Raw Fallback");
+      previewModeEl.innerText = isRawMode ? "Full Page Mode" : (data.readabilitySuccess ? "Article Mode" : "Raw Fallback");
       previewModeEl.style.backgroundColor = isRawMode 
         ? "rgba(139, 92, 246, 0.15)"
-        : (data.success ? "var(--bg-tertiary)" : "rgba(239, 68, 68, 0.1)");
+        : (data.readabilitySuccess ? "var(--bg-tertiary)" : "rgba(239, 68, 68, 0.1)");
       previewModeEl.style.color = isRawMode 
         ? "#a78bfa"
-        : (data.success ? "var(--accent-blue)" : "#ef4444");
+        : (data.readabilitySuccess ? "var(--accent-blue)" : "#ef4444");
 
       // Enable action buttons
       btnCopy.disabled = false;
@@ -543,7 +542,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * Helper to display extraction/processing error in UI
    */
   function showError(msg) {
-    markdownPreview.value = `Error: ${msg}\n\nMake sure you are on a standard web page and the page has finished loading. Extension does not run on chrome:// internal pages.`;
+    const errorMsg = msg || "Failed to extract clean HTML content.";
+    markdownPreview.value = `Error: ${errorMsg}\n\nMake sure you are on a standard web page and the page has finished loading. Extension does not run on chrome:// internal pages.`;
     charCountEl.innerText = '0';
     tokenCountEl.innerText = '0';
     btnCopy.disabled = true;

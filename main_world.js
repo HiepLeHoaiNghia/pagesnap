@@ -1,8 +1,11 @@
 (function() {
-  function findVFS(obj, depth = 0, visited = new Set()) {
+  function findVFS(obj, depth = 0, visited = new Map()) {
     if (depth > 12) return null;
-    if (!obj || typeof obj !== 'object' || visited.has(obj)) return null;
-    visited.add(obj);
+    if (!obj || typeof obj !== 'object') return null;
+
+    const prevDepth = visited.get(obj);
+    if (prevDepth !== undefined && prevDepth <= depth) return null;
+    visited.set(obj, depth);
 
     // Support Map objects
     if (obj instanceof Map) {
@@ -139,6 +142,7 @@
 
   function scanDOMForVFS() {
     const candidates = [];
+    const globalVisited = new Map();
 
     // Helper to evaluate and track a VFS candidate
     function trackCandidate(obj) {
@@ -154,7 +158,7 @@
     for (const k of windowKeys) {
       if (k !== 'window' && k !== 'self' && k !== 'top' && k !== 'parent' && k !== 'frames' && k !== 'globalThis') {
         try {
-          const vfs = findVFS(window[k], 0);
+          const vfs = findVFS(window[k], 0, globalVisited);
           if (vfs) trackCandidate(vfs);
         } catch (e) {}
       }
@@ -169,11 +173,11 @@
         let curr = fiber;
         while (curr) {
           if (curr.memoizedProps) {
-            const vfs = findVFS(curr.memoizedProps, 0);
+            const vfs = findVFS(curr.memoizedProps, 0, globalVisited);
             if (vfs) trackCandidate(vfs);
           }
           if (curr.memoizedState) {
-            const vfs = findVFS(curr.memoizedState, 0);
+            const vfs = findVFS(curr.memoizedState, 0, globalVisited);
             if (vfs) trackCandidate(vfs);
           }
           curr = curr.return;
@@ -200,34 +204,26 @@
     return null;
   };
 
-  // Periodically scan for VFS and send to content script
-  let lastFilesStr = '';
-  function performScan() {
-    const vfs = scanDOMForVFS();
-    if (!vfs) return;
-
-    let files = [];
-    if (Array.isArray(vfs)) {
-      files = vfs.map(f => ({
-        path: f.path || f.name || '',
-        content: f.content || f.text || f.source || ''
-      }));
-    } else {
-      Object.keys(vfs).forEach(path => {
-        const val = vfs[path];
-        const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
-        files.push({ path, content });
-      });
+  // Listen to scan request from Content Script
+  window.addEventListener('message', (event) => {
+    if (event.source === window && event.data && event.data.type === 'WEB2MD_REQUEST_VFS_SCAN') {
+      const vfs = scanDOMForVFS();
+      let files = [];
+      if (vfs) {
+        if (Array.isArray(vfs)) {
+          files = vfs.map(f => ({
+            path: f.path || f.name || '',
+            content: f.content || f.text || f.source || ''
+          }));
+        } else {
+          Object.keys(vfs).forEach(path => {
+            const val = vfs[path];
+            const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
+            files.push({ path, content });
+          });
+        }
+      }
+      window.postMessage({ type: 'WEB2MD_VFS_RESPONSE', files: files }, '*');
     }
-
-    const filesStr = JSON.stringify(files);
-    if (filesStr !== lastFilesStr) {
-      lastFilesStr = filesStr;
-      console.log(`[Web2MD] Project VFS loaded: ${files.length} files found.`);
-      window.postMessage({ type: 'WEB2MD_VFS_EXTRACTED', files: files }, '*');
-    }
-  }
-
-  setInterval(performScan, 1500);
-  performScan();
+  });
 })();

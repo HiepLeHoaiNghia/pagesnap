@@ -20,9 +20,47 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("Web2MD extension context menus registered.");
 });
 
+// Helper to dynamically inject content scripts if not pre-loaded
+async function ensureScriptsInjected(tabId) {
+  try {
+    // Check if the script is already loaded by pinging it
+    await chrome.tabs.sendMessage(tabId, { action: "ping" });
+    return true;
+  } catch (err) {
+    // Inject main world script first (catch but continue if blocked by CSP / rules)
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId, allFrames: true },
+        files: ["main_world.js"],
+        world: "MAIN"
+      });
+    } catch (e) {
+      console.warn("Dynamic main world injection warning from background: ", e);
+    }
+
+    // Inject regular scripts
+    try {
+      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
+      for (const script of scripts) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId, allFrames: true },
+          files: [script]
+        });
+      }
+      return true;
+    } catch (e) {
+      console.error("Script injection failed from background: ", e);
+      return false;
+    }
+  }
+}
+
 // Listen for context menu click events
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) return;
+
+  const injected = await ensureScriptsInjected(tab.id);
+  if (!injected) return;
 
   if (info.menuItemId === "web2md-selection") {
     chrome.tabs.sendMessage(tab.id, {

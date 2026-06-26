@@ -15,21 +15,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"],
-      "all_frames": true,
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["main_world.js"],
-      "world": "MAIN",
-      "all_frames": true,
-      "run_at": "document_start"
-    }
-  ],
+
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",

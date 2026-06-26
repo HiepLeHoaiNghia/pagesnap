@@ -5,13 +5,10 @@
 
 // Listen for messages from popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "extractContent") {
-    try {
-      const result = extractPageContent();
-      sendResponse(result);
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
-    }
+  if (request.action === "ping") {
+    sendResponse({ success: true });
+  } else if (request.action === "extractContent") {
+    handleExtractContentRequest(sendResponse);
   } else if (request.action === "convertSelection") {
     handleSelectionConversion();
   } else if (request.action === "convertPage") {
@@ -21,9 +18,50 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
+ * Handles extracting page content asynchronously, asking the main world to scan VFS first.
+ */
+function handleExtractContentRequest(sendResponse) {
+  let responded = false;
+  
+  const onMainWorldMessage = (event) => {
+    if (event.source === window && event.data && event.data.type === 'WEB2MD_VFS_RESPONSE') {
+      if (responded) return;
+      responded = true;
+      window.removeEventListener('message', onMainWorldMessage);
+      
+      try {
+        const result = extractPageContent(event.data.files);
+        sendResponse(result);
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    }
+  };
+  
+  window.addEventListener('message', onMainWorldMessage);
+  
+  // Post the message to trigger scanning in the main world
+  window.postMessage({ type: 'WEB2MD_REQUEST_VFS_SCAN' }, '*');
+  
+  // Timeout in case main_world.js is not loaded or doesn't respond
+  setTimeout(() => {
+    if (responded) return;
+    responded = true;
+    window.removeEventListener('message', onMainWorldMessage);
+    
+    try {
+      const result = extractPageContent(null);
+      sendResponse(result);
+    } catch (error) {
+      sendResponse({ success: false, error: error.message });
+    }
+  }, 500);
+}
+
+/**
  * Extracts clean article content using Mozilla Readability
  */
-function extractPageContent() {
+function extractPageContent(projectFiles = null) {
   // Clone DOM to prevent affecting the active page
   const docClone = document.cloneNode(true);
   
@@ -40,17 +78,19 @@ function extractPageContent() {
 
   const pageTitle = document.title || "Untitled Page";
   const pageUrl = window.location.href;
+  const hasBody = document.body ? true : false;
 
   return {
     title: article ? (article.title || pageTitle) : pageTitle,
-    content: article ? article.content : document.body.innerHTML, // Clean article content
-    rawContent: document.body.innerHTML, // Full raw body HTML
+    content: article ? article.content : (document.body ? document.body.innerHTML : ""), // Clean article content
+    rawContent: document.body ? document.body.innerHTML : "", // Full raw body HTML
     url: pageUrl,
     excerpt: article ? (article.excerpt || "") : "",
     byline: article ? (article.byline || "") : "",
     siteName: article ? (article.siteName || new URL(pageUrl).hostname) : new URL(pageUrl).hostname,
-    success: article ? true : false,
-    projectFiles: window.extractedProjectFiles || null
+    success: hasBody,
+    readabilitySuccess: article ? true : false,
+    projectFiles: projectFiles || window.extractedProjectFiles || null
   };
 }
 
