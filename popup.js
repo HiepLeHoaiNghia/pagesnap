@@ -235,8 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
           cachedProjectFiles = projResponse.projectFiles;
         }
 
-        // Send extraction request to content.js
-        chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, (response) => {
+        // Send extraction request to content.js (target top-level frame only)
+        chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: 0 }, (response) => {
           // Handle runtime error (e.g. content script not loaded yet)
           if (chrome.runtime.lastError) {
             console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
@@ -269,10 +269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inject scripts sequentially
     let p = Promise.resolve();
     
-    // Inject main world script first
+    // Inject main world script first to top-level frame only
     p = p.then(() => {
       return chrome.scripting.executeScript({
-        target: { tabId: tabId, allFrames: true },
+        target: { tabId: tabId, frameIds: [0] },
         files: ["main_world.js"],
         world: "MAIN"
       });
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scripts.forEach(script => {
       p = p.then(() => {
         return chrome.scripting.executeScript({
-          target: { tabId: tabId, allFrames: true },
+          target: { tabId: tabId, frameIds: [0] },
           files: [script]
         });
       });
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cachedProjectFiles = projResponse.projectFiles;
           }
 
-          chrome.tabs.sendMessage(tabId, { action: "extractContent" }, (response) => {
+          chrome.tabs.sendMessage(tabId, { action: "extractContent" }, { frameId: 0 }, (response) => {
             if (chrome.runtime.lastError) {
               showError("Could not connect to page. Refresh the page and try again.");
               return;

@@ -21,16 +21,16 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Helper to dynamically inject content scripts if not pre-loaded
-async function ensureScriptsInjected(tabId) {
+async function ensureScriptsInjected(tabId, frameId = 0) {
   try {
     // Check if the script is already loaded by pinging it
-    await chrome.tabs.sendMessage(tabId, { action: "ping" });
+    await chrome.tabs.sendMessage(tabId, { action: "ping" }, { frameId });
     return true;
   } catch (err) {
     // Inject main world script first (catch but continue if blocked by CSP / rules)
     try {
       await chrome.scripting.executeScript({
-        target: { tabId: tabId, allFrames: true },
+        target: { tabId: tabId, frameIds: [frameId] },
         files: ["main_world.js"],
         world: "MAIN"
       });
@@ -43,7 +43,7 @@ async function ensureScriptsInjected(tabId) {
       const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
       for (const script of scripts) {
         await chrome.scripting.executeScript({
-          target: { tabId: tabId, allFrames: true },
+          target: { tabId: tabId, frameIds: [frameId] },
           files: [script]
         });
       }
@@ -59,17 +59,19 @@ async function ensureScriptsInjected(tabId) {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) return;
 
-  const injected = await ensureScriptsInjected(tab.id);
+  const frameId = info.frameId !== undefined ? info.frameId : 0;
+  const injected = await ensureScriptsInjected(tab.id, frameId);
   if (!injected) return;
 
+  const options = { frameId };
   if (info.menuItemId === "web2md-selection") {
     chrome.tabs.sendMessage(tab.id, {
       action: "convertSelection"
-    });
+    }, options);
   } else if (info.menuItemId === "web2md-page") {
     chrome.tabs.sendMessage(tab.id, {
       action: "convertPage"
-    });
+    }, options);
   }
 });
 
