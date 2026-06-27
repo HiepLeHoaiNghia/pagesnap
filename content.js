@@ -5,15 +5,22 @@
 
 // Listen for messages from popup or background script
 let isVisualEditActive = false;
+let isInspectActive = false;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ping") {
     sendResponse({ success: true });
   } else if (request.action === "getVisualEditState") {
     sendResponse({ active: isVisualEditActive });
+  } else if (request.action === "getInspectState") {
+    sendResponse({ active: isInspectActive });
   } else if (request.action === "toggleVisualEdit") {
     toggleVisualEditMode(request.enabled);
     sendResponse({ success: true, active: isVisualEditActive });
+  } else if (request.action === "toggleInspect") {
+    isInspectActive = request.enabled;
+    window.postMessage({ type: 'WEB2MD_TOGGLE_INSPECT', enabled: request.enabled }, '*');
+    sendResponse({ success: true, active: isInspectActive });
   } else if (request.action === "getApiCalls") {
     getApiCallsFromMainWorld().then(calls => {
       sendResponse({ success: true, apiCalls: calls });
@@ -731,7 +738,7 @@ async function serializePageToSelfContainedHtml(options = {}) {
             value: () => {
               if (!matchedEntry.responseHeaders) return '';
               return Object.entries(matchedEntry.responseHeaders)
-                .map(([k, v]) => `\${k}: \${v}`)
+                .map(([k, v]) => k + ': ' + v)
                 .join('\r\n');
             },
             configurable: true

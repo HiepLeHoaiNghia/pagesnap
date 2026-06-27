@@ -20,8 +20,12 @@
 }
 
 body {
-  width: 400px;
-  height: 530px;
+  width: 500px;
+  height: 500px;
+  min-width: 400px;
+  min-height: 350px;
+  max-width: 800px;
+  max-height: 600px;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -100,7 +104,9 @@ body {
 
 /* Toolbar */
 .app-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   align-items: center;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -114,7 +120,6 @@ body {
   align-items: center;
   cursor: pointer;
   user-select: none;
-  width: 100%;
 }
 
 .compact-toggle input {
@@ -558,7 +563,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 250px;
+  max-height: 300px;
 }
 
 .api-empty-state {
@@ -573,15 +578,19 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 10px;
+  padding: 10px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: border-color 0.2s;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
 }
 
 .api-card:hover {
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: rgba(59, 130, 246, 0.5);
+  background: var(--bg-tertiary);
+  transform: translateY(-1px);
 }
 
 .api-card-header {
@@ -589,19 +598,21 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  width: 100%;
 }
 
 .api-card-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .api-badge {
   font-size: 9px;
   font-weight: 700;
-  padding: 2px 4px;
+  padding: 2px 5px;
   border-radius: 4px;
   text-transform: uppercase;
 }
@@ -614,7 +625,7 @@ body {
 .api-status {
   font-size: 9px;
   font-weight: 600;
-  padding: 2px 4px;
+  padding: 2px 5px;
   border-radius: 4px;
 }
 .api-status.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
@@ -629,37 +640,193 @@ body {
   white-space: nowrap;
 }
 
-.api-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 4px;
-  border-top: 1px dashed var(--border-color);
-  padding-top: 6px;
+.api-card-edit-indicator {
+  color: var(--text-secondary);
+  font-size: 10px;
+  opacity: 0.5;
+  transition: opacity 0.2s, transform 0.2s;
 }
 
-.api-action-btn {
-  background: transparent;
+.api-card:hover .api-card-edit-indicator {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* API Sub-Editor Panel */
+#api-editor-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.api-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.editor-back-btn {
+  background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-secondary);
-  cursor: pointer;
+  border-radius: 6px;
+  color: var(--text-primary);
   font-size: 10px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 6px 12px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.api-action-btn:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
+.editor-back-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
-.api-action-btn.delete-btn:hover {
+.editor-header-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.api-editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.api-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.api-detail-field label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.api-url-full {
+  font-size: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  word-break: break-all;
+  user-select: all;
+  max-height: 48px;
+  overflow-y: auto;
+}
+
+.api-detail-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.api-detail-field input, .api-detail-field select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.api-detail-field input:focus, .api-detail-field select:focus {
+  border-color: var(--accent-blue);
+}
+
+.textarea-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+}
+
+#editor-body {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 10px;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+}
+
+#editor-body:focus {
+  border-color: var(--accent-blue);
+}
+
+.api-editor-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
+.api-editor-right-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editor-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.editor-btn.delete-btn {
+  color: var(--text-secondary);
+}
+
+.editor-btn.delete-btn:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
   border-color: #ef4444;
+  color: #f87171;
+}
+
+.editor-btn.save-btn {
+  background: var(--accent-blue);
+  color: #ffffff;
+  border: none;
+}
+
+.editor-btn.save-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
 }
 
 /* Modal Overlay Styling */
@@ -799,5 +966,42 @@ body {
 /* Tab-specific layouts for the action grid */
 #btn-deploy {
   grid-column: span 2;
+}
+
+/* Resize Handle */
+.resize-handle {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 40%, var(--border-color) 40%, var(--border-color) 60%, transparent 60%);
+  z-index: 99999;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.resize-handle:hover {
+  opacity: 1;
+}
+
+@keyframes highlight-flash-animation {
+  0% {
+    box-shadow: 0 0 0 0px rgba(99, 102, 241, 0.4);
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+    background-color: rgba(99, 102, 241, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0px rgba(99, 102, 241, 0);
+  }
+}
+
+.api-card.highlight-flash {
+  animation: highlight-flash-animation 1.5s ease-in-out infinite;
+  border-color: var(--accent-color) !important;
 }
 
