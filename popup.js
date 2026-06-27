@@ -19,8 +19,32 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tab elements
   const tabMd = document.getElementById('tab-md');
   const tabHtml = document.getElementById('tab-html');
+  const tabApi = document.getElementById('tab-api');
   const htmlPreviewWrapper = document.getElementById('html-preview-wrapper');
   const htmlPreviewFrame = document.getElementById('html-preview-frame');
+  const apiPreviewWrapper = document.getElementById('api-preview-wrapper');
+  
+  // API Manager Elements
+  const apiListContainer = document.getElementById('api-list-container');
+  const apiSearchInput = document.getElementById('api-search');
+  const btnRefreshApi = document.getElementById('btn-refresh-api');
+  const apiListView = document.getElementById('api-list-view');
+  const apiEditorView = document.getElementById('api-editor-view');
+  const btnEditorBack = document.getElementById('btn-editor-back');
+  const editorUrl = document.getElementById('editor-url');
+  const editorMethod = document.getElementById('editor-method');
+  const editorStatus = document.getElementById('editor-status');
+  const editorBody = document.getElementById('editor-body');
+  const btnEditorFormat = document.getElementById('btn-editor-format');
+  const btnEditorDelete = document.getElementById('btn-editor-delete');
+  const btnEditorSave = document.getElementById('btn-editor-save');
+  const btnEditorReset = document.getElementById('btn-editor-reset');
+  const btnClearAllMocks = document.getElementById('btn-clear-all-mocks');
+  
+  // Zip and Deploy Elements
+  const btnDownloadZip = document.getElementById('btn-download-zip');
+  const btnDeploy = document.getElementById('btn-deploy');
+  const checkNetlifyToken = document.getElementById('setting-netlify-token');
   
   // Project Banner Elements
   const projectBanner = document.getElementById('project-banner');
@@ -34,12 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkLinks = document.getElementById('setting-links');
   const checkObsidian = document.getElementById('setting-obsidian');
   const checkPreserveJs = document.getElementById('setting-preserve-js');
+  const checkPreserveJsQuick = document.getElementById('setting-preserve-js-quick');
+  const btnToggleEdit = document.getElementById('btn-toggle-edit');
 
   // State Variables
   let extractedData = null;
   let currentMarkdown = '';
   let currentHtml = '';
+  let currentPackage = null;
   let activePreviewTab = 'markdown';
+  let editingApiIndex = -1;
 
   // Default Settings
   const defaultSettings = {
@@ -99,35 +127,99 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initial Load: load settings
   loadSettings().then((settings) => {
     updateSettingsUI(settings);
+    updateFooterActionsVisibility();
+    notifyTabMockingState(settings.preserveJs);
   });
+
+  // Query active tab's edit mode state on popup load
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs && tabs.length > 0) {
+      const activeTab = tabs[0];
+      if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
+        chrome.tabs.sendMessage(activeTab.id, { action: "getVisualEditState" }, (response) => {
+          if (!chrome.runtime.lastError && response && response.active !== undefined) {
+            if (btnToggleEdit) {
+              btnToggleEdit.checked = response.active;
+            }
+          }
+        });
+      }
+    }
+  });
+
+  if (btnToggleEdit) {
+    btnToggleEdit.addEventListener('change', () => {
+      const enabled = btnToggleEdit.checked;
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        const activeTab = tabs[0];
+        if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
+          showError("Cannot edit Chrome system pages.");
+          btnToggleEdit.checked = false;
+          return;
+        }
+
+        chrome.tabs.sendMessage(activeTab.id, { action: "toggleVisualEdit", enabled: enabled }, (response) => {
+          if (chrome.runtime.lastError) {
+            injectScriptsAndToggle(activeTab.id, enabled);
+          }
+        });
+      });
+    });
+  }
 
   // 2. Event Listeners
   if (btnExtract) {
     btnExtract.addEventListener('click', autoExtractPage);
   }
 
-  if (tabMd && tabHtml) {
-    tabMd.addEventListener('click', () => {
-      activePreviewTab = 'markdown';
-      tabMd.classList.add('active');
-      tabHtml.classList.remove('active');
-      if (markdownPreview) markdownPreview.classList.remove('hidden');
-      if (htmlPreviewWrapper) htmlPreviewWrapper.classList.add('hidden');
-      updateStats();
-    });
+  const previewTabs = [
+    { btn: tabMd, view: markdownPreview, name: 'markdown' },
+    { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' },
+    { btn: tabApi, view: apiPreviewWrapper, name: 'api' }
+  ];
 
-    tabHtml.addEventListener('click', () => {
-      activePreviewTab = 'html';
-      tabHtml.classList.add('active');
-      tabMd.classList.remove('active');
-      if (markdownPreview) markdownPreview.classList.add('hidden');
-      if (htmlPreviewWrapper) htmlPreviewWrapper.classList.remove('hidden');
-      updateStats();
-    });
-  }
+  previewTabs.forEach(tabObj => {
+    if (tabObj.btn) {
+      tabObj.btn.addEventListener('click', () => {
+        activePreviewTab = tabObj.name;
+        previewTabs.forEach(otherObj => {
+          if (otherObj.btn) {
+            if (otherObj.btn === tabObj.btn) {
+              otherObj.btn.classList.add('active');
+            } else {
+              otherObj.btn.classList.remove('active');
+            }
+          }
+          if (otherObj.view) {
+            if (otherObj.view === tabObj.view) {
+              otherObj.view.classList.remove('hidden');
+            } else {
+              otherObj.view.classList.add('hidden');
+            }
+          }
+        });
+
+        // Hide/show buttons based on the active tab
+        updateFooterActionsVisibility();
+
+        if (tabObj.name === 'api') {
+          showApiListView();
+          fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+        }
+
+        updateStats();
+      });
+    }
+  });
 
   function updateStats() {
-    const text = activePreviewTab === 'markdown' ? currentMarkdown : currentHtml;
+    let text = '';
+    if (activePreviewTab === 'markdown') {
+      text = currentMarkdown;
+    } else if (activePreviewTab === 'html') {
+      text = currentHtml;
+    }
     const charCount = text ? text.length : 0;
     const estTokens = Math.ceil(charCount / 4);
     charCountEl.innerText = charCount.toLocaleString();
@@ -193,6 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
   [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian, checkPreserveJs].forEach(checkbox => {
     if (checkbox) {
       checkbox.addEventListener('change', () => {
+        if (checkbox === checkPreserveJs && checkPreserveJsQuick) {
+          checkPreserveJsQuick.checked = checkPreserveJs.checked;
+        }
         saveSettings().then((newSettings) => {
           if (extractedData) {
             processAndDisplayMarkdown(extractedData, newSettings);
@@ -202,12 +297,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  if (checkPreserveJsQuick) {
+    checkPreserveJsQuick.addEventListener('change', () => {
+      if (checkPreserveJs) {
+        checkPreserveJs.checked = checkPreserveJsQuick.checked;
+      }
+      saveSettings().then((newSettings) => {
+        if (extractedData) {
+          processAndDisplayMarkdown(extractedData, newSettings);
+        }
+      });
+    });
+  }
+
   /**
    * Loads settings from safe storage
    */
   function loadSettings() {
     return safeStorage.get('settings').then((settings) => {
       return settings ? { ...defaultSettings, ...settings } : defaultSettings;
+    });
+  }
+
+  function notifyTabMockingState(enabled) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) return;
+      const tabId = tabs[0].id;
+      chrome.runtime.sendMessage({
+        action: "setMockingEnabled",
+        tabId: tabId,
+        enabled: enabled
+      });
     });
   }
 
@@ -227,7 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
       codeBlockStyle: 'fenced'
     };
 
-    return safeStorage.set('settings', settings).then(() => settings);
+    return safeStorage.set('settings', settings).then(() => {
+      notifyTabMockingState(settings.preserveJs);
+      return settings;
+    });
   }
 
   /**
@@ -240,6 +363,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkLinks) checkLinks.checked = settings.includeLinks;
     if (checkObsidian) checkObsidian.checked = settings.obsidianMode;
     if (checkPreserveJs) checkPreserveJs.checked = settings.preserveJs || false;
+    if (checkPreserveJsQuick) checkPreserveJsQuick.checked = settings.preserveJs || false;
+  }
+
+  /**
+   * Helper to dynamically show/hide buttons in actions-grid based on tab
+   */
+  function updateFooterActionsVisibility() {
+    const gridEl = document.querySelector('.actions-grid');
+    if (!gridEl) return;
+
+    if (activePreviewTab === 'markdown') {
+      if (btnCopy) btnCopy.style.display = 'block';
+      if (btnDownload) btnDownload.style.display = 'block';
+      if (btnDownloadZip) btnDownloadZip.style.display = 'none';
+      if (btnDeploy) btnDeploy.style.display = 'none';
+      gridEl.style.gridTemplateColumns = '1fr 1fr';
+    } else if (activePreviewTab === 'html') {
+      if (btnCopy) btnCopy.style.display = 'block';
+      if (btnDownload) btnDownload.style.display = 'block';
+      if (btnDownloadZip) btnDownloadZip.style.display = 'block';
+      if (btnDeploy) btnDeploy.style.display = 'block';
+      gridEl.style.gridTemplateColumns = '1fr 1fr';
+    } else if (activePreviewTab === 'api') {
+      if (btnCopy) btnCopy.style.display = 'none';
+      if (btnDownload) btnDownload.style.display = 'none';
+      if (btnDownloadZip) btnDownloadZip.style.display = 'block';
+      if (btnDeploy) btnDeploy.style.display = 'block';
+      gridEl.style.gridTemplateColumns = '1fr 1fr';
+    }
   }
 
   /**
@@ -248,6 +400,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function autoExtractPage() {
     btnExtract.innerHTML = '<span class="spinner">⚡</span> Extracting...';
     btnExtract.disabled = true;
+    if (btnCopy) btnCopy.disabled = true;
+    if (btnDownload) btnDownload.disabled = true;
+    if (btnDownloadZip) btnDownloadZip.disabled = true;
+    if (btnDeploy) btnDeploy.disabled = true;
     markdownPreview.placeholder = "Querying DOM and parsing content...";
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -326,23 +482,32 @@ document.addEventListener('DOMContentLoaded', () => {
               
               // Request page clone HTML
               loadSettings().then((settings) => {
-                chrome.tabs.sendMessage(activeTab.id, { action: "clonePage", preserveJs: settings.preserveJs }, { frameId: targetFrameId }, (cloneResponse) => {
-                  if (cloneResponse && cloneResponse.success) {
-                    currentHtml = cloneResponse.html;
-                    if (htmlPreviewFrame) {
-                      if (settings.preserveJs) {
-                        htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-                      } else {
-                        htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                chrome.runtime.sendMessage({ action: "getApiCalls", tabId: activeTab.id }, (apiCallsResponse) => {
+                  const apiCalls = (apiCallsResponse && apiCallsResponse.apiCalls) || [];
+                  chrome.tabs.sendMessage(activeTab.id, {
+                    action: "clonePage",
+                    preserveJs: settings.preserveJs,
+                    apiCalls: apiCalls
+                  }, { frameId: targetFrameId }, (cloneResponse) => {
+                    if (cloneResponse && cloneResponse.success) {
+                      currentHtml = cloneResponse.html;
+                      currentPackage = cloneResponse.package || null;
+                      if (htmlPreviewFrame) {
+                        if (settings.preserveJs) {
+                          htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                        } else {
+                          htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                        }
+                        htmlPreviewFrame.srcdoc = currentHtml;
                       }
-                      htmlPreviewFrame.srcdoc = currentHtml;
+                    } else {
+                      console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
+                      currentHtml = "<!-- HTML cloning failed -->";
+                      currentPackage = null;
                     }
-                  } else {
-                    console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-                    currentHtml = "<!-- HTML cloning failed -->";
-                  }
-                  
-                  processAndDisplayMarkdown(extractedData, settings);
+                    
+                    processAndDisplayMarkdown(extractedData, settings);
+                  });
                 });
               });
             } else {
@@ -358,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Helper to dynamically inject content scripts if not pre-loaded, then retry extraction
    */
   function injectScriptsAndRetry(tabId, frameId = 0) {
-    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
+    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
     
     // Inject scripts sequentially
     let p = Promise.resolve();
@@ -406,22 +571,31 @@ document.addEventListener('DOMContentLoaded', () => {
               
               // Request HTML cloning on retry
               loadSettings().then((settings) => {
-                chrome.tabs.sendMessage(tabId, { action: "clonePage", preserveJs: settings.preserveJs }, { frameId: frameId }, (cloneResponse) => {
-                  if (cloneResponse && cloneResponse.success) {
-                    currentHtml = cloneResponse.html;
-                    if (htmlPreviewFrame) {
-                      if (settings.preserveJs) {
-                        htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-                      } else {
-                        htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                chrome.runtime.sendMessage({ action: "getApiCalls", tabId: tabId }, (apiCallsResponse) => {
+                  const apiCalls = (apiCallsResponse && apiCallsResponse.apiCalls) || [];
+                  chrome.tabs.sendMessage(tabId, {
+                    action: "clonePage",
+                    preserveJs: settings.preserveJs,
+                    apiCalls: apiCalls
+                  }, { frameId: frameId }, (cloneResponse) => {
+                    if (cloneResponse && cloneResponse.success) {
+                      currentHtml = cloneResponse.html;
+                      currentPackage = cloneResponse.package || null;
+                      if (htmlPreviewFrame) {
+                        if (settings.preserveJs) {
+                          htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                        } else {
+                          htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
+                        }
+                        htmlPreviewFrame.srcdoc = currentHtml;
                       }
-                      htmlPreviewFrame.srcdoc = currentHtml;
+                    } else {
+                      currentHtml = "<!-- HTML cloning failed -->";
+                      currentPackage = null;
                     }
-                  } else {
-                    currentHtml = "<!-- HTML cloning failed -->";
-                  }
-                  
-                  processAndDisplayMarkdown(extractedData, settings);
+                    
+                    processAndDisplayMarkdown(extractedData, settings);
+                  });
                 });
               });
             } else {
@@ -575,8 +749,10 @@ document.addEventListener('DOMContentLoaded', () => {
         : (data.readabilitySuccess ? "var(--accent-blue)" : "#ef4444");
 
       // Enable action buttons
-      btnCopy.disabled = false;
-      btnDownload.disabled = false;
+      if (btnCopy) btnCopy.disabled = false;
+      if (btnDownload) btnDownload.disabled = false;
+      if (btnDownloadZip) btnDownloadZip.disabled = false;
+      if (btnDeploy) btnDeploy.disabled = false;
       
       // Manage VFS Project Banner
       if (projectBanner) {
@@ -669,6 +845,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
+   * Helper to dynamically inject content scripts if not pre-loaded, then toggle edit mode
+   */
+  function injectScriptsAndToggle(tabId, enabled) {
+    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
+    let p = Promise.resolve();
+
+    p = p.then(() => {
+      return chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ["main_world.js"],
+        world: "MAIN"
+      });
+    }).catch(err => console.warn("Dynamic main world injection warning: ", err));
+
+    scripts.forEach(script => {
+      p = p.then(() => {
+        return chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: [script]
+        });
+      });
+    });
+
+    p.then(() => {
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { action: "toggleVisualEdit", enabled: enabled });
+      }, 200);
+    }).catch(err => {
+      console.error("Script injection failed: ", err);
+      showError("Please refresh the page before editing.");
+      if (btnToggleEdit) btnToggleEdit.checked = false;
+    });
+  }
+
+
+  /**
    * Helper to display extraction/processing error in UI
    */
   function showError(msg) {
@@ -676,10 +888,533 @@ document.addEventListener('DOMContentLoaded', () => {
     markdownPreview.value = `Error: ${errorMsg}\n\nMake sure you are on a standard web page and the page has finished loading. Extension does not run on chrome:// internal pages.`;
     charCountEl.innerText = '0';
     tokenCountEl.innerText = '0';
-    btnCopy.disabled = true;
-    btnDownload.disabled = true;
+    if (btnCopy) btnCopy.disabled = true;
+    if (btnDownload) btnDownload.disabled = true;
+    if (btnDownloadZip) btnDownloadZip.disabled = true;
+    if (btnDeploy) btnDeploy.disabled = true;
     if (projectBanner) projectBanner.classList.add('hidden');
     btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
     btnExtract.disabled = false;
   }
+
+  // --- Mock API Management & Deploy Functions ---
+
+  let activeEditingCall = null;
+
+  function showApiListView() {
+    if (apiListView) apiListView.classList.remove('hidden');
+    if (apiEditorView) apiEditorView.classList.add('hidden');
+    activeEditingCall = null;
+  }
+
+  function showApiEditorView(call) {
+    if (!apiListView || !apiEditorView) return;
+    
+    activeEditingCall = call;
+    
+    editorUrl.textContent = call.url;
+    editorUrl.title = call.url;
+    editorMethod.value = call.method || 'GET';
+    editorStatus.value = call.status || 200;
+    editorBody.value = call.responseText || '';
+    
+    apiListView.classList.add('hidden');
+    apiEditorView.classList.remove('hidden');
+  }
+
+  function fetchAndRenderApiCalls(searchQuery = '') {
+    if (!apiListContainer) return;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) return;
+      const activeTab = tabs[0];
+      
+      chrome.runtime.sendMessage({ action: "getApiCalls", tabId: activeTab.id }, (response) => {
+        if (chrome.runtime.lastError || !response || !response.success) {
+          apiListContainer.innerHTML = '<div class="api-empty-state">Unable to load API history. Make sure to click Extract Page first.</div>';
+          return;
+        }
+        
+        const apiCalls = response.apiCalls || [];
+        if (apiCalls.length === 0) {
+          apiListContainer.innerHTML = `
+            <div class="api-empty-state-guide">
+              <div class="guide-icon">💡</div>
+              <h4>How to Capture & Mock APIs:</h4>
+              <ol>
+                <li>Turn on <strong>Preserve JS & Mock APIs</strong> toggle above.</li>
+                <li>Reload the page to start capturing early requests.</li>
+                <li>Interact with the page (or let it load).</li>
+                <li>Click <strong>⚡ Extract Page</strong> in this extension.</li>
+                <li>Switch to <strong>HTML Clone</strong> tab, download <strong>ZIP Package</strong> or <strong>Deploy Netlify</strong> to run live mock!</li>
+              </ol>
+            </div>`;
+          return;
+        }
+        
+        const listWithIndex = apiCalls.map((item, idx) => ({ ...item, originalIndex: idx }));
+        const filtered = listWithIndex.filter(call => call.url.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        if (filtered.length === 0) {
+          apiListContainer.innerHTML = '<div class="api-empty-state">No matching API requests.</div>';
+          return;
+        }
+        
+        apiListContainer.innerHTML = '';
+        filtered.forEach(call => {
+          const card = document.createElement('div');
+          card.className = 'api-card';
+          
+          const meta = document.createElement('div');
+          meta.className = 'api-card-meta';
+          
+          const methodBadge = document.createElement('span');
+          methodBadge.className = `api-badge ${call.method.toLowerCase()}`;
+          methodBadge.textContent = call.method;
+          
+          const statusBadge = document.createElement('span');
+          const isSuccess = call.status >= 200 && call.status < 300;
+          statusBadge.className = `api-status ${isSuccess ? 'success' : 'error'}`;
+          statusBadge.textContent = call.status;
+          
+          const urlSpan = document.createElement('span');
+          urlSpan.className = 'api-url';
+          urlSpan.textContent = call.url;
+          urlSpan.title = call.url;
+          
+          meta.appendChild(methodBadge);
+          meta.appendChild(statusBadge);
+          meta.appendChild(urlSpan);
+          card.appendChild(meta);
+          
+          const editIndicator = document.createElement('span');
+          editIndicator.className = 'api-card-edit-indicator';
+          editIndicator.innerHTML = '✎';
+          card.appendChild(editIndicator);
+          
+          card.addEventListener('click', () => {
+            showApiEditorView(call);
+          });
+          
+          apiListContainer.appendChild(card);
+        });
+      });
+    });
+  }
+
+  function deleteApiCall(index) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) return;
+      chrome.runtime.sendMessage({ action: "deleteApiCall", tabId: tabs[0].id, index: index }, (res) => {
+        fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+      });
+    });
+  }
+
+  // Hook search & refresh controls
+  if (apiSearchInput) {
+    apiSearchInput.addEventListener('input', () => {
+      fetchAndRenderApiCalls(apiSearchInput.value);
+    });
+  }
+
+  if (btnRefreshApi) {
+    btnRefreshApi.addEventListener('click', () => {
+      fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+    });
+  }
+
+  // Hook Sub-Editor Controls
+  if (btnEditorBack) {
+    btnEditorBack.addEventListener('click', showApiListView);
+  }
+  
+  if (btnEditorFormat) {
+    btnEditorFormat.addEventListener('click', () => {
+      try {
+        const obj = JSON.parse(editorBody.value);
+        editorBody.value = JSON.stringify(obj, null, 2);
+      } catch (err) {
+        const originalText = btnEditorFormat.textContent;
+        btnEditorFormat.textContent = '⚠️ Invalid JSON';
+        btnEditorFormat.style.color = '#f87171';
+        setTimeout(() => {
+          btnEditorFormat.textContent = originalText;
+          btnEditorFormat.style.color = '';
+        }, 1500);
+      }
+    });
+  }
+
+  if (btnEditorReset) {
+    btnEditorReset.addEventListener('click', () => {
+      if (!activeEditingCall) return;
+      if (confirm('Revert this mock and restore the live API calls?')) {
+        const origMethod = activeEditingCall.originalMethod || activeEditingCall.method || 'GET';
+        const origStatus = activeEditingCall.originalStatus || activeEditingCall.status || 200;
+        const origBody = activeEditingCall.originalResponseText !== undefined ? activeEditingCall.originalResponseText : (activeEditingCall.responseText || '');
+        
+        editorMethod.value = origMethod;
+        editorStatus.value = origStatus;
+        editorBody.value = origBody;
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (!tabs || tabs.length === 0) return;
+          chrome.runtime.sendMessage({
+            action: "updateApiCall",
+            tabId: tabs[0].id,
+            index: activeEditingCall.originalIndex,
+            updatedCall: {
+              method: origMethod,
+              status: origStatus,
+              responseText: origBody,
+              isMocked: false
+            }
+          }, (res) => {
+            const originalText = btnEditorReset.textContent;
+            btnEditorReset.textContent = 'Reverted ✓';
+            btnEditorReset.style.color = '#10b981';
+            setTimeout(() => {
+              btnEditorReset.textContent = originalText;
+              btnEditorReset.style.color = '';
+            }, 1500);
+            fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+          });
+        });
+      }
+    });
+  }
+  
+  if (btnEditorDelete) {
+    btnEditorDelete.addEventListener('click', () => {
+      if (activeEditingCall && confirm('Are you sure you want to delete this mock?')) {
+        deleteApiCall(activeEditingCall.originalIndex);
+        showApiListView();
+      }
+    });
+  }
+  
+  if (btnEditorSave) {
+    btnEditorSave.addEventListener('click', () => {
+      if (!activeEditingCall) return;
+      const newMethod = editorMethod.value;
+      const newStatus = parseInt(editorStatus.value, 10) || 200;
+      const newBody = editorBody.value;
+      
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        chrome.runtime.sendMessage({
+          action: "updateApiCall",
+          tabId: tabs[0].id,
+          index: activeEditingCall.originalIndex,
+          updatedCall: {
+            method: newMethod,
+            status: newStatus,
+            responseText: newBody,
+            isMocked: true
+          }
+        }, (res) => {
+          // Highlight save button success
+          const originalText = btnEditorSave.textContent;
+          btnEditorSave.textContent = 'Saved ✓';
+          btnEditorSave.style.background = '#10b981';
+          setTimeout(() => {
+            btnEditorSave.textContent = originalText;
+            btnEditorSave.style.background = '';
+          }, 1500);
+          
+          // Refresh list to reflect changes on back button
+          fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+        });
+      });
+    });
+  }
+
+  // Load Netlify token on startup
+  safeStorage.get('netlifyToken').then((token) => {
+    if (checkNetlifyToken && token) {
+      checkNetlifyToken.value = token;
+    }
+  });
+
+  if (checkNetlifyToken) {
+    checkNetlifyToken.addEventListener('input', () => {
+      safeStorage.set('netlifyToken', checkNetlifyToken.value.trim());
+    });
+  }
+
+  // ZIP Download Listener
+  if (btnDownloadZip) {
+    btnDownloadZip.addEventListener('click', () => {
+      if (!currentHtml) return;
+      
+      buildZipBlob().then((blob) => {
+        const sanitizedTitle = (extractedData ? extractedData.title : 'webpage')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .substring(0, 50) || 'webpage';
+        const filename = `${sanitizedTitle}-package.zip`;
+        downloadFileBlob(blob, filename);
+      }).catch(err => {
+        console.error("ZIP creation failed:", err);
+        alert("Failed to build ZIP file: " + err.message);
+      });
+    });
+  }
+
+  function downloadFileBlob(blob, filename) {
+    if (typeof chrome !== 'undefined' && chrome.downloads) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.downloads.download({
+          url: e.target.result,
+          filename: filename,
+          saveAs: true
+        });
+      };
+      reader.readAsDataURL(blob);
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 10000);
+    }
+  }
+
+  async function buildZipBlob() {
+    const zip = new JSZip();
+    
+    if (currentPackage) {
+      zip.file("index.html", currentPackage.html);
+      if (currentPackage.css && currentPackage.css.trim().length > 0) {
+        zip.file("styles.css", currentPackage.css);
+      }
+      if (currentPackage.js && currentPackage.js.trim().length > 0) {
+        zip.file("scripts.js", currentPackage.js);
+      }
+      if (currentPackage.assets && currentPackage.assets.length > 0) {
+        currentPackage.assets.forEach(file => {
+          const blob = dataURLtoBlob(file.dataUrl);
+          if (blob) {
+            zip.file(file.path, blob);
+          }
+        });
+      }
+    } else {
+      zip.file("index.html", currentHtml);
+    }
+    
+    if (extractedData && extractedData.projectFiles && extractedData.projectFiles.length > 0) {
+      extractedData.projectFiles.forEach(file => {
+        zip.file(file.path, file.content);
+      });
+    }
+    
+    return await zip.generateAsync({ type: "blob" });
+  }
+
+  function dataURLtoBlob(dataUrl) {
+    if (!dataUrl) return null;
+    const parts = dataUrl.split(',');
+    if (parts.length < 2) return null;
+    const mime = parts[0].match(/:(.*?);/)[1];
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  }
+
+  // Netlify Deploy Listener
+  if (btnDeploy) {
+    btnDeploy.addEventListener('click', async () => {
+      if (!currentHtml) return;
+      
+      const token = checkNetlifyToken ? checkNetlifyToken.value.trim() : '';
+      if (!token) {
+        if (settingsPane) settingsPane.classList.remove('hidden');
+        if (checkNetlifyToken) checkNetlifyToken.focus();
+        alert("Please configure your Netlify Personal Access Token in Settings first.");
+        return;
+      }
+      
+      btnDeploy.innerHTML = '<span class="spinner">🚀</span> Deploying...';
+      btnDeploy.disabled = true;
+      
+      try {
+        const zipBlob = await buildZipBlob();
+        
+        const pageKey = `netlifySiteId_${encodeURIComponent(extractedData.url)}`;
+        let siteId = await safeStorage.get(pageKey);
+        let siteUrl = '';
+        
+        if (!siteId) {
+          // Create new site
+          const createRes = await fetch('https://api.netlify.com/api/v1/sites', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              custom_domain: null,
+              name: `web2md-${Math.random().toString(36).substr(2, 8)}`
+            })
+          });
+          
+          if (!createRes.ok) {
+            const errJson = await createRes.json().catch(() => ({}));
+            throw new Error(errJson.message || `Failed to create site (${createRes.status})`);
+          }
+          
+          const createData = await createRes.json();
+          siteId = createData.id;
+          siteUrl = createData.ssl_url || createData.url;
+          await safeStorage.set(pageKey, siteId);
+        } else {
+          // Verify/Get existing site
+          const siteRes = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (siteRes.ok) {
+            const siteData = await siteRes.json();
+            siteUrl = siteData.ssl_url || siteData.url;
+          } else {
+            // Site probably deleted, create a new one
+            const createRes = await fetch('https://api.netlify.com/api/v1/sites', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                custom_domain: null,
+                name: `web2md-${Math.random().toString(36).substr(2, 8)}`
+              })
+            });
+            if (!createRes.ok) {
+              const errJson = await createRes.json().catch(() => ({}));
+              throw new Error(errJson.message || `Failed to recreate site (${createRes.status})`);
+            }
+            const createData = await createRes.json();
+            siteId = createData.id;
+            siteUrl = createData.ssl_url || createData.url;
+            await safeStorage.set(pageKey, siteId);
+          }
+        }
+        
+        // Upload zip to Netlify deploy
+        const deployRes = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/zip'
+          },
+          body: zipBlob
+        });
+        
+        if (!deployRes.ok) {
+          const errJson = await deployRes.json().catch(() => ({}));
+          throw new Error(errJson.message || `Deploy upload failed (${deployRes.status})`);
+        }
+        
+        btnDeploy.innerHTML = 'Live! ✓';
+        btnDeploy.classList.add('success-flash');
+        setTimeout(() => {
+          btnDeploy.innerHTML = '🚀 Deploy Netlify';
+          btnDeploy.disabled = false;
+          btnDeploy.classList.remove('success-flash');
+        }, 3000);
+        
+        chrome.tabs.create({ url: siteUrl });
+      } catch (err) {
+        console.error("Netlify deployment failed:", err);
+        alert("Deployment failed: " + err.message);
+        btnDeploy.innerHTML = '🚀 Deploy Netlify';
+        btnDeploy.disabled = false;
+      }
+    });
+  }
+
+  // Load and apply custom popup size
+  Promise.all([
+    safeStorage.get('popupWidth'),
+    safeStorage.get('popupHeight')
+  ]).then(([w, h]) => {
+    if (w) document.body.style.width = w;
+    if (h) document.body.style.height = h;
+  });
+
+  // Drag to Resize Logic
+  const resizeHandle = document.getElementById('resize-handle');
+  if (resizeHandle) {
+    let isResizing = false;
+    let startWidth, startHeight, startX, startY;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startWidth = document.body.clientWidth;
+      startHeight = document.body.clientHeight;
+      startX = e.clientX;
+      startY = e.clientY;
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      e.preventDefault();
+    });
+
+    function handleMouseMove(e) {
+      if (!isResizing) return;
+      const newWidth = Math.min(800, Math.max(400, startWidth + (e.clientX - startX)));
+      const newHeight = Math.min(600, Math.max(350, startHeight + (e.clientY - startY)));
+      document.body.style.width = newWidth + 'px';
+      document.body.style.height = newHeight + 'px';
+    }
+
+    function handleMouseUp() {
+      if (!isResizing) return;
+      isResizing = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      // Save dimensions
+      safeStorage.set('popupWidth', document.body.style.width);
+      safeStorage.set('popupHeight', document.body.style.height);
+    }
+  }
+
+  // Handle messages from page context / isolated bridge
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === "syncMocks") {
+      fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+    }
+  });
+
+  if (btnClearAllMocks) {
+    btnClearAllMocks.addEventListener('click', () => {
+      if (confirm('Clear all mock API overrides for this page and restore live API calls? This will reload the web page.')) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (!tabs || tabs.length === 0) return;
+          const tabId = tabs[0].id;
+          chrome.runtime.sendMessage({
+            action: "clearAllMocks",
+            tabId: tabId
+          }, (res) => {
+            chrome.tabs.reload(tabId);
+            window.close();
+          });
+        });
+      }
+    });
+  }
 });
+

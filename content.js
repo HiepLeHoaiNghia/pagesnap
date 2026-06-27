@@ -4,8 +4,28 @@
  */
 
 // Listen for messages from popup or background script
+let isVisualEditActive = false;
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ping") {
+    sendResponse({ success: true });
+  } else if (request.action === "getVisualEditState") {
+    sendResponse({ active: isVisualEditActive });
+  } else if (request.action === "toggleVisualEdit") {
+    toggleVisualEditMode(request.enabled);
+    sendResponse({ success: true, active: isVisualEditActive });
+  } else if (request.action === "getApiCalls") {
+    getApiCallsFromMainWorld().then(calls => {
+      sendResponse({ success: true, apiCalls: calls });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
+    });
+    return true; // Keep channel open for async response
+  } else if (request.action === "updateApiCall") {
+    window.postMessage({ type: 'WEB2MD_UPDATE_API_CALL', index: request.index, updatedCall: request.updatedCall }, '*');
+    sendResponse({ success: true });
+  } else if (request.action === "deleteApiCall") {
+    window.postMessage({ type: 'WEB2MD_DELETE_API_CALL', index: request.index }, '*');
     sendResponse({ success: true });
   } else if (request.action === "extractContent") {
     handleExtractContentRequest(sendResponse);
@@ -14,8 +34,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "convertPage") {
     handlePageConversion();
   } else if (request.action === "clonePage") {
-    serializePageToSelfContainedHtml({ preserveJs: request.preserveJs })
-      .then(html => sendResponse({ success: true, html }))
+    serializePageToSelfContainedHtml({ preserveJs: request.preserveJs, apiCalls: request.apiCalls || [] })
+      .then(res => sendResponse({ success: true, html: res.html, package: res.package }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   }
@@ -392,6 +412,52 @@ async function serializePageToSelfContainedHtml(options = {}) {
     });
   }
 
+  // Helper to map CSS URLs based on a mapper function (e.g. mapping to base64 or local paths)
+  function mapCssUrls(cssText, baseUrl, urlMapper) {
+    return cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
+      if (url.startsWith('data:') || url.startsWith('blob:')) {
+        return match;
+      }
+      try {
+        const absUrl = new URL(url, baseUrl).href;
+        const mapped = urlMapper(absUrl);
+        if (mapped) {
+          return `url("${mapped}")`;
+        }
+      } catch (e) {}
+      return match;
+    });
+  }
+
+  // Helper to get correct file extension from dataurl or file URL
+  function getAssetExtension(url, dataUrl) {
+    if (dataUrl && dataUrl.startsWith('data:')) {
+      const mime = dataUrl.split(';')[0].split(':')[1];
+      if (mime) {
+        const parts = mime.split('/');
+        if (parts[1]) {
+          const extMap = {
+            'svg+xml': 'svg',
+            'javascript': 'js',
+            'typescript': 'ts',
+            'plain': 'txt',
+            'x-icon': 'ico',
+            'vnd.microsoft.icon': 'ico',
+          };
+          return extMap[parts[1]] || parts[1];
+        }
+      }
+    }
+    try {
+      const pathname = new URL(url).pathname;
+      const ext = pathname.split('.').pop();
+      if (ext && ext.length < 5 && /^[a-zA-Z0-9]+$/.test(ext)) {
+        return ext;
+      }
+    } catch (e) {}
+    return 'png'; // default fallback
+  }
+
   async function resolveStyleSheetRules(sheet, baseUrl) {
     let rulesText = '';
     try {
@@ -473,20 +539,7 @@ async function serializePageToSelfContainedHtml(options = {}) {
   // 2. Fetch API cache if preserveJs is active
   let apiCache = [];
   if (preserveJs) {
-    apiCache = await new Promise((resolve) => {
-      const onApiMessage = (event) => {
-        if (event.source === window && event.data && event.data.type === 'WEB2MD_API_CALLS_RESPONSE') {
-          window.removeEventListener('message', onApiMessage);
-          resolve(event.data.apiCalls || []);
-        }
-      };
-      window.addEventListener('message', onApiMessage);
-      window.postMessage({ type: 'WEB2MD_REQUEST_API_CALLS' }, '*');
-      setTimeout(() => {
-        window.removeEventListener('message', onApiMessage);
-        resolve([]);
-      }, 500);
-    });
+    apiCache = options.apiCalls || [];
   }
 
   // 3. Fetch/Inline Scripts if preserveJs is active
@@ -580,23 +633,59 @@ async function serializePageToSelfContainedHtml(options = {}) {
     new Promise(resolve => setTimeout(resolve, 5000))
   ]);
 
-  // 6. Inline assets in CSS rules inside styleMap
-  for (const [node, cssText] of styleMap.entries()) {
-    const baseUrl = node.href || baseHref;
-    const inlinedCss = cssText.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
-      try {
-        const absUrl = new URL(url, baseUrl).href;
-        if (assetMap.has(absUrl)) {
-          return `url("${assetMap.get(absUrl)}")`;
-        }
-      } catch (e) {}
-      return match;
-    });
-    styleMap.set(node, inlinedCss);
+  // Generate mapping from original asset URL to their local filename for structured mode
+  const assetPathMap = new Map(); // originalUrl -> "assets/asset_N.ext"
+  let assetCounter = 0;
+  for (const [url, dataUrl] of assetMap.entries()) {
+    const ext = getAssetExtension(url, dataUrl);
+    const filename = `assets/asset_${assetCounter++}.${ext}`;
+    assetPathMap.set(url, filename);
   }
 
-  // 7. Serialize adoptedStyleSheets helper
-  function serializeAdoptedStyleSheets(container) {
+  // Assemble global CSS for structured mode
+  let globalCss = '';
+  for (const [node, cssText] of styleMap.entries()) {
+    if (node.getRootNode() === document) {
+      globalCss += `/* StyleSheet: ${node.tagName.toLowerCase()}${node.id ? '#' + node.id : ''} */\n`;
+      globalCss += mapCssUrls(cssText, node.href || baseHref, (absUrl) => assetPathMap.get(absUrl)) + '\n\n';
+    }
+  }
+  if (document.adoptedStyleSheets && document.adoptedStyleSheets.length > 0) {
+    let adoptedCss = '';
+    for (const sheet of document.adoptedStyleSheets) {
+      try {
+        adoptedCss += Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n') + '\n';
+      } catch (e) {}
+    }
+    if (adoptedCss) {
+      globalCss += `/* Adopted Document StyleSheet */\n`;
+      globalCss += mapCssUrls(resolveCssUrls(adoptedCss, baseHref), baseHref, (absUrl) => assetPathMap.get(absUrl)) + '\n\n';
+    }
+  }
+
+  // Assemble global JS for structured mode
+  let globalJs = '';
+  if (preserveJs) {
+    globalJs += generateMockInterceptorCode() + '\n\n';
+    document.querySelectorAll('script').forEach(script => {
+      if (script.getRootNode() === document) {
+        if (scriptContentMap.has(script)) {
+          const content = scriptContentMap.get(script);
+          if (content) {
+            const src = script.getAttribute('src');
+            globalJs += `// --- Script: ${src || 'Inline'} ---\n`;
+            globalJs += content + '\n\n';
+          }
+        }
+      }
+    });
+  }
+
+  // 6. Adopted stylesheets serialization helper
+  function serializeAdoptedStyleSheets(container, isStructured) {
+    if (isStructured && container === document) {
+      return ''; // In structured mode, document adopted sheets go to styles.css
+    }
     if (container && container.adoptedStyleSheets && container.adoptedStyleSheets.length > 0) {
       let cssText = '';
       for (const sheet of container.adoptedStyleSheets) {
@@ -608,8 +697,9 @@ async function serializePageToSelfContainedHtml(options = {}) {
         const inlined = resolveCssUrls(cssText, baseHref).replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
           try {
             const absUrl = new URL(url, baseHref).href;
-            if (assetMap.has(absUrl)) {
-              return `url("${assetMap.get(absUrl)}")`;
+            const mapped = isStructured ? assetPathMap.get(absUrl) : assetMap.get(absUrl);
+            if (mapped) {
+              return `url("${mapped}")`;
             }
           } catch (e) {}
           return match;
@@ -676,8 +766,8 @@ async function serializePageToSelfContainedHtml(options = {}) {
       });
     }
     
-    console.warn('[Web2MD Mock Fetch] Request not in cache, returning 404:', url);
-    return new Response('Not Found (Offline Mock)', { status: 404, statusText: 'Not Found' });
+    console.log('[Web2MD Mock Fetch] Request not in cache, falling back to network:', url);
+    return originalFetch.apply(this, arguments);
   };
 
   const originalXHR = window.XMLHttpRequest;
@@ -692,63 +782,68 @@ async function serializePageToSelfContainedHtml(options = {}) {
       requestMethod = method.toUpperCase();
       requestUrl = url;
       matchedEntry = matchUrl(url);
+      if (matchedEntry) {
+        Object.defineProperties(xhr, {
+          status: {
+            get: () => matchedEntry.status || 200,
+            configurable: true
+          },
+          statusText: {
+            get: () => matchedEntry.statusText || 'OK',
+            configurable: true
+          },
+          responseText: {
+            get: () => matchedEntry.responseText || '',
+            configurable: true
+          },
+          response: {
+            get: () => {
+              const text = matchedEntry.responseText || '';
+              if (xhr.responseType === 'json') {
+                try { return JSON.parse(text); } catch (e) { return null; }
+              }
+              return text;
+            },
+            configurable: true
+          },
+          readyState: {
+            get: () => 4,
+            configurable: true
+          },
+          getAllResponseHeaders: {
+            value: () => {
+              if (!matchedEntry.responseHeaders) return '';
+              return Object.entries(matchedEntry.responseHeaders)
+                .map(([k, v]) => k + ': ' + v)
+                .join('\r\n');
+            },
+            configurable: true
+          },
+          getResponseHeader: {
+            value: (header) => {
+              if (!matchedEntry.responseHeaders) return null;
+              return matchedEntry.responseHeaders[header.toLowerCase()] || null;
+            },
+            configurable: true
+          }
+        });
+      }
       return originalOpen.apply(this, [method, url, ...rest]);
     };
 
-    Object.defineProperties(xhr, {
-      status: {
-        get: () => matchedEntry ? (matchedEntry.status || 200) : 404,
-        configurable: true
-      },
-      statusText: {
-        get: () => matchedEntry ? (matchedEntry.statusText || 'OK') : 'Not Found',
-        configurable: true
-      },
-      responseText: {
-        get: () => matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)',
-        configurable: true
-      },
-      response: {
-        get: () => {
-          const text = matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)';
-          if (xhr.responseType === 'json') {
-            try { return JSON.parse(text); } catch (e) { return null; }
-          }
-          return text;
-        },
-        configurable: true
-      },
-      readyState: {
-        get: () => 4,
-        configurable: true
-      },
-      getAllResponseHeaders: {
-        value: () => {
-          if (!matchedEntry || !matchedEntry.responseHeaders) return '';
-          return Object.entries(matchedEntry.responseHeaders)
-            .map(([k, v]) => \`\${k}: \${v}\`)
-            .join('\\r\\n');
-        },
-        configurable: true
-      },
-      getResponseHeader: {
-        value: (header) => {
-          if (!matchedEntry || !matchedEntry.responseHeaders) return null;
-          return matchedEntry.responseHeaders[header.toLowerCase()] || null;
-        },
-        configurable: true
-      }
-    });
-
     const originalSend = xhr.send;
     xhr.send = function(body) {
-      console.log('[Web2MD Mock XHR] Intercepted:', requestUrl);
-      setTimeout(() => {
-        if (xhr.onreadystatechange) xhr.onreadystatechange();
-        if (xhr.onload) xhr.onload();
-        xhr.dispatchEvent(new Event('load'));
-        xhr.dispatchEvent(new Event('readystatechange'));
-      }, 1);
+      if (matchedEntry) {
+        console.log('[Web2MD Mock XHR] Intercepted:', requestUrl);
+        setTimeout(() => {
+          if (xhr.onreadystatechange) xhr.onreadystatechange();
+          if (xhr.onload) xhr.onload();
+          xhr.dispatchEvent(new Event('load'));
+          xhr.dispatchEvent(new Event('readystatechange'));
+        }, 1);
+      } else {
+        return originalSend.apply(this, arguments);
+      }
     };
 
     return xhr;
@@ -798,8 +893,8 @@ async function serializePageToSelfContainedHtml(options = {}) {
 `;
   }
 
-  // 8. Recursively serialize DOM including Shadow DOM
-  function serializeNode(node) {
+  // 7. Recursively serialize DOM including Shadow DOM
+  function serializeNode(node, isStructured) {
     if (node.nodeType === Node.TEXT_NODE) {
       return escapeHtml(node.textContent);
     }
@@ -815,12 +910,26 @@ async function serializePageToSelfContainedHtml(options = {}) {
     // Ignore or inline script tags
     if (tagName === 'script') {
       if (preserveJs) {
-        if (scriptContentMap.has(node)) {
-          const content = scriptContentMap.get(node);
-          if (content === null) {
+        if (isStructured) {
+          // In structured mode, main document scripts go to scripts.js
+          if (node.getRootNode() === document) {
             return '';
           }
-          return `<script>${content}</script>`;
+          // Inside shadow root, keep inline script to preserve context/scoping
+          if (scriptContentMap.has(node)) {
+            const content = scriptContentMap.get(node);
+            if (content === null) return '';
+            const safeContent = content.replace(/<\/script>/gi, '<\\/script>');
+            return `<script>${safeContent}</script>`;
+          }
+        } else {
+          // Self-contained mode
+          if (scriptContentMap.has(node)) {
+            const content = scriptContentMap.get(node);
+            if (content === null) return '';
+            const safeContent = content.replace(/<\/script>/gi, '<\\/script>');
+            return `<script>${safeContent}</script>`;
+          }
         }
       }
       return '';
@@ -830,8 +939,14 @@ async function serializePageToSelfContainedHtml(options = {}) {
     if (tagName === 'canvas') {
       try {
         const dataUrl = node.toDataURL('image/png');
-        let canvasHtml = `<img src="${dataUrl}"`;
-        // Copy other attributes except style/width/height (to let it fit container)
+        let srcVal = dataUrl;
+        if (isStructured) {
+          const filename = `assets/canvas_${Math.random().toString(36).substr(2, 5)}.png`;
+          assetMap.set(filename, dataUrl);
+          assetPathMap.set(filename, filename);
+          srcVal = filename;
+        }
+        let canvasHtml = `<img src="${srcVal}"`;
         for (let i = 0; i < node.attributes.length; i++) {
           const attr = node.attributes[i];
           if (attr.name !== 'style' && attr.name !== 'width' && attr.name !== 'height') {
@@ -846,7 +961,15 @@ async function serializePageToSelfContainedHtml(options = {}) {
     // In-place inline stylesheet replacement
     if (tagName === 'link' && node.getAttribute('rel') === 'stylesheet') {
       if (styleMap.has(node)) {
-        return `<style id="web2md-inlined-${Math.random().toString(36).substr(2, 5)}">${styleMap.get(node)}</style>`;
+        if (isStructured && node.getRootNode() === document) {
+          return ''; // Omit from HTML (goes to styles.css)
+        }
+        // Inside shadow root or self-contained mode, inline the resolved CSS rules
+        const cssRules = styleMap.get(node);
+        const resolvedCss = mapCssUrls(cssRules, node.href || baseHref, (absUrl) => {
+          return isStructured ? assetPathMap.get(absUrl) : assetMap.get(absUrl);
+        });
+        return `<style id="web2md-inlined-${Math.random().toString(36).substr(2, 5)}">${resolvedCss}</style>`;
       }
       // If we couldn't load rules, keep link but resolve absolute href
       const href = node.getAttribute('href');
@@ -860,10 +983,22 @@ async function serializePageToSelfContainedHtml(options = {}) {
     }
 
     if (tagName === 'style') {
-      if (styleMap.has(node)) {
-        return `<style>${styleMap.get(node)}</style>`;
+      if (node.id === 'web2md-visual-edit-styles') {
+        return '';
       }
-      return `<style>${resolveCssUrls(node.textContent, baseHref)}</style>`;
+      if (isStructured && node.getRootNode() === document) {
+        return ''; // Omit from HTML (goes to styles.css)
+      }
+      let cssRules = '';
+      if (styleMap.has(node)) {
+        cssRules = styleMap.get(node);
+      } else {
+        cssRules = node.textContent;
+      }
+      const resolvedCss = mapCssUrls(cssRules, baseHref, (absUrl) => {
+        return isStructured ? assetPathMap.get(absUrl) : assetMap.get(absUrl);
+      });
+      return `<style>${resolvedCss}</style>`;
     }
 
     let html = `<${tagName}`;
@@ -873,30 +1008,37 @@ async function serializePageToSelfContainedHtml(options = {}) {
       const attr = node.attributes[i];
       let value = attr.value;
 
+      // Clean up our visual edit hover class if present
+      if (attr.name === 'class') {
+        value = value.replace(/\bweb2md-hover-active\b/g, '').trim();
+        if (!value) continue;
+      }
+
       // Skip srcset to force img fallback to inlined src
       if (tagName === 'img' && attr.name === 'srcset') {
         continue;
       }
 
-      // Replace image src with base64
+      // Replace image src
       if (tagName === 'img' && attr.name === 'src') {
         try {
           const absSrc = new URL(value, baseHref).href;
-          if (assetMap.has(absSrc)) {
-            value = assetMap.get(absSrc);
+          if (isStructured) {
+            value = assetPathMap.get(absSrc) || absSrc;
           } else {
-            value = absSrc;
+            value = assetMap.get(absSrc) || absSrc;
           }
         } catch(e) {}
       }
 
-      // Replace inline background-image url() with base64
+      // Replace inline background-image url()
       if (attr.name === 'style' && value.includes('url(')) {
         value = value.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, url) => {
           try {
             const absUrl = new URL(url, baseHref).href;
-            if (assetMap.has(absUrl)) {
-              return `url("${assetMap.get(absUrl)}")`;
+            const mapped = isStructured ? assetPathMap.get(absUrl) : assetMap.get(absUrl);
+            if (mapped) {
+              return `url("${mapped}")`;
             }
           } catch(e) {}
           return match;
@@ -938,18 +1080,25 @@ async function serializePageToSelfContainedHtml(options = {}) {
     // Append Declarative Shadow DOM if exists
     if (node.shadowRoot) {
       html += '<template shadowrootmode="open">';
-      html += serializeAdoptedStyleSheets(node.shadowRoot);
+      html += serializeAdoptedStyleSheets(node.shadowRoot, isStructured);
       for (let i = 0; i < node.shadowRoot.childNodes.length; i++) {
-        html += serializeNode(node.shadowRoot.childNodes[i]);
+        html += serializeNode(node.shadowRoot.childNodes[i], isStructured);
       }
       html += '</template>';
     }
 
-    // Insert document adoptedStyleSheets and Mock Interceptor DB under the head tag
+    // Insert stylesheet reference or script references under the head tag
     if (tagName === 'head') {
-      html += serializeAdoptedStyleSheets(document);
-      if (preserveJs) {
-        html += `<script id="web2md-api-mock-db">${generateMockInterceptorCode()}</script>`;
+      if (isStructured) {
+        html += '<link rel="stylesheet" href="styles.css" />';
+        if (preserveJs) {
+          html += '<script src="scripts.js" defer></script>';
+        }
+      } else {
+        html += serializeAdoptedStyleSheets(document, false);
+        if (preserveJs) {
+          html += `<script id="web2md-api-mock-db">${generateMockInterceptorCode()}</script>`;
+        }
       }
     }
 
@@ -972,12 +1121,12 @@ async function serializePageToSelfContainedHtml(options = {}) {
           optionHtml += `>${escapeHtml(child.textContent)}</option>`;
           html += optionHtml;
         } else {
-          html += serializeNode(child);
+          html += serializeNode(child, isStructured);
         }
       }
     } else {
       for (let i = 0; i < node.childNodes.length; i++) {
-        html += serializeNode(node.childNodes[i]);
+        html += serializeNode(node.childNodes[i], isStructured);
       }
     }
 
@@ -987,6 +1136,7 @@ async function serializePageToSelfContainedHtml(options = {}) {
 
   // Helper to escape HTML characters
   function escapeHtml(str) {
+    if (!str) return '';
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -995,5 +1145,137 @@ async function serializePageToSelfContainedHtml(options = {}) {
       .replace(/'/g, '&#039;');
   }
 
-  return serializeNode(document.documentElement);
+  const selfContainedHtml = serializeNode(document.documentElement, false);
+  const structuredHtml = serializeNode(document.documentElement, true);
+
+  const packageAssets = [];
+  for (const [url, dataUrl] of assetMap.entries()) {
+    const filename = assetPathMap.get(url) || url;
+    packageAssets.push({
+      path: filename,
+      dataUrl: dataUrl
+    });
+  }
+
+  return {
+    html: selfContainedHtml,
+    package: {
+      html: structuredHtml,
+      css: globalCss,
+      js: globalJs,
+      assets: packageAssets
+    }
+  };
+}
+
+/**
+ * Visual Edit Mode Implementation
+ */
+function toggleVisualEditMode(enabled) {
+  isVisualEditActive = !!enabled;
+  
+  if (isVisualEditActive) {
+    document.designMode = "on";
+    
+    // 1. Inject styling if not already present
+    let styleEl = document.getElementById('web2md-visual-edit-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'web2md-visual-edit-styles';
+      styleEl.textContent = `
+        .web2md-hover-active {
+          outline: 1px dashed #3b82f6 !important;
+          cursor: text !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+    
+    // 2. Add event listeners
+    document.addEventListener('mouseover', handleMouseOver, true);
+    document.addEventListener('mouseout', handleMouseOut, true);
+    document.addEventListener('click', handleLinkClick, true);
+    document.addEventListener('dblclick', handleImageDblClick, true);
+    
+    showToast("🎨 Visual Edit Mode enabled!");
+  } else {
+    document.designMode = "off";
+    
+    // Remove styling element
+    const styleEl = document.getElementById('web2md-visual-edit-styles');
+    if (styleEl) {
+      styleEl.remove();
+    }
+    
+    // Remove any leftover hover class from elements
+    document.querySelectorAll('.web2md-hover-active').forEach(el => {
+      el.classList.remove('web2md-hover-active');
+    });
+    
+    // Remove event listeners
+    document.removeEventListener('mouseover', handleMouseOver, true);
+    document.removeEventListener('mouseout', handleMouseOut, true);
+    document.removeEventListener('click', handleLinkClick, true);
+    document.removeEventListener('dblclick', handleImageDblClick, true);
+    
+    showToast("🎨 Visual Edit Mode disabled.");
+  }
+}
+
+function handleMouseOver(e) {
+  if (!isVisualEditActive) return;
+  const el = e.target;
+  if (el && el !== document.body && el !== document.documentElement && !el.closest('#web2md-toast')) {
+    el.classList.add('web2md-hover-active');
+  }
+}
+
+function handleMouseOut(e) {
+  const el = e.target;
+  if (el) {
+    el.classList.remove('web2md-hover-active');
+  }
+}
+
+function handleLinkClick(e) {
+  if (!isVisualEditActive) return;
+  const anchor = e.target.closest('a');
+  if (anchor) {
+    e.preventDefault();
+    e.stopPropagation();
+    showToast("Link click blocked in Edit Mode");
+  }
+}
+
+function handleImageDblClick(e) {
+  if (!isVisualEditActive) return;
+  if (e.target.tagName === 'IMG') {
+    e.preventDefault();
+    e.stopPropagation();
+    const newSrc = prompt("Enter new image URL:", e.target.src);
+    if (newSrc !== null && newSrc.trim() !== '') {
+      e.target.src = newSrc.trim();
+      showToast("Image source updated!");
+    }
+  }
+}
+
+/**
+ * Helper to fetch captured XHR/Fetch API calls from main world context
+ */
+function getApiCallsFromMainWorld() {
+  return new Promise((resolve) => {
+    const onApiMessage = (event) => {
+      if (event.source === window && event.data && event.data.type === 'WEB2MD_API_CALLS_RESPONSE') {
+        window.removeEventListener('message', onApiMessage);
+        resolve(event.data.apiCalls || []);
+      }
+    };
+    window.addEventListener('message', onApiMessage);
+    window.postMessage({ type: 'WEB2MD_REQUEST_API_CALLS' }, '*');
+    setTimeout(() => {
+      window.removeEventListener('message', onApiMessage);
+      resolve([]);
+    }, 500);
+  });
 }

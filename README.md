@@ -92,3 +92,46 @@ Local git user details are pre-configured:
 git config user.name "HiepLeHoaiNghia"
 git config user.email "hiep.lhn@gmail.com"
 ```
+
+---
+
+## 🌐 Hướng dẫn mở Gói ZIP / HTML đã clone đúng cách (How to run cloned HTML & ZIP Package)
+
+Khi tải xuống dưới định dạng **ZIP Package**, cấu trúc thư mục của trang web sau khi giải nén sẽ bao gồm:
+- `index.html`: Cấu trúc DOM chính của trang web (đã được liên kết với CSS và JS ngoài).
+- `styles.css`: Chứa toàn bộ CSS của trang web đã được trích xuất.
+- `scripts.js`: Chứa mã JavaScript tương tác (nếu bạn bật tùy chọn *Preserve JS*).
+- `assets/`: Thư mục chứa hình ảnh, font chữ, icon đã được tải về dưới dạng tệp tin cục bộ.
+
+Do các chính sách bảo mật nghiêm ngặt của trình duyệt (CORS / Same-Origin Policy) đối với giao thức `file://`:
+- Một số script động, web fonts hoặc tài nguyên trong Shadow DOM có thể bị chặn load nếu bạn chỉ click đúp mở trực tiếp file `index.html`.
+- Các tính năng giả lập API Mocking cũng yêu cầu origin an toàn (`http://localhost`) để hoạt động đầy đủ.
+
+### Hướng dẫn chạy gói mã nguồn:
+
+#### Bước 1: Giải nén tệp ZIP
+Giải nén tệp tin ZIP bạn vừa tải về để có thư mục chứa mã nguồn hoàn chỉnh.
+
+#### Bước 2: Chạy qua Local HTTP Server (Khuyên dùng)
+Hãy khởi chạy một server HTTP local ngay trong thư mục giải nén để trình duyệt cấp origin `http://localhost`. Bạn có thể chọn một trong các cách sau:
+
+##### Cách 1: Sử dụng Node.js
+Nếu máy bạn đã cài Node.js, hãy mở Terminal tại thư mục vừa giải nén và chạy:
+```bash
+npx http-server -p 8080
+# Hoặc
+npx serve
+```
+Sau đó truy cập đường dẫn hiển thị (ví dụ: `http://localhost:8080`).
+
+##### Cách 2: Sử dụng Python (Sẵn có trên macOS/Linux)
+Mở Terminal tại thư mục vừa giải nén và chạy:
+```bash
+python3 -m http.server 8000
+```
+Sau đó truy cập `http://localhost:8000` trong trình duyệt.
+
+##### Cách 3: Sử dụng Extension VS Code (Giao diện đồ họa)
+1. Mở thư mục đã giải nén bằng VS Code.
+2. Đảm bảo đã cài đặt extension **Live Server**.
+3. Click chuột phải vào file `index.html` và chọn **"Open with Live Server"**.

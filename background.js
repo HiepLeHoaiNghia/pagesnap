@@ -40,7 +40,7 @@ async function ensureScriptsInjected(tabId, frameId = 0) {
 
     // Inject regular scripts
     try {
-      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
+      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
       for (const script of scripts) {
         await chrome.scripting.executeScript({
           target: { tabId: tabId, frameIds: [frameId] },
@@ -77,15 +77,109 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Cache for detected React VFS projects across frames
 const tabProjects = {};
+// Cache for captured API calls keyed by tab ID
+const tabApiCalls = {};
+// Cache for whether mocking is enabled keyed by tab ID
+const tabMockingEnabled = {};
 
 // Clean up cache when tabs are closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   delete tabProjects[tabId];
+  delete tabApiCalls[tabId];
+  delete tabMockingEnabled[tabId];
 });
 
 // Handle registration, query of project files, and CORS fetching for HTML cloning
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "registerProject" && sender.tab) {
+  if (message.action === "resetApiCalls" && sender.tab) {
+    const tabId = sender.tab.id;
+    if (tabApiCalls[tabId]) {
+      // Keep only calls that are user-edited mocks to preserve them across reloads
+      tabApiCalls[tabId] = tabApiCalls[tabId].filter(call => call.isMocked);
+    }
+    sendResponse({ success: true });
+  } else if (message.action === "recordApiCall" && sender.tab) {
+    const tabId = sender.tab.id;
+    if (!tabApiCalls[tabId]) {
+      tabApiCalls[tabId] = [];
+    }
+    // Check for duplicates to avoid adding identical calls
+    const isDuplicate = tabApiCalls[tabId].some(call => 
+      call.url === message.call.url && 
+      call.method === message.call.method && 
+      Math.abs(call.timestamp - message.call.timestamp) < 1000
+    );
+    if (!isDuplicate) {
+      tabApiCalls[tabId].push(message.call);
+    }
+    sendResponse({ success: true });
+  } else if (message.action === "getApiCalls") {
+    const tabId = message.tabId || (sender.tab ? sender.tab.id : null);
+    sendResponse({ success: true, apiCalls: tabApiCalls[tabId] || [] });
+  } else if (message.action === "saveMockFromWeb" && sender.tab) {
+    const tabId = sender.tab.id;
+    const { mock } = message;
+    if (!tabApiCalls[tabId]) {
+      tabApiCalls[tabId] = [];
+    }
+    const idx = tabApiCalls[tabId].findIndex(call => call.url === mock.url && call.method === mock.method);
+    if (idx !== -1) {
+      tabApiCalls[tabId][idx] = { ...tabApiCalls[tabId][idx], ...mock };
+    } else {
+      tabApiCalls[tabId].push(mock);
+    }
+    try {
+      chrome.tabs.sendMessage(tabId, { action: "syncMocks", mocks: tabApiCalls[tabId] });
+    } catch (e) {}
+    sendResponse({ success: true });
+  } else if (message.action === "updateApiCall") {
+    const { tabId, index, updatedCall } = message;
+    if (tabApiCalls[tabId] && tabApiCalls[tabId][index]) {
+      tabApiCalls[tabId][index] = { ...tabApiCalls[tabId][index], ...updatedCall };
+      // Broadcast mocks update to the content script in this tab
+      try {
+        chrome.tabs.sendMessage(tabId, { action: "syncMocks", mocks: tabApiCalls[tabId] });
+      } catch (e) {}
+    }
+    sendResponse({ success: true });
+  } else if (message.action === "deleteApiCall") {
+    const { tabId, index } = message;
+    if (tabApiCalls[tabId] && tabApiCalls[tabId][index]) {
+      tabApiCalls[tabId].splice(index, 1);
+      // Broadcast mocks update to the content script in this tab
+      try {
+        chrome.tabs.sendMessage(tabId, { action: "syncMocks", mocks: tabApiCalls[tabId] });
+      } catch (e) {}
+    }
+    sendResponse({ success: true });
+  } else if (message.action === "setMockingEnabled") {
+    const { tabId, enabled } = message;
+    tabMockingEnabled[tabId] = enabled;
+    try {
+      chrome.tabs.sendMessage(tabId, { action: "syncMockingEnabled", enabled: enabled });
+    } catch (e) {}
+    sendResponse({ success: true });
+  } else if (message.action === "getMockingEnabled" && sender.tab) {
+    const tabId = sender.tab.id;
+    const enabled = tabMockingEnabled[tabId] !== false;
+    sendResponse({ success: true, enabled: enabled });
+  } else if (message.action === "clearAllMocks") {
+    const { tabId } = message;
+    if (tabApiCalls[tabId]) {
+      tabApiCalls[tabId].forEach(call => {
+        if (call.isMocked) {
+          call.isMocked = false;
+          call.status = call.originalStatus || call.status;
+          call.responseText = call.originalResponseText !== undefined ? call.originalResponseText : call.responseText;
+        }
+      });
+      tabApiCalls[tabId] = tabApiCalls[tabId].filter(call => call.originalStatus !== undefined);
+      try {
+        chrome.tabs.sendMessage(tabId, { action: "syncMocks", mocks: tabApiCalls[tabId] });
+      } catch (e) {}
+    }
+    sendResponse({ success: true });
+  } else if (message.action === "registerProject" && sender.tab) {
     tabProjects[sender.tab.id] = {
       files: message.projectFiles,
       title: sender.tab.title || "Project"
