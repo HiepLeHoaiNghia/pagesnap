@@ -208,11 +208,6 @@
   const apiCalls = [];
   window.__web2md_api_calls = apiCalls;
 
-  function recordCall(callLog) {
-    apiCalls.push(callLog);
-    window.postMessage({ type: 'WEB2MD_API_CALL_RECORDED', call: callLog }, '*');
-  }
-
   // Intercept Fetch
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
@@ -286,11 +281,11 @@
       } catch (e) {
         callLog.responseText = '';
       }
-      recordCall(callLog);
+      apiCalls.push(callLog);
       return response;
     } catch (error) {
       callLog.error = error.message;
-      recordCall(callLog);
+      apiCalls.push(callLog);
       throw error;
     }
   };
@@ -355,7 +350,7 @@
           } catch (e) {
             callLog.responseText = '';
           }
-          recordCall(callLog);
+          apiCalls.push(callLog);
         }
       });
 
@@ -392,16 +387,6 @@
         window.postMessage({ type: 'WEB2MD_VFS_RESPONSE', files: files }, '*');
       } else if (event.data.type === 'WEB2MD_REQUEST_API_CALLS') {
         window.postMessage({ type: 'WEB2MD_API_CALLS_RESPONSE', apiCalls: apiCalls }, '*');
-      } else if (event.data.type === 'WEB2MD_UPDATE_API_CALL') {
-        const { index, updatedCall } = event.data;
-        if (apiCalls[index]) {
-          apiCalls[index] = { ...apiCalls[index], ...updatedCall };
-        }
-      } else if (event.data.type === 'WEB2MD_DELETE_API_CALL') {
-        const { index } = event.data;
-        if (index >= 0 && index < apiCalls.length) {
-          apiCalls.splice(index, 1);
-        }
       }
     }
   });

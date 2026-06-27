@@ -40,7 +40,7 @@ async function ensureScriptsInjected(tabId, frameId = 0) {
 
     // Inject regular scripts
     try {
-      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
+      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "content.js"];
       for (const script of scripts) {
         await chrome.scripting.executeScript({
           target: { tabId: tabId, frameIds: [frameId] },
@@ -77,52 +77,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Cache for detected React VFS projects across frames
 const tabProjects = {};
-// Cache for captured API calls keyed by tab ID
-const tabApiCalls = {};
 
 // Clean up cache when tabs are closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   delete tabProjects[tabId];
-  delete tabApiCalls[tabId];
 });
 
 // Handle registration, query of project files, and CORS fetching for HTML cloning
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "resetApiCalls" && sender.tab) {
-    const tabId = sender.tab.id;
-    delete tabApiCalls[tabId];
-    sendResponse({ success: true });
-  } else if (message.action === "recordApiCall" && sender.tab) {
-    const tabId = sender.tab.id;
-    if (!tabApiCalls[tabId]) {
-      tabApiCalls[tabId] = [];
-    }
-    // Check for duplicates to avoid adding identical calls
-    const isDuplicate = tabApiCalls[tabId].some(call => 
-      call.url === message.call.url && 
-      call.method === message.call.method && 
-      Math.abs(call.timestamp - message.call.timestamp) < 1000
-    );
-    if (!isDuplicate) {
-      tabApiCalls[tabId].push(message.call);
-    }
-    sendResponse({ success: true });
-  } else if (message.action === "getApiCalls") {
-    const tabId = message.tabId;
-    sendResponse({ success: true, apiCalls: tabApiCalls[tabId] || [] });
-  } else if (message.action === "updateApiCall") {
-    const { tabId, index, updatedCall } = message;
-    if (tabApiCalls[tabId] && tabApiCalls[tabId][index]) {
-      tabApiCalls[tabId][index] = { ...tabApiCalls[tabId][index], ...updatedCall };
-    }
-    sendResponse({ success: true });
-  } else if (message.action === "deleteApiCall") {
-    const { tabId, index } = message;
-    if (tabApiCalls[tabId] && tabApiCalls[tabId][index]) {
-      tabApiCalls[tabId].splice(index, 1);
-    }
-    sendResponse({ success: true });
-  } else if (message.action === "registerProject" && sender.tab) {
+  if (message.action === "registerProject" && sender.tab) {
     tabProjects[sender.tab.id] = {
       files: message.projectFiles,
       title: sender.tab.title || "Project"

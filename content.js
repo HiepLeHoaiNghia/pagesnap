@@ -4,28 +4,8 @@
  */
 
 // Listen for messages from popup or background script
-let isVisualEditActive = false;
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ping") {
-    sendResponse({ success: true });
-  } else if (request.action === "getVisualEditState") {
-    sendResponse({ active: isVisualEditActive });
-  } else if (request.action === "toggleVisualEdit") {
-    toggleVisualEditMode(request.enabled);
-    sendResponse({ success: true, active: isVisualEditActive });
-  } else if (request.action === "getApiCalls") {
-    getApiCallsFromMainWorld().then(calls => {
-      sendResponse({ success: true, apiCalls: calls });
-    }).catch(err => {
-      sendResponse({ success: false, error: err.message });
-    });
-    return true; // Keep channel open for async response
-  } else if (request.action === "updateApiCall") {
-    window.postMessage({ type: 'WEB2MD_UPDATE_API_CALL', index: request.index, updatedCall: request.updatedCall }, '*');
-    sendResponse({ success: true });
-  } else if (request.action === "deleteApiCall") {
-    window.postMessage({ type: 'WEB2MD_DELETE_API_CALL', index: request.index }, '*');
     sendResponse({ success: true });
   } else if (request.action === "extractContent") {
     handleExtractContentRequest(sendResponse);
@@ -34,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "convertPage") {
     handlePageConversion();
   } else if (request.action === "clonePage") {
-    serializePageToSelfContainedHtml({ preserveJs: request.preserveJs, apiCalls: request.apiCalls || [] })
+    serializePageToSelfContainedHtml({ preserveJs: request.preserveJs })
       .then(html => sendResponse({ success: true, html }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
@@ -493,7 +473,20 @@ async function serializePageToSelfContainedHtml(options = {}) {
   // 2. Fetch API cache if preserveJs is active
   let apiCache = [];
   if (preserveJs) {
-    apiCache = options.apiCalls || [];
+    apiCache = await new Promise((resolve) => {
+      const onApiMessage = (event) => {
+        if (event.source === window && event.data && event.data.type === 'WEB2MD_API_CALLS_RESPONSE') {
+          window.removeEventListener('message', onApiMessage);
+          resolve(event.data.apiCalls || []);
+        }
+      };
+      window.addEventListener('message', onApiMessage);
+      window.postMessage({ type: 'WEB2MD_REQUEST_API_CALLS' }, '*');
+      setTimeout(() => {
+        window.removeEventListener('message', onApiMessage);
+        resolve([]);
+      }, 500);
+    });
   }
 
   // 3. Fetch/Inline Scripts if preserveJs is active
@@ -683,8 +676,8 @@ async function serializePageToSelfContainedHtml(options = {}) {
       });
     }
     
-    console.log('[Web2MD Mock Fetch] Request not in cache, falling back to network:', url);
-    return originalFetch.apply(this, arguments);
+    console.warn('[Web2MD Mock Fetch] Request not in cache, returning 404:', url);
+    return new Response('Not Found (Offline Mock)', { status: 404, statusText: 'Not Found' });
   };
 
   const originalXHR = window.XMLHttpRequest;
@@ -699,68 +692,63 @@ async function serializePageToSelfContainedHtml(options = {}) {
       requestMethod = method.toUpperCase();
       requestUrl = url;
       matchedEntry = matchUrl(url);
-      if (matchedEntry) {
-        Object.defineProperties(xhr, {
-          status: {
-            get: () => matchedEntry.status || 200,
-            configurable: true
-          },
-          statusText: {
-            get: () => matchedEntry.statusText || 'OK',
-            configurable: true
-          },
-          responseText: {
-            get: () => matchedEntry.responseText || '',
-            configurable: true
-          },
-          response: {
-            get: () => {
-              const text = matchedEntry.responseText || '';
-              if (xhr.responseType === 'json') {
-                try { return JSON.parse(text); } catch (e) { return null; }
-              }
-              return text;
-            },
-            configurable: true
-          },
-          readyState: {
-            get: () => 4,
-            configurable: true
-          },
-          getAllResponseHeaders: {
-            value: () => {
-              if (!matchedEntry.responseHeaders) return '';
-              return Object.entries(matchedEntry.responseHeaders)
-                .map(([k, v]) => `\${k}: \${v}`)
-                .join('\r\n');
-            },
-            configurable: true
-          },
-          getResponseHeader: {
-            value: (header) => {
-              if (!matchedEntry.responseHeaders) return null;
-              return matchedEntry.responseHeaders[header.toLowerCase()] || null;
-            },
-            configurable: true
-          }
-        });
-      }
       return originalOpen.apply(this, [method, url, ...rest]);
     };
 
+    Object.defineProperties(xhr, {
+      status: {
+        get: () => matchedEntry ? (matchedEntry.status || 200) : 404,
+        configurable: true
+      },
+      statusText: {
+        get: () => matchedEntry ? (matchedEntry.statusText || 'OK') : 'Not Found',
+        configurable: true
+      },
+      responseText: {
+        get: () => matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)',
+        configurable: true
+      },
+      response: {
+        get: () => {
+          const text = matchedEntry ? (matchedEntry.responseText || '') : 'Not Found (Offline Mock)';
+          if (xhr.responseType === 'json') {
+            try { return JSON.parse(text); } catch (e) { return null; }
+          }
+          return text;
+        },
+        configurable: true
+      },
+      readyState: {
+        get: () => 4,
+        configurable: true
+      },
+      getAllResponseHeaders: {
+        value: () => {
+          if (!matchedEntry || !matchedEntry.responseHeaders) return '';
+          return Object.entries(matchedEntry.responseHeaders)
+            .map(([k, v]) => \`\${k}: \${v}\`)
+            .join('\\r\\n');
+        },
+        configurable: true
+      },
+      getResponseHeader: {
+        value: (header) => {
+          if (!matchedEntry || !matchedEntry.responseHeaders) return null;
+          return matchedEntry.responseHeaders[header.toLowerCase()] || null;
+        },
+        configurable: true
+      }
+    });
+
     const originalSend = xhr.send;
     xhr.send = function(body) {
-      if (matchedEntry) {
-        console.log('[Web2MD Mock XHR] Intercepted:', requestUrl);
-        setTimeout(() => {
-          if (xhr.onreadystatechange) xhr.onreadystatechange();
-          if (xhr.onload) xhr.onload();
-          xhr.dispatchEvent(new Event('load'));
-          xhr.dispatchEvent(new Event('readystatechange'));
-        }, 1);
-      } else {
-        return originalSend.apply(this, arguments);
-      }
+      console.log('[Web2MD Mock XHR] Intercepted:', requestUrl);
+      setTimeout(() => {
+        if (xhr.onreadystatechange) xhr.onreadystatechange();
+        if (xhr.onload) xhr.onload();
+        xhr.dispatchEvent(new Event('load'));
+        xhr.dispatchEvent(new Event('readystatechange'));
+      }, 1);
     };
 
     return xhr;
@@ -872,9 +860,6 @@ async function serializePageToSelfContainedHtml(options = {}) {
     }
 
     if (tagName === 'style') {
-      if (node.id === 'web2md-visual-edit-styles') {
-        return '';
-      }
       if (styleMap.has(node)) {
         return `<style>${styleMap.get(node)}</style>`;
       }
@@ -887,12 +872,6 @@ async function serializePageToSelfContainedHtml(options = {}) {
     for (let i = 0; i < node.attributes.length; i++) {
       const attr = node.attributes[i];
       let value = attr.value;
-
-      // Clean up our visual edit hover class if present
-      if (attr.name === 'class') {
-        value = value.replace(/\bweb2md-hover-active\b/g, '').trim();
-        if (!value) continue;
-      }
 
       // Skip srcset to force img fallback to inlined src
       if (tagName === 'img' && attr.name === 'srcset') {
@@ -1017,116 +996,4 @@ async function serializePageToSelfContainedHtml(options = {}) {
   }
 
   return serializeNode(document.documentElement);
-}
-
-/**
- * Visual Edit Mode Implementation
- */
-function toggleVisualEditMode(enabled) {
-  isVisualEditActive = !!enabled;
-  
-  if (isVisualEditActive) {
-    document.designMode = "on";
-    
-    // 1. Inject styling if not already present
-    let styleEl = document.getElementById('web2md-visual-edit-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'web2md-visual-edit-styles';
-      styleEl.textContent = `
-        .web2md-hover-active {
-          outline: 1px dashed #3b82f6 !important;
-          cursor: text !important;
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-    
-    // 2. Add event listeners
-    document.addEventListener('mouseover', handleMouseOver, true);
-    document.addEventListener('mouseout', handleMouseOut, true);
-    document.addEventListener('click', handleLinkClick, true);
-    document.addEventListener('dblclick', handleImageDblClick, true);
-    
-    showToast("🎨 Visual Edit Mode enabled!");
-  } else {
-    document.designMode = "off";
-    
-    // Remove styling element
-    const styleEl = document.getElementById('web2md-visual-edit-styles');
-    if (styleEl) {
-      styleEl.remove();
-    }
-    
-    // Remove any leftover hover class from elements
-    document.querySelectorAll('.web2md-hover-active').forEach(el => {
-      el.classList.remove('web2md-hover-active');
-    });
-    
-    // Remove event listeners
-    document.removeEventListener('mouseover', handleMouseOver, true);
-    document.removeEventListener('mouseout', handleMouseOut, true);
-    document.removeEventListener('click', handleLinkClick, true);
-    document.removeEventListener('dblclick', handleImageDblClick, true);
-    
-    showToast("🎨 Visual Edit Mode disabled.");
-  }
-}
-
-function handleMouseOver(e) {
-  if (!isVisualEditActive) return;
-  const el = e.target;
-  if (el && el !== document.body && el !== document.documentElement && !el.closest('#web2md-toast')) {
-    el.classList.add('web2md-hover-active');
-  }
-}
-
-function handleMouseOut(e) {
-  const el = e.target;
-  if (el) {
-    el.classList.remove('web2md-hover-active');
-  }
-}
-
-function handleLinkClick(e) {
-  if (!isVisualEditActive) return;
-  const anchor = e.target.closest('a');
-  if (anchor) {
-    e.preventDefault();
-    e.stopPropagation();
-    showToast("Link click blocked in Edit Mode");
-  }
-}
-
-function handleImageDblClick(e) {
-  if (!isVisualEditActive) return;
-  if (e.target.tagName === 'IMG') {
-    e.preventDefault();
-    e.stopPropagation();
-    const newSrc = prompt("Enter new image URL:", e.target.src);
-    if (newSrc !== null && newSrc.trim() !== '') {
-      e.target.src = newSrc.trim();
-      showToast("Image source updated!");
-    }
-  }
-}
-
-/**
- * Helper to fetch captured XHR/Fetch API calls from main world context
- */
-function getApiCallsFromMainWorld() {
-  return new Promise((resolve) => {
-    const onApiMessage = (event) => {
-      if (event.source === window && event.data && event.data.type === 'WEB2MD_API_CALLS_RESPONSE') {
-        window.removeEventListener('message', onApiMessage);
-        resolve(event.data.apiCalls || []);
-      }
-    };
-    window.addEventListener('message', onApiMessage);
-    window.postMessage({ type: 'WEB2MD_REQUEST_API_CALLS' }, '*');
-    setTimeout(() => {
-      window.removeEventListener('message', onApiMessage);
-      resolve([]);
-    }, 500);
-  });
 }

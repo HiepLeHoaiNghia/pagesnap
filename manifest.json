@@ -22,14 +22,7 @@
       "matches": ["<all_urls>"],
       "js": ["main_world.js"],
       "world": "MAIN",
-      "run_at": "document_start",
-      "all_frames": true
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["isolated_bridge.js"],
-      "run_at": "document_start",
-      "all_frames": true
+      "run_at": "document_start"
     }
   ],
 
