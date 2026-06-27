@@ -29,12 +29,7 @@
         <label class="toggle-switch compact-toggle">
           <input type="checkbox" id="btn-toggle-edit">
           <span class="slider"></span>
-          <span class="label-text">🎨 Visual Edit</span>
-        </label>
-        <label class="toggle-switch compact-toggle">
-          <input type="checkbox" id="btn-toggle-inspect">
-          <span class="slider"></span>
-          <span class="label-text">🔍 React Inspect</span>
+          <span class="label-text">🎨 Visual Edit Mode</span>
         </label>
       </div>
 
@@ -60,68 +55,19 @@
             <iframe id="html-preview-frame" sandbox="allow-same-origin"></iframe>
           </div>
           <div id="api-preview-wrapper" class="hidden">
-            <!-- API List View (Main) -->
-            <div id="api-list-view" style="display: flex; flex-direction: column; height: 100%;">
-              <div class="api-config-banner">
-                <label class="toggle-switch compact-toggle">
-                  <input type="checkbox" id="setting-preserve-js-quick">
-                  <span class="slider"></span>
-                  <span class="label-text">Preserve JS & Mock APIs</span>
-                </label>
-              </div>
-              <div class="api-manager-header">
-                <input type="text" id="api-search" placeholder="Search API endpoints...">
-                <button id="btn-refresh-api" class="icon-btn-refresh" title="Refresh API list">🔄</button>
-                <button id="btn-clear-all-mocks" class="icon-btn-refresh" title="Clear all mocks and restore live APIs" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #f43f5e; font-size: 11px;">🗑️</button>
-              </div>
-              <div id="api-list-container">
-                <div class="api-empty-state">No API calls recorded. Please verify "Preserve JS" is checked in configuration and click Extract.</div>
-              </div>
+            <div class="api-config-banner">
+              <label class="toggle-switch compact-toggle">
+                <input type="checkbox" id="setting-preserve-js-quick">
+                <span class="slider"></span>
+                <span class="label-text">Preserve JS & Mock APIs</span>
+              </label>
             </div>
-
-            <!-- Dedicated Large Editor View (Sub-panel) -->
-            <div id="api-editor-view" class="hidden">
-              <div class="api-editor-header">
-                <button id="btn-editor-back" class="editor-back-btn">← Back</button>
-                <span class="editor-header-title">Edit Mock API</span>
-              </div>
-              <div class="api-editor-fields">
-                <div class="api-detail-field">
-                  <label>Full Request URL</label>
-                  <div id="editor-url" class="api-url-full"></div>
-                </div>
-                <div class="api-detail-row">
-                  <div class="api-detail-field">
-                    <label>HTTP Method</label>
-                    <select id="editor-method">
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                      <option value="PUT">PUT</option>
-                      <option value="DELETE">DELETE</option>
-                      <option value="PATCH">PATCH</option>
-                      <option value="OPTIONS">OPTIONS</option>
-                    </select>
-                  </div>
-                  <div class="api-detail-field">
-                    <label>HTTP Status</label>
-                    <input type="number" id="editor-status" min="100" max="599">
-                  </div>
-                </div>
-                <div class="api-detail-field textarea-field">
-                  <label>Response Body (JSON/Text)</label>
-                  <textarea id="editor-body" placeholder="Empty response body..."></textarea>
-                </div>
-              </div>
-              <div class="api-editor-actions">
-                <div class="api-editor-left-actions" style="display: flex; gap: 8px;">
-                  <button id="btn-editor-format" class="editor-btn">✨ Format JSON</button>
-                  <button id="btn-editor-reset" class="editor-btn">🔄 Reset</button>
-                </div>
-                <div class="api-editor-right-actions">
-                  <button id="btn-editor-delete" class="editor-btn delete-btn">🗑️ Delete</button>
-                  <button id="btn-editor-save" class="editor-btn save-btn">💾 Save Changes</button>
-                </div>
-              </div>
+            <div class="api-manager-header">
+              <input type="text" id="api-search" placeholder="Search API endpoints...">
+              <button id="btn-refresh-api" class="icon-btn-refresh" title="Refresh API list">🔄</button>
+            </div>
+            <div id="api-list-container">
+              <div class="api-empty-state">No API calls recorded. Please verify "Preserve JS" is checked in configuration and click Extract.</div>
             </div>
           </div>
         </div>
@@ -205,9 +151,26 @@
       </div>
     </section>
   </div>
-
-
-  <div id="resize-handle" class="resize-handle"></div>
+  <!-- Modal overlay for JSON/Text Editor -->
+  <div id="api-editor-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-api-title">Edit Response Mock</h3>
+        <button id="modal-btn-close" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+        <div class="modal-endpoint-info" style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px 6px; background: rgba(59, 130, 246, 0.1); border-radius: 4px;">
+          <span id="modal-api-method" style="font-weight: 700; color: #60a5fa;">GET</span>
+          <span id="modal-api-url" style="color: #93c5fd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">https://api.example.com</span>
+        </div>
+        <textarea id="modal-api-body" placeholder="Enter JSON response..." style="flex: 1; height: 180px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; padding: 8px; resize: none; outline: none;"></textarea>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+        <button id="modal-btn-format" class="secondary-btn" style="width: auto; padding: 6px 12px; font-size: 11px;">Format JSON</button>
+        <button id="modal-btn-save" class="primary-btn" style="width: auto; padding: 6px 16px; font-size: 11px;">Save</button>
+      </div>
+    </div>
+  </div>
 
   <script src="lib/turndown.js"></script>
   <script src="lib/turndown-plugin-gfm.js"></script>

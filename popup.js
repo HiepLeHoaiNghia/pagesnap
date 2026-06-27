@@ -28,19 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiListContainer = document.getElementById('api-list-container');
   const apiSearchInput = document.getElementById('api-search');
   const btnRefreshApi = document.getElementById('btn-refresh-api');
-  const apiListView = document.getElementById('api-list-view');
-  const apiEditorView = document.getElementById('api-editor-view');
-  const btnEditorBack = document.getElementById('btn-editor-back');
-  const editorUrl = document.getElementById('editor-url');
-  const editorMethod = document.getElementById('editor-method');
-  const editorStatus = document.getElementById('editor-status');
-  const editorBody = document.getElementById('editor-body');
-  const btnEditorFormat = document.getElementById('btn-editor-format');
-  const btnEditorDelete = document.getElementById('btn-editor-delete');
-  const btnEditorSave = document.getElementById('btn-editor-save');
-  const btnEditorReset = document.getElementById('btn-editor-reset');
-  const btnClearAllMocks = document.getElementById('btn-clear-all-mocks');
   
+  // Modal Elements
+  const apiEditorModal = document.getElementById('api-editor-modal');
+  const modalApiTitle = document.getElementById('modal-api-title');
+  const modalBtnClose = document.getElementById('modal-btn-close');
+  const modalApiMethod = document.getElementById('modal-api-method');
+  const modalApiUrl = document.getElementById('modal-api-url');
+  const modalApiBody = document.getElementById('modal-api-body');
+  const modalBtnFormat = document.getElementById('modal-btn-format');
+  const modalBtnSave = document.getElementById('modal-btn-save');
+
   // Zip and Deploy Elements
   const btnDownloadZip = document.getElementById('btn-download-zip');
   const btnDeploy = document.getElementById('btn-deploy');
@@ -60,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkPreserveJs = document.getElementById('setting-preserve-js');
   const checkPreserveJsQuick = document.getElementById('setting-preserve-js-quick');
   const btnToggleEdit = document.getElementById('btn-toggle-edit');
-  const btnToggleInspect = document.getElementById('btn-toggle-inspect');
 
   // State Variables
   let extractedData = null;
@@ -128,25 +125,20 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSettings().then((settings) => {
     updateSettingsUI(settings);
     updateFooterActionsVisibility();
-    notifyTabMockingState(settings.preserveJs);
   });
 
-  // Query active tab's edit mode and inspect mode state on popup load
+  // Query active tab's edit mode state on popup load
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0) {
       const activeTab = tabs[0];
       if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
         chrome.tabs.sendMessage(activeTab.id, { action: "getVisualEditState" }, (response) => {
-          if (!chrome.runtime.lastError && response && response.active !== undefined) {
+          if (chrome.runtime.lastError) {
+            return; // script not loaded/active
+          }
+          if (response && response.active !== undefined) {
             if (btnToggleEdit) {
               btnToggleEdit.checked = response.active;
-            }
-          }
-        });
-        chrome.tabs.sendMessage(activeTab.id, { action: "getInspectState" }, (response) => {
-          if (!chrome.runtime.lastError && response && response.active !== undefined) {
-            if (btnToggleInspect) {
-              btnToggleInspect.checked = response.active;
             }
           }
         });
@@ -157,16 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnToggleEdit) {
     btnToggleEdit.addEventListener('change', () => {
       const enabled = btnToggleEdit.checked;
-      if (enabled && btnToggleInspect && btnToggleInspect.checked) {
-        btnToggleInspect.checked = false;
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs && tabs.length > 0) {
-            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleInspect", enabled: false }, () => {
-              if (chrome.runtime.lastError) {}
-            });
-          }
-        });
-      }
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
@@ -179,37 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.tabs.sendMessage(activeTab.id, { action: "toggleVisualEdit", enabled: enabled }, (response) => {
           if (chrome.runtime.lastError) {
             injectScriptsAndToggle(activeTab.id, enabled);
-          }
-        });
-      });
-    });
-  }
-
-  if (btnToggleInspect) {
-    btnToggleInspect.addEventListener('change', () => {
-      const enabled = btnToggleInspect.checked;
-      if (enabled && btnToggleEdit && btnToggleEdit.checked) {
-        btnToggleEdit.checked = false;
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs && tabs.length > 0) {
-            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleVisualEdit", enabled: false }, () => {
-              if (chrome.runtime.lastError) {}
-            });
-          }
-        });
-      }
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs || tabs.length === 0) return;
-        const activeTab = tabs[0];
-        if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
-          showError("Cannot inspect Chrome system pages.");
-          btnToggleInspect.checked = false;
-          return;
-        }
-
-        chrome.tabs.sendMessage(activeTab.id, { action: "toggleInspect", enabled: enabled }, (response) => {
-          if (chrome.runtime.lastError) {
-            injectScriptsAndToggleInspect(activeTab.id, enabled);
           }
         });
       });
@@ -252,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFooterActionsVisibility();
 
         if (tabObj.name === 'api') {
-          showApiListView();
           fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
         }
 
@@ -367,18 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function notifyTabMockingState(enabled) {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) return;
-      const tabId = tabs[0].id;
-      chrome.runtime.sendMessage({
-        action: "setMockingEnabled",
-        tabId: tabId,
-        enabled: enabled
-      });
-    });
-  }
-
   /**
    * Saves UI checkbox states to settings storage
    */
@@ -395,10 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
       codeBlockStyle: 'fenced'
     };
 
-    return safeStorage.set('settings', settings).then(() => {
-      notifyTabMockingState(settings.preserveJs);
-      return settings;
-    });
+    return safeStorage.set('settings', settings).then(() => settings);
   }
 
   /**
@@ -924,41 +859,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Helper to dynamically inject content scripts if not pre-loaded, then toggle inspect mode
-   */
-  function injectScriptsAndToggleInspect(tabId, enabled) {
-    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
-    let p = Promise.resolve();
-
-    p = p.then(() => {
-      return chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ["main_world.js"],
-        world: "MAIN"
-      });
-    }).catch(err => console.warn("Dynamic main world injection warning: ", err));
-
-    scripts.forEach(script => {
-      p = p.then(() => {
-        return chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: [script]
-        });
-      });
-    });
-
-    p.then(() => {
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tabId, { action: "toggleInspect", enabled: enabled });
-      }, 200);
-    }).catch(err => {
-      console.error("Script injection failed: ", err);
-      showError("Please refresh the page before inspecting.");
-      if (btnToggleInspect) btnToggleInspect.checked = false;
-    });
-  }
-
-  /**
    * Helper to display extraction/processing error in UI
    */
   function showError(msg) {
@@ -976,29 +876,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Mock API Management & Deploy Functions ---
-
-  let activeEditingCall = null;
-
-  function showApiListView() {
-    if (apiListView) apiListView.classList.remove('hidden');
-    if (apiEditorView) apiEditorView.classList.add('hidden');
-    activeEditingCall = null;
-  }
-
-  function showApiEditorView(call) {
-    if (!apiListView || !apiEditorView) return;
-    
-    activeEditingCall = call;
-    
-    editorUrl.textContent = call.url;
-    editorUrl.title = call.url;
-    editorMethod.value = call.method || 'GET';
-    editorStatus.value = call.status || 200;
-    editorBody.value = call.responseText || '';
-    
-    apiListView.classList.add('hidden');
-    apiEditorView.classList.remove('hidden');
-  }
 
   function fetchAndRenderApiCalls(searchQuery = '') {
     if (!apiListContainer) return;
@@ -1042,6 +919,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const card = document.createElement('div');
           card.className = 'api-card';
           
+          const header = document.createElement('div');
+          header.className = 'api-card-header';
+          
           const meta = document.createElement('div');
           meta.className = 'api-card-meta';
           
@@ -1062,21 +942,48 @@ document.addEventListener('DOMContentLoaded', () => {
           meta.appendChild(methodBadge);
           meta.appendChild(statusBadge);
           meta.appendChild(urlSpan);
-          card.appendChild(meta);
+          header.appendChild(meta);
+          card.appendChild(header);
           
-          const editIndicator = document.createElement('span');
-          editIndicator.className = 'api-card-edit-indicator';
-          editIndicator.innerHTML = '✎';
-          card.appendChild(editIndicator);
+          const actions = document.createElement('div');
+          actions.className = 'api-card-actions';
           
-          card.addEventListener('click', () => {
-            showApiEditorView(call);
-          });
+          const editBtn = document.createElement('button');
+          editBtn.className = 'api-action-btn';
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', () => openApiEditor(call.originalIndex, call));
+          
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'api-action-btn delete-btn';
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.addEventListener('click', () => deleteApiCall(call.originalIndex));
+          
+          actions.appendChild(editBtn);
+          actions.appendChild(deleteBtn);
+          card.appendChild(actions);
           
           apiListContainer.appendChild(card);
         });
       });
     });
+  }
+
+  function openApiEditor(index, call) {
+    editingApiIndex = index;
+    if (modalApiMethod) {
+      modalApiMethod.textContent = call.method;
+      modalApiMethod.className = `api-badge ${call.method.toLowerCase()}`;
+    }
+    if (modalApiUrl) {
+      modalApiUrl.textContent = call.url;
+      modalApiUrl.title = call.url;
+    }
+    if (modalApiBody) {
+      modalApiBody.value = call.responseText || '';
+    }
+    if (apiEditorModal) {
+      apiEditorModal.classList.remove('hidden');
+    }
   }
 
   function deleteApiCall(index) {
@@ -1085,6 +992,46 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.runtime.sendMessage({ action: "deleteApiCall", tabId: tabs[0].id, index: index }, (res) => {
         fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
       });
+    });
+  }
+
+  // Hook up editor modal buttons
+  if (modalBtnSave) {
+    modalBtnSave.addEventListener('click', () => {
+      if (editingApiIndex === -1) return;
+      const newResponse = modalApiBody ? modalApiBody.value : '';
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        chrome.runtime.sendMessage({
+          action: "updateApiCall",
+          tabId: tabs[0].id,
+          index: editingApiIndex,
+          updatedCall: { responseText: newResponse }
+        }, (res) => {
+          if (apiEditorModal) apiEditorModal.classList.add('hidden');
+          editingApiIndex = -1;
+          fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
+        });
+      });
+    });
+  }
+
+  if (modalBtnFormat) {
+    modalBtnFormat.addEventListener('click', () => {
+      if (!modalApiBody) return;
+      try {
+        const parsed = JSON.parse(modalApiBody.value);
+        modalApiBody.value = JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        alert("Failed to format: Body is not valid JSON.");
+      }
+    });
+  }
+
+  if (modalBtnClose) {
+    modalBtnClose.addEventListener('click', () => {
+      if (apiEditorModal) apiEditorModal.classList.add('hidden');
+      editingApiIndex = -1;
     });
   }
 
@@ -1098,112 +1045,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnRefreshApi) {
     btnRefreshApi.addEventListener('click', () => {
       fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
-    });
-  }
-
-  // Hook Sub-Editor Controls
-  if (btnEditorBack) {
-    btnEditorBack.addEventListener('click', showApiListView);
-  }
-  
-  if (btnEditorFormat) {
-    btnEditorFormat.addEventListener('click', () => {
-      try {
-        const obj = JSON.parse(editorBody.value);
-        editorBody.value = JSON.stringify(obj, null, 2);
-      } catch (err) {
-        const originalText = btnEditorFormat.textContent;
-        btnEditorFormat.textContent = '⚠️ Invalid JSON';
-        btnEditorFormat.style.color = '#f87171';
-        setTimeout(() => {
-          btnEditorFormat.textContent = originalText;
-          btnEditorFormat.style.color = '';
-        }, 1500);
-      }
-    });
-  }
-
-  if (btnEditorReset) {
-    btnEditorReset.addEventListener('click', () => {
-      if (!activeEditingCall) return;
-      if (confirm('Revert this mock and restore the live API calls?')) {
-        const origMethod = activeEditingCall.originalMethod || activeEditingCall.method || 'GET';
-        const origStatus = activeEditingCall.originalStatus || activeEditingCall.status || 200;
-        const origBody = activeEditingCall.originalResponseText !== undefined ? activeEditingCall.originalResponseText : (activeEditingCall.responseText || '');
-        
-        editorMethod.value = origMethod;
-        editorStatus.value = origStatus;
-        editorBody.value = origBody;
-        
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (!tabs || tabs.length === 0) return;
-          chrome.runtime.sendMessage({
-            action: "updateApiCall",
-            tabId: tabs[0].id,
-            index: activeEditingCall.originalIndex,
-            updatedCall: {
-              method: origMethod,
-              status: origStatus,
-              responseText: origBody,
-              isMocked: false
-            }
-          }, (res) => {
-            const originalText = btnEditorReset.textContent;
-            btnEditorReset.textContent = 'Reverted ✓';
-            btnEditorReset.style.color = '#10b981';
-            setTimeout(() => {
-              btnEditorReset.textContent = originalText;
-              btnEditorReset.style.color = '';
-            }, 1500);
-            fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
-          });
-        });
-      }
-    });
-  }
-  
-  if (btnEditorDelete) {
-    btnEditorDelete.addEventListener('click', () => {
-      if (activeEditingCall && confirm('Are you sure you want to delete this mock?')) {
-        deleteApiCall(activeEditingCall.originalIndex);
-        showApiListView();
-      }
-    });
-  }
-  
-  if (btnEditorSave) {
-    btnEditorSave.addEventListener('click', () => {
-      if (!activeEditingCall) return;
-      const newMethod = editorMethod.value;
-      const newStatus = parseInt(editorStatus.value, 10) || 200;
-      const newBody = editorBody.value;
-      
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs || tabs.length === 0) return;
-        chrome.runtime.sendMessage({
-          action: "updateApiCall",
-          tabId: tabs[0].id,
-          index: activeEditingCall.originalIndex,
-          updatedCall: {
-            method: newMethod,
-            status: newStatus,
-            responseText: newBody,
-            isMocked: true
-          }
-        }, (res) => {
-          // Highlight save button success
-          const originalText = btnEditorSave.textContent;
-          btnEditorSave.textContent = 'Saved ✓';
-          btnEditorSave.style.background = '#10b981';
-          setTimeout(() => {
-            btnEditorSave.textContent = originalText;
-            btnEditorSave.style.background = '';
-          }, 1500);
-          
-          // Refresh list to reflect changes on back button
-          fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
-        });
-      });
     });
   }
 
@@ -1395,106 +1236,4 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-  // Load and apply custom popup size
-  Promise.all([
-    safeStorage.get('popupWidth'),
-    safeStorage.get('popupHeight')
-  ]).then(([w, h]) => {
-    if (w) document.body.style.width = w;
-    if (h) document.body.style.height = h;
-  });
-
-  // Drag to Resize Logic
-  const resizeHandle = document.getElementById('resize-handle');
-  if (resizeHandle) {
-    let isResizing = false;
-    let startWidth, startHeight, startX, startY;
-
-    resizeHandle.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      startWidth = document.body.clientWidth;
-      startHeight = document.body.clientHeight;
-      startX = e.clientX;
-      startY = e.clientY;
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      e.preventDefault();
-    });
-
-    function handleMouseMove(e) {
-      if (!isResizing) return;
-      const newWidth = Math.min(800, Math.max(400, startWidth + (e.clientX - startX)));
-      const newHeight = Math.min(600, Math.max(350, startHeight + (e.clientY - startY)));
-      document.body.style.width = newWidth + 'px';
-      document.body.style.height = newHeight + 'px';
-    }
-
-    function handleMouseUp() {
-      if (!isResizing) return;
-      isResizing = false;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      // Save dimensions
-      safeStorage.set('popupWidth', document.body.style.width);
-      safeStorage.set('popupHeight', document.body.style.height);
-    }
-  }
-
-  // Handle messages from page context / isolated bridge
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === "inspectElementClicked" && message.call) {
-      if (tabApi) {
-        tabApi.click();
-      }
-      if (apiSearchInput) {
-        try {
-          const parsed = new URL(message.call.url);
-          apiSearchInput.value = parsed.pathname;
-        } catch(e) {
-          apiSearchInput.value = message.call.url;
-        }
-        apiSearchInput.dispatchEvent(new Event('input'));
-      }
-      
-      setTimeout(() => {
-        const cards = apiListContainer.querySelectorAll('.api-card');
-        for (const card of cards) {
-          const urlEl = card.querySelector('.api-url');
-          const methodEl = card.querySelector('.api-badge');
-          if (urlEl && methodEl && 
-              methodEl.textContent.trim().toUpperCase() === message.call.method.toUpperCase() &&
-              (message.call.url.includes(urlEl.textContent.trim()) || urlEl.textContent.trim().includes(message.call.url))) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            card.classList.add('highlight-flash');
-            setTimeout(() => {
-              card.classList.remove('highlight-flash');
-            }, 3000);
-            break;
-          }
-        }
-      }, 300);
-    } else if (message.action === "syncMocks") {
-      fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
-    }
-  });
-
-  if (btnClearAllMocks) {
-    btnClearAllMocks.addEventListener('click', () => {
-      if (confirm('Clear all mock API overrides for this page and restore live API calls? This will reload the web page.')) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (!tabs || tabs.length === 0) return;
-          const tabId = tabs[0].id;
-          chrome.runtime.sendMessage({
-            action: "clearAllMocks",
-            tabId: tabId
-          }, (res) => {
-            chrome.tabs.reload(tabId);
-            window.close();
-          });
-        });
-      }
-    });
-  }
 });
-
