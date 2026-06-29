@@ -5,6 +5,7 @@
 
 // Listen for messages from popup or background script
 let isVisualEditActive = false;
+let isInspectActive = false;
 let isRegionSelectionActive = false;
 let lastHoveredElement = null;
 let currentSelectedElement = null;
@@ -37,6 +38,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "toggleRegionSelection") {
     toggleRegionSelectionMode();
     sendResponse({ success: true });
+  } else if (request.action === "getInspectState") {
+    sendResponse({ active: isInspectActive });
+  } else if (request.action === "toggleInspect") {
+    isInspectActive = request.enabled;
+    window.postMessage({ type: 'WEB2MD_TOGGLE_INSPECT', enabled: request.enabled }, '*');
+    sendResponse({ success: true, active: isInspectActive });
   } else if (request.action === "getApiCalls") {
     getApiCallsFromMainWorld().then(calls => {
       sendResponse({ success: true, apiCalls: calls });
@@ -49,6 +56,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
   } else if (request.action === "deleteApiCall") {
     window.postMessage({ type: 'WEB2MD_DELETE_API_CALL', index: request.index }, '*');
+    sendResponse({ success: true });
+  } else if (request.action === "syncMocks") {
+    window.postMessage({ type: 'WEB2MD_SET_MOCKS', mocks: request.mocks }, '*');
+    sendResponse({ success: true });
+  } else if (request.action === "syncMockingEnabled") {
+    window.postMessage({ type: 'WEB2MD_SET_MOCKING_ENABLED', enabled: request.enabled }, '*');
     sendResponse({ success: true });
   } else if (request.action === "extractContent") {
     handleExtractContentRequest(sendResponse);
@@ -1521,15 +1534,28 @@ window.extractedProjectFiles = null;
 
 // Listen to postMessage from the page context script
 window.addEventListener('message', (event) => {
-  if (event.source === window && event.data && event.data.type === 'WEB2MD_VFS_EXTRACTED') {
-    window.extractedProjectFiles = event.data.files;
-    try {
-      chrome.runtime.sendMessage({
-        action: "registerProject",
-        projectFiles: event.data.files
-      });
-    } catch (e) {
-      // Ignore extension context invalidated errors
+  if (event.source === window && event.data) {
+    if (event.data.type === 'WEB2MD_VFS_EXTRACTED') {
+      window.extractedProjectFiles = event.data.files;
+      try {
+        chrome.runtime.sendMessage({
+          action: "registerProject",
+          projectFiles: event.data.files
+        });
+      } catch (e) {
+        // Ignore extension context invalidated errors
+      }
+    } else if (event.data.type === 'WEB2MD_INSPECT_MODE_DISABLED') {
+      isInspectActive = false;
+    } else if (event.data.type === 'WEB2MD_UPDATE_MOCK_SAVE') {
+      try {
+        chrome.runtime.sendMessage({
+          action: "saveMockFromWeb",
+          mock: event.data.mock
+        });
+      } catch (e) {
+        // Ignore extension context invalidated errors
+      }
     }
   }
 });

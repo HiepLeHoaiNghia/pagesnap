@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkPreserveJs = document.getElementById('setting-preserve-js');
   const checkPreserveJsQuick = document.getElementById('setting-preserve-js-quick');
   const btnToggleEdit = document.getElementById('btn-toggle-edit');
+  const btnToggleInspect = document.getElementById('btn-toggle-inspect');
 
   // State Variables
   let extractedData = null;
@@ -131,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     notifyTabMockingState(settings.preserveJs);
   });
 
-  // Query active tab's edit mode state on popup load
+  // Query active tab's edit mode and inspect mode state on popup load
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0) {
       const activeTab = tabs[0];
@@ -143,6 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
+        chrome.tabs.sendMessage(activeTab.id, { action: "getInspectState" }, (response) => {
+          if (!chrome.runtime.lastError && response && response.active !== undefined) {
+            if (btnToggleInspect) {
+              btnToggleInspect.checked = response.active;
+            }
+          }
+        });
       }
     }
   });
@@ -150,6 +158,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnToggleEdit) {
     btnToggleEdit.addEventListener('change', () => {
       const enabled = btnToggleEdit.checked;
+      // Mutual exclusion: disable inspect mode when visual edit is enabled
+      if (enabled && btnToggleInspect && btnToggleInspect.checked) {
+        btnToggleInspect.checked = false;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleInspect", enabled: false }, () => {
+              if (chrome.runtime.lastError) {}
+            });
+          }
+        });
+      }
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
@@ -162,6 +181,38 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.tabs.sendMessage(activeTab.id, { action: "toggleVisualEdit", enabled: enabled }, (response) => {
           if (chrome.runtime.lastError) {
             injectScriptsAndToggle(activeTab.id, enabled);
+          }
+        });
+      });
+    });
+  }
+
+  if (btnToggleInspect) {
+    btnToggleInspect.addEventListener('change', () => {
+      const enabled = btnToggleInspect.checked;
+      // Mutual exclusion: disable visual edit when inspect mode is enabled
+      if (enabled && btnToggleEdit && btnToggleEdit.checked) {
+        btnToggleEdit.checked = false;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleVisualEdit", enabled: false }, () => {
+              if (chrome.runtime.lastError) {}
+            });
+          }
+        });
+      }
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        const activeTab = tabs[0];
+        if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
+          showError("Cannot inspect Chrome system pages.");
+          btnToggleInspect.checked = false;
+          return;
+        }
+
+        chrome.tabs.sendMessage(activeTab.id, { action: "toggleInspect", enabled: enabled }, (response) => {
+          if (chrome.runtime.lastError) {
+            injectScriptsAndToggleInspect(activeTab.id, enabled);
           }
         });
       });
@@ -955,6 +1006,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   /**
+   * Helper to dynamically inject content scripts if not pre-loaded, then toggle inspect mode
+   */
+  function injectScriptsAndToggleInspect(tabId, enabled) {
+    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
+    let p = Promise.resolve();
+
+    p = p.then(() => {
+      return chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ["main_world.js"],
+        world: "MAIN"
+      });
+    }).catch(err => console.warn("Dynamic main world injection warning: ", err));
+
+    scripts.forEach(script => {
+      p = p.then(() => {
+        return chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: [script]
+        });
+      });
+    });
+
+    p.then(() => {
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { action: "toggleInspect", enabled: enabled });
+      }, 200);
+    }).catch(err => {
+      console.error("Script injection failed: ", err);
+      showError("Please refresh the page before inspecting.");
+      if (btnToggleInspect) btnToggleInspect.checked = false;
+    });
+  }
+
+  /**
    * Helper to display extraction/processing error in UI
    */
   function showError(msg) {
@@ -1049,6 +1135,23 @@ document.addEventListener('DOMContentLoaded', () => {
           const isSuccess = call.status >= 200 && call.status < 300;
           statusBadge.className = `api-status ${isSuccess ? 'success' : 'error'}`;
           statusBadge.textContent = call.status;
+
+          const indicator = document.createElement('span');
+          if (call.isMocked) {
+            if (call.status >= 400) {
+              indicator.className = 'api-indicator error-mock';
+              indicator.textContent = '🔴 Mocked';
+              indicator.title = 'Mocked Error Response';
+            } else {
+              indicator.className = 'api-indicator mocked';
+              indicator.textContent = '🟡 Mocked';
+              indicator.title = 'Mocked Success Response';
+            }
+          } else {
+            indicator.className = 'api-indicator live';
+            indicator.textContent = '🟢 Live';
+            indicator.title = 'Live captured request';
+          }
           
           const urlSpan = document.createElement('span');
           urlSpan.className = 'api-url';
@@ -1057,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           meta.appendChild(methodBadge);
           meta.appendChild(statusBadge);
+          meta.appendChild(indicator);
           meta.appendChild(urlSpan);
           card.appendChild(meta);
           
@@ -1468,7 +1572,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle messages from page context / isolated bridge
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === "syncMocks") {
+    if (message.action === "inspectElementClicked" && message.call) {
+      if (tabApi) {
+        tabApi.click();
+      }
+      if (apiSearchInput) {
+        try {
+          const parsed = new URL(message.call.url);
+          apiSearchInput.value = parsed.pathname;
+        } catch(e) {
+          apiSearchInput.value = message.call.url;
+        }
+        apiSearchInput.dispatchEvent(new Event('input'));
+      }
+      
+      setTimeout(() => {
+        const cards = apiListContainer.querySelectorAll('.api-card');
+        for (const card of cards) {
+          const urlEl = card.querySelector('.api-url');
+          const methodEl = card.querySelector('.api-badge');
+          if (urlEl && methodEl && 
+              methodEl.textContent.trim().toUpperCase() === message.call.method.toUpperCase() &&
+              (message.call.url.includes(urlEl.textContent.trim()) || urlEl.textContent.trim().includes(message.call.url))) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('highlight-flash');
+            setTimeout(() => {
+              card.classList.remove('highlight-flash');
+            }, 3000);
+            break;
+          }
+        }
+      }, 300);
+    } else if (message.action === "syncMocks") {
       fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
     }
   });

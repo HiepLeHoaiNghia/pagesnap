@@ -105,8 +105,8 @@ body {
 /* Toolbar */
 .app-toolbar {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
   align-items: center;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -652,6 +652,19 @@ body {
 }
 .api-status.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
 .api-status.error { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+.api-indicator {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.api-indicator.live { background: rgba(16, 185, 129, 0.1); color: #34d399; }
+.api-indicator.mocked { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
+.api-indicator.error-mock { background: rgba(239, 68, 68, 0.1); color: #f87171; }
 
 .api-url {
   font-size: 11px;
