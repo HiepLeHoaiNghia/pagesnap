@@ -3,22 +3,6 @@
  * Manages context menus and extension lifecycle.
  */
 
-// Register context menus on installation
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "web2md-selection",
-    title: "Convert Selection to Markdown",
-    contexts: ["selection"]
-  });
-  
-  chrome.contextMenus.create({
-    id: "web2md-page",
-    title: "Convert Page to Markdown",
-    contexts: ["page", "frame"]
-  });
-  
-  console.log("Web2MD extension context menus registered.");
-});
 
 // Helper to dynamically inject content scripts if not pre-loaded
 async function ensureScriptsInjected(tabId, frameId = 0) {
@@ -40,7 +24,7 @@ async function ensureScriptsInjected(tabId, frameId = 0) {
 
     // Inject regular scripts
     try {
-      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
+      const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
       for (const script of scripts) {
         await chrome.scripting.executeScript({
           target: { tabId: tabId, frameIds: [frameId] },
@@ -55,25 +39,7 @@ async function ensureScriptsInjected(tabId, frameId = 0) {
   }
 }
 
-// Listen for context menu click events
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (!tab || !tab.id) return;
 
-  const frameId = info.frameId !== undefined ? info.frameId : 0;
-  const injected = await ensureScriptsInjected(tab.id, frameId);
-  if (!injected) return;
-
-  const options = { frameId };
-  if (info.menuItemId === "web2md-selection") {
-    chrome.tabs.sendMessage(tab.id, {
-      action: "convertSelection"
-    }, options);
-  } else if (info.menuItemId === "web2md-page") {
-    chrome.tabs.sendMessage(tab.id, {
-      action: "convertPage"
-    }, options);
-  }
-});
 
 // Cache for detected React VFS projects across frames
 const tabProjects = {};
@@ -230,6 +196,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .then(text => sendResponse({ success: true, text }))
       .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
+  } else if (message.action === "triggerDownload") {
+    chrome.downloads.download({
+      url: message.url,
+      filename: message.filename,
+      saveAs: true
+    }, (downloadId) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ success: true, downloadId });
+      }
+    });
     return true; // Keep channel open for async response
   }
   return true;

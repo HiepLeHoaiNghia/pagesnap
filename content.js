@@ -5,6 +5,26 @@
 
 // Listen for messages from popup or background script
 let isVisualEditActive = false;
+let isRegionSelectionActive = false;
+let lastHoveredElement = null;
+let currentSelectedElement = null;
+let selectionHistory = [];
+
+// Inject custom region CSS rules once
+(function injectRegionStyles() {
+  const id = "web2md-region-select-styles";
+  if (document.getElementById(id)) return;
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = `
+    .web2md-region-highlighted {
+      outline: 2px dashed #8b5cf6 !important;
+      outline-offset: -2px !important;
+      cursor: crosshair !important;
+    }
+  `;
+  document.documentElement.appendChild(style);
+})();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ping") {
@@ -14,6 +34,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "toggleVisualEdit") {
     toggleVisualEditMode(request.enabled);
     sendResponse({ success: true, active: isVisualEditActive });
+  } else if (request.action === "toggleRegionSelection") {
+    toggleRegionSelectionMode();
+    sendResponse({ success: true });
   } else if (request.action === "getApiCalls") {
     getApiCallsFromMainWorld().then(calls => {
       sendResponse({ success: true, apiCalls: calls });
@@ -84,37 +107,565 @@ function handleExtractContentRequest(sendResponse) {
 }
 
 /**
+ * Synchronizes current values of input, select, textarea elements from original DOM to cloned DOM
+ */
+function syncFormValues(originalDoc, clonedNode) {
+  const clonedInputs = Array.from(clonedNode.querySelectorAll('input, select, textarea'));
+  clonedInputs.forEach(clone => {
+    let orig = null;
+    if (clone.id) {
+      orig = originalDoc.getElementById(clone.id);
+    }
+    if (!orig) return;
+    
+    if (orig.tagName === 'INPUT') {
+      const type = (orig.getAttribute('type') || '').toLowerCase();
+      if (type === 'checkbox' || type === 'radio') {
+        clone.checked = orig.checked;
+        if (orig.checked) {
+          clone.setAttribute('checked', 'checked');
+        } else {
+          clone.removeAttribute('checked');
+        }
+      } else {
+        clone.value = orig.value;
+        clone.setAttribute('value', orig.value);
+      }
+    } else if (orig.tagName === 'TEXTAREA') {
+      clone.value = orig.value;
+      clone.textContent = orig.value;
+    } else if (orig.tagName === 'SELECT') {
+      clone.selectedIndex = orig.selectedIndex;
+      const origOptions = orig.options;
+      const cloneOptions = clone.options;
+      if (origOptions && cloneOptions) {
+        const minOpts = Math.min(origOptions.length, cloneOptions.length);
+        for (let j = 0; j < minOpts; j++) {
+          if (origOptions[j].selected) {
+            cloneOptions[j].setAttribute('selected', 'selected');
+          } else {
+            cloneOptions[j].removeAttribute('selected');
+          }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Preprocesses all form controls globally in the cloned DOM, replacing them with static text representations
+ */
+function preProcessFormControls(rootNode, originalDoc) {
+  const doc = rootNode.ownerDocument || rootNode;
+  const candidates = Array.from(rootNode.querySelectorAll('input, select, textarea, button, .x-btn, .x-form-item-label, label'));
+  
+  candidates.forEach(el => {
+    if (!el.parentNode) return;
+    
+    // Ignore hidden inputs
+    if (el.tagName === 'INPUT' && el.getAttribute('type') === 'hidden') {
+      el.parentNode.removeChild(el);
+      return;
+    }
+    
+    // Check if element is hidden by style
+    let parent = el;
+    let isHidden = false;
+    while (parent && parent !== rootNode) {
+      const styleAttr = parent.getAttribute && parent.getAttribute('style') || '';
+      if (styleAttr.includes('display: none') || styleAttr.includes('display:none') || 
+          styleAttr.includes('visibility: hidden') || styleAttr.includes('visibility:hidden')) {
+        isHidden = true;
+        break;
+      }
+      parent = parent.parentNode;
+    }
+    if (isHidden) {
+      el.parentNode.removeChild(el);
+      return;
+    }
+    
+    let replacementText = '';
+    
+    if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
+      const btnText = el.textContent.trim();
+      if (el.querySelector('[class*="plus"]') || btnText === '+') {
+        replacementText = '[ + ]';
+      } else if (el.querySelector('[class*="close"]') || el.querySelector('[class*="remove"]') || btnText === 'x' || btnText === '×') {
+        replacementText = '[ ✖ ]';
+      } else {
+        replacementText = `[ ${btnText || 'Button'} ]`;
+      }
+    } 
+    else if (el.tagName === 'LABEL' || el.classList.contains('x-form-item-label')) {
+      const labelText = el.textContent.replace(/:$/, '').trim();
+      if (labelText) {
+        const strongEl = doc.createElement('strong');
+        strongEl.textContent = labelText + ': ';
+        el.parentNode.replaceChild(strongEl, el);
+        return;
+      } else {
+        el.parentNode.removeChild(el);
+        return;
+      }
+    } 
+    else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+      const type = el.getAttribute('type') ? el.getAttribute('type').toLowerCase() : 'text';
+      
+      if (type === 'checkbox' || type === 'radio') {
+        const isChecked = el.checked || el.hasAttribute('checked');
+        replacementText = isChecked ? '[x]' : '[ ]';
+      } else if (type === 'password') {
+        replacementText = '[ •••••• ]';
+      } else {
+        let val = el.value || el.getAttribute('value') || '';
+        const isSelect = el.tagName === 'SELECT' || 
+                         el.getAttribute('role') === 'combobox' || 
+                         el.classList.contains('x-form-combobox') ||
+                         (el.closest('.x-field') && el.closest('.x-field').querySelector('[class*="trigger"]') !== null);
+                         
+        if (isSelect) {
+          let selectedText = val;
+          let optionsList = [];
+          
+          if (el.tagName === 'SELECT') {
+            if (el.selectedIndex >= 0 && el.options[el.selectedIndex]) {
+              selectedText = el.options[el.selectedIndex].text.trim();
+            }
+            optionsList = Array.from(el.options || []).map(opt => opt.text.trim());
+          } else {
+            const comboId = el.id || '';
+            let pickerEl = null;
+            if (comboId && originalDoc) {
+              const pickerId = comboId.replace('-inputEl', '').replace('-input', '') + '-picker';
+              pickerEl = originalDoc.getElementById(pickerId) || originalDoc.querySelector(`[id*="${comboId.replace('-inputEl', '').replace('-input', '')}"]`);
+            }
+            if (!pickerEl && el.getAttribute('aria-owns') && originalDoc) {
+              pickerEl = originalDoc.getElementById(el.getAttribute('aria-owns'));
+            }
+            if (pickerEl) {
+              const items = pickerEl.querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"], li');
+              optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+            }
+            if (optionsList.length === 0 && originalDoc) {
+              const activeLists = originalDoc.querySelectorAll('.x-boundlist:not([style*="display: none"]), .x-combo-list:not([style*="display: none"])');
+              if (activeLists.length === 1) {
+                const items = activeLists[0].querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"]');
+                optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+              }
+            }
+          }
+          
+          if (optionsList.length > 0) {
+            replacementText = `[ ${selectedText || ' '} ▾ ] (${optionsList.join(' | ')})`;
+          } else {
+            replacementText = `[ ${selectedText || ' '} ▾ ]`;
+          }
+        } else {
+          replacementText = `[ ${val || '    '} ]`;
+        }
+      }
+    }
+    
+    if (replacementText) {
+      const spanEl = doc.createElement('span');
+      spanEl.textContent = replacementText;
+      el.parentNode.replaceChild(spanEl, el);
+    }
+  });
+}
+
+/**
+ * Full preprocessing pipeline to apply to DOM tree before Readability/Turndown conversion
+ */
+function preProcessDOMForConversion(clonedNode, originalDoc) {
+  try {
+    syncFormValues(originalDoc, clonedNode);
+  } catch (e) {
+    console.error("syncFormValues failed:", e);
+  }
+  try {
+    preProcessLayoutTables(clonedNode);
+  } catch (e) {
+    console.error("preProcessLayoutTables failed:", e);
+  }
+  try {
+    preProcessFormControls(clonedNode, originalDoc);
+  } catch (e) {
+    console.error("preProcessFormControls failed:", e);
+  }
+}
+
+/**
+ * Helper to check if a table is used for form layout rather than displaying data
+ */
+function isLayoutTable(table) {
+  // If it has th headers, it's a data table
+  if (table.querySelector('th') !== null) {
+    return false;
+  }
+
+  // Check for common data-grid or data-table class names or attributes on the table itself
+  const classStr = (table.getAttribute('class') || '').toLowerCase();
+  const idStr = (table.id || '').toLowerCase();
+  const gridClasses = [
+    'x-grid-table', 'x-grid-view', 'x-grid-body', 'x-grid-row', 'x-grid-header-ct', 'x-grid-inner',
+    'x-data-grid', 'data-grid', 'data-table', 'grid-table', 'gridview', 'datagrid'
+  ];
+  if (gridClasses.some(cls => classStr.includes(cls) || idStr.includes(cls))) {
+    return false;
+  }
+
+  // If it contains any child elements that have grid-related classes, it's probably a data table wrapper
+  if (table.querySelector('[class*="x-grid-table"], [class*="x-grid-view"], [class*="x-grid-row"], [class*="data-grid"], [class*="grid-table"]')) {
+    return false;
+  }
+
+  // If it contains nested tables, those might be grids. Since we process bottom-up,
+  // layout tables inside would already have been replaced. If we still see nested tables, it's likely a container/data layout.
+  if (table.querySelector('table')) {
+    return false;
+  }
+
+  // Row/column structure:
+  // Data grids usually have many columns, or columns that contain data.
+  // Layout tables usually have a simple key-value structure, with at most 3 columns (e.g., Label, Field, Help/Error).
+  const directRows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.closest('table') === table);
+  if (directRows.length > 0) {
+    let hasMoreThanThreeCols = false;
+    for (const row of directRows) {
+      const cols = Array.from(row.querySelectorAll('td')).filter(td => td.closest('tr') === row);
+      if (cols.length > 3) {
+        hasMoreThanThreeCols = true;
+        break;
+      }
+    }
+    if (hasMoreThanThreeCols) {
+      return false; // More than 3 columns in a row suggests a data grid, not a layout table
+    }
+  }
+
+  // A layout table should contain form elements (labels, fields, buttons)
+  const inputs = table.querySelectorAll('input, select, textarea, button, .x-btn, .x-form-item-label, label');
+  if (inputs.length === 0) {
+    return false;
+  }
+
+  // Default fallback: if it has inputs, no headers, <= 3 columns, and doesn't look like a grid, it's a layout table.
+  return true;
+}
+
+/**
+ * Preprocesses form layout tables at DOM level into paragraphs with alignment
+ */
+function preProcessLayoutTables(rootNode) {
+  const tables = Array.from(rootNode.querySelectorAll('table'));
+  const doc = rootNode.ownerDocument || rootNode;
+  
+  // Process bottom-up to handle nested tables
+  tables.reverse().forEach(table => {
+    // Skip if it is not a layout table
+    if (!isLayoutTable(table)) {
+      return;
+    }
+    
+    const directRows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.closest('table') === table);
+    
+    const formatNodeInline = (el) => {
+      if (el.tagName === 'INPUT' && el.getAttribute('type') === 'hidden') {
+        return null;
+      }
+      
+      let parent = el;
+      while (parent && parent !== table) {
+        const styleAttr = parent.getAttribute('style') || '';
+        if (styleAttr.includes('display: none') || styleAttr.includes('display:none') || 
+            styleAttr.includes('visibility: hidden') || styleAttr.includes('visibility:hidden')) {
+          return null;
+        }
+        parent = parent.parentElement;
+      }
+
+      if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
+        const btnText = el.textContent.trim();
+        if (el.querySelector('[class*="plus"]') || btnText === '+') return '[ + ]';
+        if (el.querySelector('[class*="close"]') || el.querySelector('[class*="remove"]') || btnText === 'x' || btnText === '×') return '[ ✖ ]';
+        return `[ ${btnText || 'Button'} ]`;
+      }
+      
+      if (el.tagName === 'LABEL' || el.classList.contains('x-form-item-label')) {
+        return `**${el.textContent.replace(/:$/, '').trim()}**:`;
+      }
+      
+      if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+        const type = el.getAttribute('type') ? el.getAttribute('type').toLowerCase() : 'text';
+        if (type === 'checkbox' || type === 'radio') {
+          const realEl = el.id ? document.getElementById(el.id) : null;
+          const isChecked = realEl ? realEl.checked : el.checked;
+          return isChecked ? '[x]' : '[ ]';
+        }
+        
+        const realEl = el.id ? document.getElementById(el.id) : null;
+        const targetEl = realEl || el;
+        
+        let val = '';
+        if (targetEl.value !== undefined) {
+          val = targetEl.value;
+        } else {
+          val = targetEl.getAttribute('value') || '';
+        }
+        
+        const isSelect = el.tagName === 'SELECT' || 
+                         el.getAttribute('role') === 'combobox' || 
+                         el.classList.contains('x-form-combobox') ||
+                         (el.closest('.x-field') && el.closest('.x-field').querySelector('[class*="trigger"]') !== null);
+        if (isSelect) {
+          let selectedText = val;
+          let optionsList = [];
+          
+          if (el.tagName === 'SELECT') {
+            const realSelect = realEl || el;
+            if (realSelect.selectedIndex >= 0 && realSelect.options[realSelect.selectedIndex]) {
+              selectedText = realSelect.options[realSelect.selectedIndex].text.trim();
+            }
+            optionsList = Array.from(realSelect.options || []).map(opt => opt.text.trim());
+          } else {
+            if (targetEl.value) {
+              selectedText = targetEl.value;
+            } else if (targetEl.getAttribute('value')) {
+              selectedText = targetEl.getAttribute('value');
+            } else {
+              selectedText = targetEl.textContent.trim();
+            }
+            
+            const comboId = targetEl.id || '';
+            let pickerEl = null;
+            if (comboId) {
+              const pickerId = comboId.replace('-inputEl', '').replace('-input', '') + '-picker';
+              pickerEl = document.getElementById(pickerId) || document.querySelector(`[id*="${comboId.replace('-inputEl', '').replace('-input', '')}"]`);
+            }
+            if (!pickerEl) {
+              const ariaOwns = targetEl.getAttribute('aria-owns') || targetEl.getAttribute('aria-controls');
+              if (ariaOwns) {
+                pickerEl = document.getElementById(ariaOwns);
+              }
+            }
+            if (pickerEl) {
+              const items = pickerEl.querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"], li');
+              optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+            }
+            if (optionsList.length === 0) {
+              const activeLists = document.querySelectorAll('.x-boundlist:not([style*="display: none"]), .x-combo-list:not([style*="display: none"])');
+              if (activeLists.length === 1) {
+                const items = activeLists[0].querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"]');
+                optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+              }
+            }
+          }
+          
+          if (optionsList.length > 0) {
+            return `[ ${selectedText || ' '} ▾ ] (${optionsList.join(' | ')})`;
+          }
+          return `[ ${selectedText || ' '} ▾ ]`;
+        }
+        return `[ ${val || '    '} ]`;
+      }
+      
+      return null;
+    };
+
+    const getLeafNodes = (root) => {
+      const leaves = [];
+      const walk = (n) => {
+        if (n.nodeType === 3) {
+          if (n.textContent.trim()) {
+            leaves.push(n);
+          }
+          return;
+        }
+        if (n.nodeType === 1) {
+          const tagName = n.tagName;
+          if (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA' || tagName === 'BUTTON' || 
+              n.classList.contains('x-btn') || n.classList.contains('x-form-item-label') || tagName === 'LABEL') {
+            leaves.push(n);
+            return;
+          }
+          n.childNodes.forEach(walk);
+        }
+      };
+      root.childNodes.forEach(walk);
+      return leaves;
+    };
+
+    const rowsCols = [];
+    directRows.forEach(row => {
+      const cols = Array.from(row.querySelectorAll('td')).filter(td => td.closest('tr') === row);
+      const colTexts = [];
+      
+      cols.forEach(col => {
+        const leaves = getLeafNodes(col);
+        if (leaves.length > 0) {
+          const formattedItems = [];
+          leaves.forEach(leaf => {
+            if (leaf.nodeType === 3) {
+              const txt = leaf.textContent.trim();
+              if (txt) {
+                formattedItems.push({ type: 'text', value: txt, text: txt });
+              }
+            } else {
+              const formatted = formatNodeInline(leaf);
+              if (formatted) {
+                formattedItems.push({ type: 'interactive', value: formatted, text: (leaf.value || leaf.textContent || '').trim() });
+              } else {
+                const txt = leaf.textContent.trim();
+                if (txt) {
+                  formattedItems.push({ type: 'text', value: txt, text: txt });
+                }
+              }
+            }
+          });
+          
+          const filteredItems = [];
+          formattedItems.forEach((item, idx) => {
+            if (item.type === 'text') {
+              const isDuplicate = formattedItems.some((other, oIdx) => {
+                if (other.type === 'interactive') {
+                  const val = (other.text || '').trim();
+                  return val.includes(item.text) || item.text.includes(val);
+                }
+                if (other.type === 'text' && oIdx < idx) {
+                  return other.text === item.text;
+                }
+                return false;
+              });
+              if (isDuplicate) return;
+            } else {
+              const isDuplicate = formattedItems.some((other, oIdx) => {
+                return other.type === 'interactive' && oIdx < idx && other.value === item.value;
+              });
+              if (isDuplicate) return;
+            }
+            filteredItems.push(item.value);
+          });
+          
+          if (filteredItems.length > 0) {
+            colTexts.push(filteredItems.join(' '));
+          }
+        }
+      });
+      
+      if (colTexts.length > 0) {
+        rowsCols.push(colTexts);
+      }
+    });
+    
+    let maxCol0Len = 0;
+    rowsCols.forEach(cols => {
+      if (cols.length > 1) {
+        const col0Len = cols[0].length;
+        if (col0Len > maxCol0Len) {
+          maxCol0Len = col0Len;
+        }
+      }
+    });
+    
+    const replacementPara = doc.createElement('p');
+    replacementPara.className = 'web2md-processed-form-layout';
+    
+    let addedRow = false;
+    rowsCols.forEach((cols) => {
+      let rowText = '';
+      if (cols.length > 1) {
+        const paddingLen = maxCol0Len - cols[0].length;
+        const paddedCol0 = cols[0] + '\u00A0'.repeat(paddingLen > 0 ? paddingLen : 0);
+        rowText = [paddedCol0, ...cols.slice(1)].join('\u00A0\u00A0');
+      } else if (cols.length === 1) {
+        rowText = cols[0];
+      }
+      
+      if (rowText.trim()) {
+        if (addedRow) {
+          replacementPara.appendChild(doc.createElement('br'));
+        }
+        replacementPara.appendChild(doc.createTextNode(rowText));
+        addedRow = true;
+      }
+    });
+    
+    if (addedRow) {
+      table.parentNode.replaceChild(replacementPara, table);
+    }
+  });
+}
+
+/**
  * Extracts clean article content using Mozilla Readability
  */
 function extractPageContent(projectFiles = null) {
   // Clone DOM to prevent affecting the active page
   const docClone = document.cloneNode(true);
   
+  try {
+    preProcessDOMForConversion(docClone, document);
+  } catch (err) {
+    console.error("DOM pre-processing failed: ", err);
+  }
+  
   let article = null;
+  let useRaw = false;
   try {
     // Readability is loaded via manifest content_scripts before content.js
     if (typeof Readability !== 'undefined') {
       const reader = new Readability(docClone);
       article = reader.parse();
+      
+      if (article) {
+        const articleText = article.textContent ? article.textContent.trim() : "";
+        const originalText = docClone.body ? docClone.body.innerText.trim() : "";
+        
+        // Heuristic: If Readability stripped out almost the entire page (less than 15% text remaining or < 200 chars remaining while original page is large),
+        // we fallback to raw HTML representation to avoid losing important dashboard/application data.
+        if (originalText.length > 500 && (articleText.length < 200 || (articleText.length / originalText.length) < 0.15)) {
+          useRaw = true;
+        }
+      } else {
+        useRaw = true;
+      }
+    } else {
+      useRaw = true;
     }
   } catch (e) {
     console.error("Readability parsing failed: ", e);
+    useRaw = true;
   }
 
   const pageTitle = document.title || "Untitled Page";
   const pageUrl = window.location.href;
   const hasBody = document.body ? true : false;
+  const visibleTextLength = document.body ? document.body.innerText.trim().length : 0;
+
+  // Pre-extract visible form content for fallback (only if page is complex enough to need it)
+  let visibleText = null;
+  if (useRaw && visibleTextLength > 500) {
+    try {
+      visibleText = extractVisibleFormContent();
+    } catch (e) {
+      console.error("extractVisibleFormContent failed:", e);
+    }
+  }
 
   return {
     title: article ? (article.title || pageTitle) : pageTitle,
-    content: article ? article.content : (document.body ? document.body.innerHTML : ""), // Clean article content
-    rawContent: document.body ? document.body.innerHTML : "", // Full raw body HTML
+    content: (article && !useRaw) ? article.content : (docClone.body ? docClone.body.innerHTML : ""), // Clean article content
+    rawContent: docClone.body ? docClone.body.innerHTML : "", // Full raw body HTML
+    visibleText: visibleText, // Fallback: structured visible text for complex web apps
+    visibleTextLength: visibleTextLength, // Length of body.innerText for ratio check
     url: pageUrl,
     excerpt: article ? (article.excerpt || "") : "",
     byline: article ? (article.byline || "") : "",
     siteName: article ? (article.siteName || new URL(pageUrl).hostname) : new URL(pageUrl).hostname,
     success: hasBody,
-    readabilitySuccess: article ? true : false,
+    readabilitySuccess: (article && !useRaw) ? true : false,
     projectFiles: projectFiles || window.extractedProjectFiles || null
   };
 }
@@ -166,6 +717,12 @@ function htmlToMarkdown(html, metadata, settings) {
   // Remove unwanted elements (but preserve buttons, forms, and nav text content)
   turndownService.remove(['script', 'style', 'iframe', 'noscript']);
 
+  // Rule to ignore elements marked for deletion/suppression
+  turndownService.addRule('ignoreProcessed', {
+    filter: (node) => node.getAttribute && node.getAttribute('data-web2md-ignore') === 'true',
+    replacement: () => ''
+  });
+
   // Custom Monaco Editor rule to preserve code formatting
   turndownService.addRule('monacoEditor', {
     filter: (node) => node.classList && node.classList.contains('monaco-editor'),
@@ -206,13 +763,21 @@ function htmlToMarkdown(html, metadata, settings) {
     }
   });
 
-  // Custom image rule to strip images if disabled
+  // Custom image rule to strip images if disabled and filter transparent/spacer images
   turndownService.addRule('imageFilter', {
     filter: 'img',
     replacement: (content, node) => {
       if (!settings.includeImages) return '';
-      const alt = node.getAttribute('alt') || 'image';
       const src = node.getAttribute('src') || '';
+      const width = node.getAttribute('width') || '';
+      const height = node.getAttribute('height') || '';
+      
+      // Filter out transparent 1x1 base64 GIFs/PNGs and tiny spacer pixels
+      if (!src || src.includes('data:image/gif;base64,R0lGODlhAQABA') || src.includes('data:image/png;base64,iVBORw0KGgoAAA') || width === '1' || height === '1') {
+        return '';
+      }
+      
+      const alt = node.getAttribute('alt') || 'image';
       const title = node.getAttribute('title') ? ` "${node.getAttribute('title')}"` : '';
       return src ? `![${alt}](${src}${title})` : '';
     }
@@ -240,9 +805,413 @@ function htmlToMarkdown(html, metadata, settings) {
     }
   });
 
-  let markdown = turndownService.turndown(html);
+  // Custom table rule to handle data grids (headerless or normal) and form layouts
+  turndownService.addRule('tableFilter', {
+    filter: 'table',
+    replacement: (content, node) => {
+      // 1. Detect if it is a layout table containing inputs
+      if (isLayoutTable(node)) {
+        // Let's get the direct rows of this table
+        const directRows = Array.from(node.querySelectorAll('tr')).filter(tr => tr.closest('table') === node);
+        
+        const formatNodeInline = (el) => {
+          // Ignore hidden inputs
+          if (el.tagName === 'INPUT' && el.getAttribute('type') === 'hidden') {
+            return null;
+          }
+          
+          // Ignore elements hidden by inline style on themselves or parents
+          let parent = el;
+          while (parent && parent !== node) {
+            const styleAttr = parent.getAttribute('style') || '';
+            if (styleAttr.includes('display: none') || styleAttr.includes('display:none') || 
+                styleAttr.includes('visibility: hidden') || styleAttr.includes('visibility:hidden')) {
+              return null;
+            }
+            parent = parent.parentElement;
+          }
+
+          if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
+            const btnText = el.textContent.trim();
+            if (el.querySelector('[class*="plus"]') || btnText === '+') return '[ + ]';
+            if (el.querySelector('[class*="close"]') || el.querySelector('[class*="remove"]') || btnText === 'x' || btnText === '×') return '[ ✖ ]';
+            return `[ ${btnText || 'Button'} ]`;
+          }
+          
+          if (el.tagName === 'LABEL' || el.classList.contains('x-form-item-label')) {
+            return `**${el.textContent.replace(/:$/, '').trim()}**:`;
+          }
+          
+          if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            const type = el.getAttribute('type') ? el.getAttribute('type').toLowerCase() : 'text';
+            if (type === 'checkbox' || type === 'radio') {
+              return el.checked ? '[x]' : '[ ]';
+            }
+            const val = el.value || el.getAttribute('value') || '';
+            const isSelect = el.tagName === 'SELECT' || 
+                             el.getAttribute('role') === 'combobox' || 
+                             el.classList.contains('x-form-combobox') ||
+                             (el.closest('.x-field') && el.closest('.x-field').querySelector('[class*="trigger"]') !== null);
+            if (isSelect) {
+              let selectedText = val;
+              let optionsList = [];
+              
+              if (el.tagName === 'SELECT') {
+                if (el.selectedIndex >= 0 && el.options[el.selectedIndex]) {
+                  selectedText = el.options[el.selectedIndex].text.trim();
+                }
+                optionsList = Array.from(el.options).map(opt => opt.text.trim());
+              } else {
+                // Query live DOM for custom combobox options
+                const realEl = el.id ? document.getElementById(el.id) : null;
+                const targetEl = realEl || el;
+                if (targetEl.value) {
+                  selectedText = targetEl.value;
+                } else if (targetEl.getAttribute('value')) {
+                  selectedText = targetEl.getAttribute('value');
+                } else {
+                  selectedText = targetEl.textContent.trim();
+                }
+                
+                const comboId = targetEl.id || '';
+                let pickerEl = null;
+                if (comboId) {
+                  const pickerId = comboId.replace('-inputEl', '').replace('-input', '') + '-picker';
+                  pickerEl = document.getElementById(pickerId) || document.querySelector(`[id*="${comboId.replace('-inputEl', '').replace('-input', '')}"]`);
+                }
+                if (!pickerEl) {
+                  const ariaOwns = targetEl.getAttribute('aria-owns') || targetEl.getAttribute('aria-controls');
+                  if (ariaOwns) {
+                    pickerEl = document.getElementById(ariaOwns);
+                  }
+                }
+                if (pickerEl) {
+                  const items = pickerEl.querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"], li');
+                  optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+                }
+                if (optionsList.length === 0) {
+                  const activeLists = document.querySelectorAll('.x-boundlist:not([style*="display: none"]), .x-combo-list:not([style*="display: none"])');
+                  if (activeLists.length === 1) {
+                    const items = activeLists[0].querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"]');
+                    optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
+                  }
+                }
+              }
+              
+              if (optionsList.length > 0) {
+                return `[ ${selectedText || ' '} ▾ ] (${optionsList.join(' | ')})`;
+              }
+              return `[ ${selectedText || ' '} ▾ ]`;
+            }
+            return `[ ${val || '    '} ]`;
+          }
+          
+          return null;
+        };
+
+        const getLeafNodes = (root) => {
+          const leaves = [];
+          const walk = (n) => {
+            if (n.nodeType === 3) { // Text Node
+              if (n.textContent.trim()) {
+                leaves.push(n);
+              }
+              return;
+            }
+            if (n.nodeType === 1) { // Element Node
+              const tagName = n.tagName;
+              if (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA' || tagName === 'BUTTON' || 
+                  n.classList.contains('x-btn') || n.classList.contains('x-form-item-label') || tagName === 'LABEL') {
+                leaves.push(n);
+                return;
+              }
+              n.childNodes.forEach(walk);
+            }
+          };
+          root.childNodes.forEach(walk);
+          return leaves;
+        };
+
+        const rowsCols = [];
+        directRows.forEach(row => {
+          const cols = Array.from(row.querySelectorAll('td')).filter(td => td.closest('tr') === row);
+          const colTexts = [];
+          
+          cols.forEach(col => {
+            // Check if this column contains a nested table
+            const nestedTable = col.querySelector('table');
+            if (nestedTable) {
+              // Recursively convert the nested table using the same rule logic, but strip newlines so it stays inline!
+              const nestedMarkdown = turndownService.turndown(nestedTable.outerHTML).trim();
+              if (nestedMarkdown) {
+                colTexts.push(nestedMarkdown.replace(/\n+/g, ' '));
+              }
+            } else {
+              // No nested table: format the contents of this column inline
+              const leaves = getLeafNodes(col);
+              if (leaves.length > 0) {
+                const formattedItems = [];
+                leaves.forEach(leaf => {
+                  if (leaf.nodeType === 3) {
+                    const txt = leaf.textContent.trim();
+                    if (txt) {
+                      formattedItems.push({ type: 'text', value: txt, text: txt });
+                    }
+                  } else {
+                    const formatted = formatNodeInline(leaf);
+                    if (formatted) {
+                      formattedItems.push({ type: 'interactive', value: formatted, text: (leaf.value || leaf.textContent || '').trim() });
+                    } else {
+                      const txt = leaf.textContent.trim();
+                      if (txt) {
+                        formattedItems.push({ type: 'text', value: txt, text: txt });
+                      }
+                    }
+                  }
+                });
+                
+                // Deduplicate items in this column
+                const filteredItems = [];
+                formattedItems.forEach((item, idx) => {
+                  if (item.type === 'text') {
+                    const isDuplicate = formattedItems.some((other, oIdx) => {
+                      if (other.type === 'interactive') {
+                        const val = (other.text || '').trim();
+                        return val.includes(item.text) || item.text.includes(val);
+                      }
+                      if (other.type === 'text' && oIdx < idx) {
+                        return other.text === item.text;
+                      }
+                      return false;
+                    });
+                    if (isDuplicate) return;
+                  } else {
+                    const isDuplicate = formattedItems.some((other, oIdx) => {
+                      return other.type === 'interactive' && oIdx < idx && other.value === item.value;
+                    });
+                    if (isDuplicate) return;
+                  }
+                  filteredItems.push(item.value);
+                });
+                
+                if (filteredItems.length > 0) {
+                  colTexts.push(filteredItems.join(' '));
+                }
+              }
+            }
+          });
+          
+          if (colTexts.length > 0) {
+            rowsCols.push(colTexts);
+          }
+        });
+        
+        // Find max length of Col 0 for rows with >= 2 columns
+        let maxCol0Len = 0;
+        rowsCols.forEach(cols => {
+          if (cols.length > 1) {
+            const col0Len = cols[0].length;
+            if (col0Len > maxCol0Len) {
+              maxCol0Len = col0Len;
+            }
+          }
+        });
+        
+        let tableText = '';
+        rowsCols.forEach(cols => {
+          if (cols.length > 1) {
+            const paddedCol0 = cols[0] + ' '.repeat(maxCol0Len - cols[0].length);
+            tableText += [paddedCol0, ...cols.slice(1)].join('  ') + '\n';
+          } else if (cols.length === 1) {
+            tableText += cols[0] + '\n';
+          }
+        });
+        
+        return '\n\n' + tableText.trim() + '\n\n';
+      }
+
+      // 2. Data table formatting into clean Markdown tables
+      const rows = Array.from(node.querySelectorAll('tr'));
+      if (rows.length === 0) return '';
+
+      let maxCols = 0;
+      const tableData = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('th, td')).map(cell => {
+          return cell.textContent.replace(/\s+/g, ' ').replace(/\xa0/g, ' ').trim();
+        });
+        if (cells.length > maxCols) maxCols = cells.length;
+        return cells;
+      }).filter(row => row.length > 0);
+
+      if (tableData.length === 0) return '';
+
+      let markdownTable = '\n\n';
+      let hasHeader = node.querySelector('th') !== null;
+      let headers = [];
+      let startIdx = 0;
+
+      if (hasHeader) {
+        headers = tableData[0];
+        startIdx = 1;
+      } else {
+        let headerTexts = [];
+        let foundHeaders = false;
+
+        // Helper to extract texts from a header container
+        const extractTexts = (container) => {
+          let cells = Array.from(container.querySelectorAll('.x-column-header-text'));
+          if (cells.length === 0) {
+            cells = Array.from(container.querySelectorAll('.x-column-header'));
+          }
+          if (cells.length === 0) {
+            cells = Array.from(container.querySelectorAll('th, td'));
+          }
+          return cells.map(c => c.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+        };
+
+        // 1. Try to find header container in the temporary parsed tree (so we can also ignore it)
+        let tempParent = node.parentElement;
+        let tempHeaderContainer = null;
+        while (tempParent) {
+          tempHeaderContainer = tempParent.querySelector('.x-grid-header-container, [class*="header-container"], [class*="grid-header"], thead');
+          if (tempHeaderContainer && tempHeaderContainer !== node.querySelector('thead')) {
+            break;
+          }
+          tempParent = tempParent.parentElement;
+        }
+
+        if (tempHeaderContainer) {
+          headerTexts = extractTexts(tempHeaderContainer);
+          if (headerTexts.length > 0) {
+            headers = headerTexts;
+            foundHeaders = true;
+            tempHeaderContainer.setAttribute('data-web2md-ignore', 'true');
+          }
+        }
+
+        // 2. Fallback: If not found in temporary tree, find the corresponding real node in live DOM
+        if (!foundHeaders) {
+          const getRealElement = (tempNode) => {
+            if (!tempNode) return null;
+            if (tempNode.id) {
+              const real = document.getElementById(tempNode.id);
+              if (real) return real;
+            }
+            if (tempNode.className) {
+              const selector = tempNode.tagName.toLowerCase() + '.' + Array.from(tempNode.classList).join('.');
+              try {
+                const candidates = Array.from(document.querySelectorAll(selector));
+                if (candidates.length === 1) return candidates[0];
+                for (const cand of candidates) {
+                  if (cand.textContent.trim().substring(0, 50) === tempNode.textContent.trim().substring(0, 50)) {
+                    return cand;
+                  }
+                }
+              } catch (e) {}
+            }
+            return null;
+          };
+
+          const realNode = getRealElement(node);
+          if (realNode) {
+            let liveParent = realNode.parentElement;
+            let liveHeaderContainer = null;
+            while (liveParent && liveParent !== document.body) {
+              liveHeaderContainer = liveParent.querySelector('.x-grid-header-container, [class*="header-container"], [class*="grid-header"], thead');
+              if (liveHeaderContainer && liveHeaderContainer !== realNode.querySelector('thead')) {
+                break;
+              }
+              liveParent = liveParent.parentElement;
+            }
+
+            if (liveHeaderContainer) {
+              headerTexts = extractTexts(liveHeaderContainer);
+              if (headerTexts.length > 0) {
+                headers = headerTexts;
+                foundHeaders = true;
+              }
+            }
+          }
+        }
+
+        if (foundHeaders) {
+          if (headers.length > maxCols) {
+            headers = headers.slice(0, maxCols);
+          } else {
+            while (headers.length < maxCols) {
+              headers.push('');
+            }
+          }
+        } else {
+          headers = Array(maxCols).fill('');
+        }
+        startIdx = 0;
+      }
+
+      markdownTable += '| ' + headers.map(h => h || ' ').join(' | ') + ' |\n';
+      markdownTable += '| ' + Array(maxCols).fill('---').join(' | ') + ' |\n';
+      
+      for (let i = startIdx; i < tableData.length; i++) {
+        const row = tableData[i];
+        while (row.length < maxCols) row.push('');
+        markdownTable += '| ' + row.map(cell => cell || ' ').join(' | ') + ' |\n';
+      }
+      
+      return markdownTable + '\n';
+    }
+  });
+
+  // Parse the input HTML string into a temporary DOM tree for preprocessing
+  let preprocessedHtml = html;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Look for all tables inside the parsed tree
+    const tables = doc.querySelectorAll('table');
+    tables.forEach(table => {
+      // Find if there's an external header container in the parsed tree
+      let parent = table.parentElement;
+      let headerContainer = null;
+      while (parent) {
+        headerContainer = parent.querySelector('.x-grid-header-container, [class*="header-container"], [class*="grid-header"]');
+        if (headerContainer && !table.contains(headerContainer)) {
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      
+      if (headerContainer) {
+        headerContainer.setAttribute('data-web2md-ignore', 'true');
+      }
+    });
+
+    // Flag loaders, masks, and loading messages
+    const allElements = doc.querySelectorAll('*');
+    allElements.forEach(el => {
+      const cls = el.className || '';
+      const id = el.id || '';
+      const text = el.textContent ? el.textContent.trim() : '';
+      
+      if (
+        text === 'Loading...' || 
+        (typeof cls === 'string' && (cls.includes('x-mask') || cls.includes('loading') || cls.includes('loadmask'))) ||
+        (typeof id === 'string' && (id.includes('mask') || id.includes('loading')))
+      ) {
+        el.setAttribute('data-web2md-ignore', 'true');
+      }
+    });
+    
+    preprocessedHtml = doc.body.innerHTML;
+  } catch (e) {
+    console.error("Error preprocessing HTML for Turndown:", e);
+  }
+
+  let markdown = turndownService.turndown(preprocessedHtml);
 
   // Post-processing cleaning
+  markdown = markdown.replace(/\xa0/g, ' '); // Convert non-breaking spaces to standard spaces
+  markdown = markdown.replace(/^[ \t]+$/gm, ''); // Strip trailing/empty line spaces
   markdown = markdown.replace(/\n{3,}/g, '\n\n'); // Max 2 newlines
   markdown = markdown.trim();
 
@@ -278,6 +1247,11 @@ async function handleSelectionConversion() {
   const range = selection.getRangeAt(0);
   const container = document.createElement('div');
   container.appendChild(range.cloneContents());
+  try {
+    preProcessDOMForConversion(container, document);
+  } catch (err) {
+    console.error("Selection DOM pre-processing failed: ", err);
+  }
   const selectedHtml = container.innerHTML;
 
   try {
@@ -298,6 +1272,150 @@ async function handleSelectionConversion() {
 }
 
 /**
+ * Extracts visible text content from the live DOM, preserving form field values.
+ * Used as a fallback when Turndown produces too little content from complex web app pages.
+ */
+function extractVisibleFormContent() {
+  const lines = [];
+  const seen = new Set();
+  
+  const isVisible = (el) => {
+    if (!el || el.nodeType !== 1) return true;
+    try {
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+    } catch (e) {}
+    return true;
+  };
+  
+  const addLine = (text, allowDupe) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (!allowDupe && seen.has(trimmed)) return;
+    seen.add(trimmed);
+    lines.push(trimmed);
+  };
+
+  const walkNode = (node, depth) => {
+    if (depth > 100) return; // ExtJS DOMs can be 50+ levels deep
+    if (node.nodeType === 1) {
+      if (!isVisible(node)) return;
+      const tag = node.tagName;
+      const cls = (typeof node.className === 'string') ? node.className : '';
+      
+      // Skip non-content elements
+      if (['SCRIPT', 'STYLE', 'SVG', 'NOSCRIPT', 'LINK', 'META', 'HEAD'].includes(tag)) return;
+      // Skip ExtJS masks/loading overlays
+      if (cls.includes('x-mask') || cls.includes('x-load-mask') || cls.includes('x-splitter')) return;
+      
+      // Headings
+      if (/^H[1-6]$/.test(tag)) {
+        const text = node.textContent.trim();
+        if (text) {
+          const level = parseInt(tag[1]);
+          addLine('#'.repeat(level) + ' ' + text);
+        }
+        return;
+      }
+      
+      // Labels
+      if (tag === 'LABEL' || cls.includes('x-form-item-label')) {
+        const text = node.textContent.replace(/:$/, '').trim();
+        if (text) addLine('**' + text + '**: ', true);
+        return;
+      }
+      
+      // ExtJS display fields (read-only text values)
+      if (cls.includes('x-form-display-field')) {
+        const text = node.textContent.trim();
+        if (text) addLine(text, true);
+        return;
+      }
+      
+      // Buttons
+      if (tag === 'BUTTON' || (tag === 'A' && cls.includes('x-btn')) || (tag === 'DIV' && cls.includes('x-btn'))) {
+        const text = node.textContent.trim();
+        if (text && text.length < 100) addLine('[ ' + text + ' ]');
+        return;
+      }
+      
+      // Tab headers
+      if (cls.includes('x-tab') && !cls.includes('x-tab-bar') && !cls.includes('x-tabpanel')) {
+        const text = node.textContent.trim();
+        if (text && text.length < 100) addLine('### ' + text);
+        return;
+      }
+      
+      // Tree nodes
+      if (cls.includes('x-tree-node-text') || cls.includes('x-grid-cell-inner')) {
+        const text = node.textContent.trim();
+        if (text) addLine('- ' + text, true);
+        return;
+      }
+      
+      // Form inputs
+      if (tag === 'INPUT') {
+        const type = (node.getAttribute('type') || 'text').toLowerCase();
+        if (type === 'hidden') return;
+        if (type === 'checkbox' || type === 'radio') {
+          // Try to find associated label
+          const formItem = node.closest('.x-form-item, .x-field');
+          const label = formItem ? formItem.querySelector('.x-form-item-label, label') : null;
+          const labelText = label ? label.textContent.replace(/:$/, '').trim() : '';
+          const prefix = labelText ? labelText + ': ' : '';
+          addLine(prefix + (node.checked ? '[x]' : '[ ]'), true);
+        } else if (type === 'password') {
+          addLine('[ •••••• ]', true);
+        } else {
+          const val = node.value || '';
+          const role = node.getAttribute('role') || '';
+          const isCombo = role === 'combobox' || cls.includes('x-form-combobox') || cls.includes('x-trigger-noedit');
+          if (isCombo) {
+            // Try to find label
+            const formItem = node.closest('.x-form-item, .x-field');
+            const label = formItem ? formItem.querySelector('.x-form-item-label, label') : null;
+            const labelText = label ? label.textContent.replace(/:$/, '').trim() : '';
+            const prefix = labelText ? labelText + ': ' : '';
+            addLine(prefix + '[ ' + (val || ' ') + ' ▾ ]', true);
+          } else if (val) {
+            addLine('[ ' + val + ' ]', true);
+          }
+        }
+        return;
+      }
+      
+      if (tag === 'SELECT') {
+        const selected = node.selectedIndex >= 0 && node.options[node.selectedIndex] 
+          ? node.options[node.selectedIndex].text.trim() : '';
+        addLine('[ ' + (selected || ' ') + ' ▾ ]', true);
+        return;
+      }
+      
+      if (tag === 'TEXTAREA') {
+        if (node.value) addLine('[ ' + node.value + ' ]', true);
+        return;
+      }
+      
+      // Recurse into children
+      for (const child of node.childNodes) {
+        walkNode(child, depth + 1);
+      }
+    } else if (node.nodeType === 3) {
+      // Text node
+      const text = node.textContent.trim();
+      if (text && text.length > 0 && text.length < 500) {
+        if (isVisible(node.parentElement)) {
+          addLine(text, true);
+        }
+      }
+    }
+  };
+  
+  walkNode(document.body, 0);
+  return lines.join('\n');
+}
+
+/**
  * Handle converting the whole page and copying to clipboard
  */
 async function handlePageConversion() {
@@ -306,7 +1424,36 @@ async function handlePageConversion() {
     const settings = await getSettings();
     
     const htmlToConvert = settings.rawMode ? pageData.rawContent : pageData.content;
-    const markdown = htmlToMarkdown(htmlToConvert, pageData, settings);
+    let markdown = htmlToMarkdown(htmlToConvert, pageData, settings);
+    
+    // Fallback: if Turndown produced very little content compared to visible page text,
+    // use direct visible text extraction (critical for complex web apps like ExtJS)
+    const visibleTextLength = document.body ? document.body.innerText.trim().length : 0;
+    // Strip frontmatter to measure actual content length
+    const contentOnly = markdown.replace(/^---[\s\S]*?---\s*/, '').trim();
+    if (visibleTextLength > 500 && contentOnly.length < visibleTextLength * 0.15) {
+      console.warn('[Web2MD] Turndown produced too little content (' + contentOnly.length + ' chars vs ' + visibleTextLength + ' visible chars). Using visible text fallback.');
+      const fallbackContent = extractVisibleFormContent();
+      if (fallbackContent.length > contentOnly.length) {
+        // Re-add frontmatter if enabled
+        if (settings.frontmatter) {
+          const fm = [
+            '---',
+            `title: "${pageData.title.replace(/"/g, '\\"')}"`,
+            `url: ${pageData.url}`,
+            `date: ${new Date().toISOString().split('T')[0]}`,
+            pageData.siteName ? `site: "${pageData.siteName.replace(/"/g, '\\"')}"` : null,
+            '---',
+            '',
+            ''
+          ].filter(val => val !== null).join('\n');
+          markdown = fm + fallbackContent;
+        } else {
+          markdown = fallbackContent;
+        }
+      }
+    }
+    
     await navigator.clipboard.writeText(markdown);
     showToast("⚡ Page copied as Markdown!");
   } catch (error) {
@@ -592,11 +1739,17 @@ async function serializePageToSelfContainedHtml(options = {}) {
   const assetUrls = new Set();
 
   // From <img> tags
-  document.querySelectorAll('img').forEach(img => {
+  const assetScope = options.targetElement || document;
+  assetScope.querySelectorAll('img').forEach(img => {
     if (img.src && !img.src.startsWith('data:')) {
       assetUrls.add(img.src);
     }
   });
+  if (options.targetElement && options.targetElement.tagName && options.targetElement.tagName.toLowerCase() === 'img') {
+    if (options.targetElement.src && !options.targetElement.src.startsWith('data:')) {
+      assetUrls.add(options.targetElement.src);
+    }
+  }
 
   // From stylesheets in styleMap
   const URL_REGEX = /url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g;
@@ -905,6 +2058,16 @@ async function serializePageToSelfContainedHtml(options = {}) {
       return '';
     }
 
+    if (node.getAttribute && node.getAttribute('data-web2md-ignore') === 'true') {
+      return '';
+    }
+    if (node.id && node.id.startsWith('web2md-')) {
+      return '';
+    }
+    if (node.classList && (node.classList.contains('web2md-highlight-overlay') || node.classList.contains('web2md-outline-overlay'))) {
+      return '';
+    }
+
     const tagName = node.tagName.toLowerCase();
 
     // Ignore or inline script tags
@@ -1008,9 +2171,9 @@ async function serializePageToSelfContainedHtml(options = {}) {
       const attr = node.attributes[i];
       let value = attr.value;
 
-      // Clean up our visual edit hover class if present
+      // Clean up our visual edit hover/highlight classes if present
       if (attr.name === 'class') {
-        value = value.replace(/\bweb2md-hover-active\b/g, '').trim();
+        value = value.replace(/\b(web2md-hover-active|web2md-region-highlighted)\b/g, '').trim();
         if (!value) continue;
       }
 
@@ -1145,8 +2308,58 @@ async function serializePageToSelfContainedHtml(options = {}) {
       .replace(/'/g, '&#039;');
   }
 
-  const selfContainedHtml = serializeNode(document.documentElement, false);
-  const structuredHtml = serializeNode(document.documentElement, true);
+  let selfContainedHtml, structuredHtml;
+  if (options.targetElement) {
+    const serializedSelfContainedNode = serializeNode(options.targetElement, false);
+    const serializedStructuredNode = serializeNode(options.targetElement, true);
+    
+    const headSelfContained = `
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(document.title)} - Region</title>
+  ${serializeAdoptedStyleSheets(document, false)}
+  ${Array.from(styleMap.entries()).map(([node, cssText]) => {
+    const href = node.href || baseHref;
+    const resolvedCss = mapCssUrls(cssText, href, (absUrl) => assetMap.get(absUrl));
+    return `<style>${resolvedCss}</style>`;
+  }).join('\n')}
+  ${preserveJs ? `<script id="web2md-api-mock-db">${generateMockInterceptorCode()}</script>` : ''}
+  ${preserveJs ? Array.from(scriptContentMap.entries()).map(([script, content]) => {
+    if (content === null) return '';
+    const safeContent = content.replace(/<\/script>/gi, '<\\/script>');
+    return `<script>${safeContent}</script>`;
+  }).join('\n') : ''}
+`;
+    
+    selfContainedHtml = `<!DOCTYPE html>
+<html>
+<head>
+${headSelfContained}
+</head>
+<body>
+  ${serializedSelfContainedNode}
+</body>
+</html>`;
+
+    const headStructured = `
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(document.title)} - Region</title>
+  <link rel="stylesheet" href="styles.css" />
+  ${preserveJs ? '<script src="scripts.js" defer></script>' : ''}
+`;
+    
+    structuredHtml = `<!DOCTYPE html>
+<html>
+<head>
+${headStructured}
+</head>
+<body>
+  ${serializedStructuredNode}
+</body>
+</html>`;
+  } else {
+    selfContainedHtml = serializeNode(document.documentElement, false);
+    structuredHtml = serializeNode(document.documentElement, true);
+  }
 
   const packageAssets = [];
   for (const [url, dataUrl] of assetMap.entries()) {
@@ -1159,6 +2372,7 @@ async function serializePageToSelfContainedHtml(options = {}) {
 
   return {
     html: selfContainedHtml,
+    nodeHtml: options.targetElement ? serializedSelfContainedNode : selfContainedHtml,
     package: {
       html: structuredHtml,
       css: globalCss,
@@ -1175,6 +2389,9 @@ function toggleVisualEditMode(enabled) {
   isVisualEditActive = !!enabled;
   
   if (isVisualEditActive) {
+    if (isRegionSelectionActive) {
+      toggleRegionSelectionMode(false);
+    }
     document.designMode = "on";
     
     // 1. Inject styling if not already present
@@ -1278,4 +2495,434 @@ function getApiCallsFromMainWorld() {
       resolve([]);
     }, 500);
   });
+}
+
+/**
+ * Region Selection Mode Helpers and Logic
+ */
+/**
+ * Region Selection Mode Helpers and Logic
+ */
+function toggleRegionSelectionMode(forceValue) {
+  const enabled = forceValue !== undefined ? forceValue : !isRegionSelectionActive;
+  isRegionSelectionActive = enabled;
+  
+  if (enabled) {
+    if (isVisualEditActive) {
+      toggleVisualEditMode(false);
+    }
+    
+    document.addEventListener("mouseover", handleRegionMouseOver, true);
+    document.addEventListener("mouseout", handleRegionMouseOut, true);
+    document.addEventListener("click", handleRegionClick, true);
+    
+    showToast("🎯 Selection mode active. Click any element to select.");
+  } else {
+    document.removeEventListener("mouseover", handleRegionMouseOver, true);
+    document.removeEventListener("mouseout", handleRegionMouseOut, true);
+    document.removeEventListener("click", handleRegionClick, true);
+    
+    if (lastHoveredElement) {
+      lastHoveredElement.classList.remove("web2md-region-highlighted");
+      lastHoveredElement = null;
+    }
+  }
+}
+
+function handleRegionMouseOver(e) {
+  if (!isRegionSelectionActive) return;
+  if (e.target.closest("#web2md-region-actions-bar") || e.target.closest("#web2md-toast")) {
+    return;
+  }
+  if (lastHoveredElement && lastHoveredElement !== e.target) {
+    lastHoveredElement.classList.remove("web2md-region-highlighted");
+  }
+  lastHoveredElement = e.target;
+  lastHoveredElement.classList.add("web2md-region-highlighted");
+}
+
+function handleRegionMouseOut(e) {
+  if (!isRegionSelectionActive) return;
+  if (lastHoveredElement === e.target) {
+    lastHoveredElement.classList.remove("web2md-region-highlighted");
+    lastHoveredElement = null;
+  }
+}
+
+function handleRegionClick(e) {
+  if (!isRegionSelectionActive) return;
+  if (e.target.closest("#web2md-region-actions-bar") || e.target.closest("#web2md-toast")) {
+    return;
+  }
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const target = e.target;
+  toggleRegionSelectionMode(false);
+  highlightElement(target);
+  showRegionActionsBar(target);
+}
+
+function highlightElement(element) {
+  document.querySelectorAll(".web2md-region-highlighted").forEach(el => {
+    el.classList.remove("web2md-region-highlighted");
+  });
+  if (element) {
+    element.classList.add("web2md-region-highlighted");
+  }
+}
+
+function getElementDescription(el) {
+  if (!el) return '';
+  let desc = el.tagName.toLowerCase();
+  if (el.id) {
+    desc += `#${el.id}`;
+  } else if (el.className) {
+    const firstClass = el.className.split(/\s+/)[0];
+    if (firstClass && typeof firstClass === 'string' && !firstClass.startsWith('web2md')) {
+      desc += `.${firstClass}`;
+    }
+  }
+  return desc;
+}
+
+function showRegionActionsBar(element) {
+  currentSelectedElement = element;
+  selectionHistory = [];
+  
+  let bar = document.getElementById("web2md-region-actions-bar");
+  if (bar) bar.remove();
+  
+  bar = document.createElement("div");
+  bar.id = "web2md-region-actions-bar";
+  
+  Object.assign(bar.style, {
+    position: 'absolute',
+    background: 'rgba(17, 24, 39, 0.95)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid #374151',
+    borderRadius: '12px',
+    padding: '8px 16px',
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+    zIndex: '2147483647',
+    fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
+    fontSize: '12px',
+    color: '#f3f4f6',
+    transition: 'top 0.2s ease, left 0.2s ease'
+  });
+  
+  document.body.appendChild(bar);
+  renderActionsBarContents(bar);
+}
+
+function renderActionsBarContents(bar) {
+  bar.innerHTML = "";
+  
+  const element = currentSelectedElement;
+  if (!element) return;
+  
+  const rect = element.getBoundingClientRect();
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+  
+  let top = rect.top + scrollTop - 55;
+  if (top < scrollTop) {
+    top = rect.bottom + scrollTop + 10;
+  }
+  let left = rect.left + scrollLeft;
+  
+  if (left + 450 > window.innerWidth + scrollLeft) {
+    left = window.innerWidth + scrollLeft - 470;
+  }
+  if (left < scrollLeft) left = scrollLeft + 10;
+  
+  bar.style.top = `${top}px`;
+  bar.style.left = `${left}px`;
+  
+  const label = document.createElement("span");
+  label.innerText = `[${getElementDescription(element)}]`;
+  label.style.color = '#8b5cf6';
+  label.style.fontWeight = 'bold';
+  label.style.marginRight = '4px';
+  bar.appendChild(label);
+  
+  const navGroup = document.createElement("div");
+  navGroup.style.display = "flex";
+  navGroup.style.gap = "4px";
+  navGroup.style.marginRight = "8px";
+  
+  const expandBtn = document.createElement("button");
+  expandBtn.innerText = "🔼 Expand";
+  expandBtn.title = "Select parent container";
+  styleNavButton(expandBtn);
+  
+  const parent = element.parentElement;
+  if (parent && parent !== document.documentElement && parent !== document.body) {
+    expandBtn.addEventListener('click', () => {
+      selectionHistory.push(element);
+      currentSelectedElement = parent;
+      highlightElement(parent);
+      renderActionsBarContents(bar);
+    });
+  } else {
+    expandBtn.disabled = true;
+    expandBtn.style.opacity = "0.4";
+    expandBtn.style.cursor = "not-allowed";
+  }
+  navGroup.appendChild(expandBtn);
+  
+  const shrinkBtn = document.createElement("button");
+  shrinkBtn.innerText = "🔽 Shrink";
+  shrinkBtn.title = "Go back to nested child";
+  styleNavButton(shrinkBtn);
+  
+  if (selectionHistory.length > 0) {
+    shrinkBtn.addEventListener('click', () => {
+      const prev = selectionHistory.pop();
+      currentSelectedElement = prev;
+      highlightElement(prev);
+      renderActionsBarContents(bar);
+    });
+  } else {
+    shrinkBtn.disabled = true;
+    shrinkBtn.style.opacity = "0.4";
+    shrinkBtn.style.cursor = "not-allowed";
+  }
+  navGroup.appendChild(shrinkBtn);
+  
+  bar.appendChild(navGroup);
+  
+  const sep = document.createElement("span");
+  sep.style.width = "1px";
+  sep.style.height = "16px";
+  sep.style.background = "#374151";
+  sep.style.margin = "0 4px";
+  bar.appendChild(sep);
+  
+  const buttons = [
+    { text: "📝 Copy MD", action: () => handleRegionAction(element, "markdown") },
+    { text: "🌐 Copy HTML", action: () => handleRegionAction(element, "html") },
+    { text: "📥 HTML", title: "Download self-contained HTML page", action: () => handleRegionAction(element, "download-html") },
+    { text: "📦 ZIP", title: "Download structured zip package", action: () => handleRegionAction(element, "download-zip") }
+  ];
+  
+  buttons.forEach(btnInfo => {
+    const btn = document.createElement("button");
+    btn.innerText = btnInfo.text;
+    if (btnInfo.title) btn.title = btnInfo.title;
+    
+    Object.assign(btn.style, {
+      background: 'transparent',
+      border: '1px solid #374151',
+      borderRadius: '6px',
+      color: '#f3f4f6',
+      padding: '4px 8px',
+      cursor: 'pointer',
+      fontSize: '11px',
+      fontWeight: '600',
+      transition: 'all 0.15s ease'
+    });
+    
+    btn.addEventListener('mouseover', () => {
+      btn.style.background = '#8b5cf6';
+      btn.style.borderColor = '#8b5cf6';
+      btn.style.color = '#ffffff';
+    });
+    
+    btn.addEventListener('mouseout', () => {
+      btn.style.background = 'transparent';
+      btn.style.borderColor = '#374151';
+      btn.style.color = '#f3f4f6';
+    });
+    
+    btn.addEventListener('click', () => {
+      btnInfo.action();
+      highlightElement(null);
+      bar.remove();
+    });
+    
+    bar.appendChild(btn);
+  });
+  
+  const closeBtn = document.createElement("button");
+  closeBtn.innerText = "✕";
+  Object.assign(closeBtn.style, {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    fontSize: '14px',
+    marginLeft: '6px',
+    padding: '0 4px'
+  });
+  closeBtn.addEventListener('click', () => {
+    highlightElement(null);
+    bar.remove();
+  });
+  bar.appendChild(closeBtn);
+}
+
+function styleNavButton(btn) {
+  Object.assign(btn.style, {
+    background: 'rgba(55, 65, 81, 0.5)',
+    border: '1px solid #4b5563',
+    borderRadius: '6px',
+    color: '#e5e7eb',
+    padding: '4px 6px',
+    cursor: 'pointer',
+    fontSize: '10px',
+    fontWeight: '600',
+    transition: 'all 0.15s ease'
+  });
+  
+  btn.addEventListener('mouseover', () => {
+    if (!btn.disabled) {
+      btn.style.background = '#4b5563';
+      btn.style.color = '#ffffff';
+    }
+  });
+  btn.addEventListener('mouseout', () => {
+    if (!btn.disabled) {
+      btn.style.background = 'rgba(55, 65, 81, 0.5)';
+      btn.style.color = '#e5e7eb';
+    }
+  });
+}
+
+// Global click-away listener to dismiss selection interface
+document.addEventListener("click", (e) => {
+  const bar = document.getElementById("web2md-region-actions-bar");
+  if (bar && !bar.contains(e.target) && !e.target.classList.contains("web2md-region-highlighted")) {
+    highlightElement(null);
+    bar.remove();
+  }
+}, { capture: true, passive: true });
+
+async function handleRegionAction(element, action) {
+  // Temporarily flag elements hidden by CSS stylesheets in the live DOM
+  const markedElements = [];
+  try {
+    const allDescendants = element.querySelectorAll('*');
+    allDescendants.forEach(desc => {
+      const style = window.getComputedStyle(desc);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        desc.setAttribute('data-web2md-ignore', 'true');
+        markedElements.push(desc);
+      }
+    });
+  } catch (e) {}
+
+  try {
+    const settings = await getSettings();
+    const metadata = {
+      title: document.title,
+      url: window.location.href,
+      siteName: new URL(window.location.href).hostname
+    };
+    
+    const getSafeFilename = (title) => {
+      return title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 50) || 'region';
+    };
+    const baseFilename = getSafeFilename(document.title);
+    
+    if (action === "markdown") {
+      const clone = element.cloneNode(true);
+      try {
+        preProcessDOMForConversion(clone, document);
+      } catch (err) {
+        console.error("Region DOM pre-processing failed: ", err);
+      }
+      const markdown = htmlToMarkdown(clone.outerHTML, metadata, settings);
+      await navigator.clipboard.writeText(markdown);
+      showToast("⚡ Region copied as Markdown!");
+    } 
+    else if (action === "html") {
+      const apiCalls = await getApiCallsFromMainWorld();
+      const res = await serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
+      await navigator.clipboard.writeText(res.nodeHtml);
+      showToast("⚡ Region HTML copied to clipboard!");
+    } 
+    else if (action === "download-html") {
+      const apiCalls = await getApiCallsFromMainWorld();
+      const res = await serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
+      
+      const blob = new Blob([res.html], { type: 'text/html;charset=utf-8' });
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.runtime.sendMessage({
+          action: "triggerDownload",
+          url: e.target.result,
+          filename: `${baseFilename}-region.html`
+        });
+        showToast("📥 Region HTML download triggered!");
+      };
+      reader.readAsDataURL(blob);
+    } 
+    else if (action === "download-zip") {
+      if (typeof JSZip === 'undefined') {
+        showToast("❌ JSZip not loaded", true);
+        return;
+      }
+      
+      showToast("📦 Packaging region assets into ZIP...");
+      const apiCalls = await getApiCallsFromMainWorld();
+      const res = await serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
+      
+      const zip = new JSZip();
+      zip.file("index.html", res.package.html);
+      if (res.package.css && res.package.css.trim().length > 0) {
+        zip.file("styles.css", res.package.css);
+      }
+      if (res.package.js && res.package.js.trim().length > 0) {
+        zip.file("scripts.js", res.package.js);
+      }
+      if (res.package.assets && res.package.assets.length > 0) {
+        res.package.assets.forEach(file => {
+          const parts = file.dataUrl.split(',');
+          if (parts.length >= 2) {
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            const assetBlob = new Blob([u8arr], { type: mime });
+            zip.file(file.path, assetBlob);
+          }
+        });
+      }
+      
+      if (apiCalls && apiCalls.length > 0) {
+        zip.file("mock_apis.json", JSON.stringify(apiCalls, null, 2));
+      }
+      
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.runtime.sendMessage({
+          action: "triggerDownload",
+          url: e.target.result,
+          filename: `${baseFilename}-region-package.zip`
+        });
+        showToast("📥 Region ZIP package download triggered!");
+      };
+      reader.readAsDataURL(zipBlob);
+    }
+  } catch (error) {
+    console.error("Region action failed:", error);
+    showToast("❌ Failed to process region", true);
+  } finally {
+    // Restore live DOM
+    markedElements.forEach(desc => {
+      desc.removeAttribute('data-web2md-ignore');
+    });
+  }
 }

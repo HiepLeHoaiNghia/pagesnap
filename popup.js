@@ -168,6 +168,55 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const btnSelectRegion = document.getElementById('btn-select-region');
+  if (btnSelectRegion) {
+    btnSelectRegion.addEventListener('click', () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        const activeTab = tabs[0];
+        if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
+          showError("Cannot inspect Chrome system pages.");
+          return;
+        }
+
+        chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection" }, (response) => {
+          if (chrome.runtime.lastError) {
+            const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
+            let p = Promise.resolve();
+            p = p.then(() => {
+              return chrome.scripting.executeScript({
+                target: { tabId: activeTab.id },
+                files: ["main_world.js"],
+                world: "MAIN"
+              });
+            }).catch(err => console.warn("Dynamic main world injection warning: ", err));
+
+            scripts.forEach(script => {
+              p = p.then(() => {
+                return chrome.scripting.executeScript({
+                  target: { tabId: activeTab.id },
+                  files: [script]
+                });
+              });
+            });
+
+            p.then(() => {
+              setTimeout(() => {
+                chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection" });
+                window.close();
+              }, 200);
+            }).catch(err => {
+              console.error("Script injection failed: ", err);
+              showError("Please refresh the page before selecting region.");
+            });
+          } else {
+            window.close();
+          }
+        });
+      });
+    });
+  }
+
   // 2. Event Listeners
   if (btnExtract) {
     btnExtract.addEventListener('click', autoExtractPage);
@@ -523,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Helper to dynamically inject content scripts if not pre-loaded, then retry extraction
    */
   function injectScriptsAndRetry(tabId, frameId = 0) {
-    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
+    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
     
     // Inject scripts sequentially
     let p = Promise.resolve();
@@ -733,6 +782,31 @@ document.addEventListener('DOMContentLoaded', () => {
         markdown = fm + markdown;
       }
 
+      // Fallback: if Turndown produced very little content compared to visible page text,
+      // use the pre-extracted visible text from content script
+      if (data.visibleText && data.visibleTextLength > 500) {
+        const contentOnly = markdown.replace(/^---[\s\S]*?---\s*/, '').trim();
+        if (contentOnly.length < data.visibleTextLength * 0.15 && data.visibleText.length > contentOnly.length) {
+          console.warn('[Web2MD Popup] Using visible text fallback (' + contentOnly.length + ' vs ' + data.visibleTextLength + ' visible chars)');
+          if (settings.frontmatter) {
+            const fm = [
+              '---',
+              `title: "${data.title.replace(/"/g, '\\"')}"`,
+              `url: ${data.url}`,
+              `date: ${new Date().toISOString().split('T')[0]}`,
+              data.byline ? `author: "${data.byline.replace(/"/g, '\\"')}"` : null,
+              data.siteName ? `site: "${data.siteName.replace(/"/g, '\\"')}"` : null,
+              '---',
+              '',
+              ''
+            ].filter(val => val !== null).join('\n');
+            markdown = fm + data.visibleText;
+          } else {
+            markdown = data.visibleText;
+          }
+        }
+      }
+
       currentMarkdown = markdown;
       markdownPreview.value = currentMarkdown;
       
@@ -848,7 +922,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * Helper to dynamically inject content scripts if not pre-loaded, then toggle edit mode
    */
   function injectScriptsAndToggle(tabId, enabled) {
-    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "isolated_bridge.js", "content.js"];
+    const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
     let p = Promise.resolve();
 
     p = p.then(() => {
