@@ -45,6 +45,68 @@ export const safeStorage = {
   }
 };
 
+// Secrets stay local to this browser profile and never use chrome.storage.sync.
+export const localOnlyStorage = {
+  get: (key) => {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(key, (data) => {
+          resolve(data[key] || null);
+        });
+        return;
+      }
+      try {
+        const val = localStorage.getItem(key);
+        resolve(val ? JSON.parse(val) : null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  },
+  set: (key, val) => {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ [key]: val }, resolve);
+        return;
+      }
+      try {
+        localStorage.setItem(key, JSON.stringify(val));
+      } catch (e) {}
+      resolve();
+    });
+  },
+  migrateFromSync: (key) => {
+    return new Promise((resolve) => {
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.storage.sync) {
+        resolve(null);
+        return;
+      }
+      chrome.storage.local.get(key, (localData) => {
+        chrome.storage.sync.get(key, (syncData) => {
+          const localValue = localData[key] || null;
+          const legacyValue = syncData[key] || null;
+          if (localValue || !legacyValue) {
+            chrome.storage.sync.remove(key, () => resolve(localValue));
+            return;
+          }
+          // Re-read before migrating so a token entered while migration was in
+          // flight is never overwritten by the legacy synced value.
+          chrome.storage.local.get(key, (latestData) => {
+            const latestValue = latestData[key] || null;
+            if (latestValue) {
+              chrome.storage.sync.remove(key, () => resolve(latestValue));
+            } else {
+              chrome.storage.local.set({ [key]: legacyValue }, () => {
+                chrome.storage.sync.remove(key, () => resolve(legacyValue));
+              });
+            }
+          });
+        });
+      });
+    });
+  }
+};
+
 // Default Settings
 export const defaultSettings = {
   frontmatter: false,

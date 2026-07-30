@@ -591,9 +591,11 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
   }
 
   let selfContainedHtml, structuredHtml;
+  let serializedSelfContainedNode = null;
+  let serializedStructuredNode = null;
   if (options.targetElement) {
-    const serializedSelfContainedNode = serializeNode(options.targetElement, false);
-    const serializedStructuredNode = serializeNode(options.targetElement, true);
+    serializedSelfContainedNode = serializeNode(options.targetElement, false);
+    serializedStructuredNode = serializeNode(options.targetElement, true);
 
     const headSelfContained = `
   <meta charset="UTF-8" />

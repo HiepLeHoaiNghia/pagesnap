@@ -1,6 +1,6 @@
 /**
  * Web2MD popup API Mocks tab: list/search captured calls, edit/delete/reset a
- * mock, clear all mocks, and relay inspect-mode "jump to call" messages.
+ * mock, and clear all mocks.
  */
 const apiListContainer = document.getElementById('api-list-container');
 const apiSearchInput = document.getElementById('api-search');
@@ -17,7 +17,6 @@ const btnEditorDelete = document.getElementById('btn-editor-delete');
 const btnEditorSave = document.getElementById('btn-editor-save');
 const btnEditorReset = document.getElementById('btn-editor-reset');
 const btnClearAllMocks = document.getElementById('btn-clear-all-mocks');
-const tabApi = document.getElementById('tab-api');
 
 let activeEditingCall = null;
 
@@ -286,40 +285,9 @@ export function initApiMocks() {
     });
   }
 
-  // Handle messages from page context / isolated bridge
+  // Refresh the list when mocks change from another extension context.
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === "inspectElementClicked" && message.call) {
-      if (tabApi) {
-        tabApi.click();
-      }
-      if (apiSearchInput) {
-        try {
-          const parsed = new URL(message.call.url);
-          apiSearchInput.value = parsed.pathname;
-        } catch(e) {
-          apiSearchInput.value = message.call.url;
-        }
-        apiSearchInput.dispatchEvent(new Event('input'));
-      }
-
-      setTimeout(() => {
-        const cards = apiListContainer.querySelectorAll('.api-card');
-        for (const card of cards) {
-          const urlEl = card.querySelector('.api-url');
-          const methodEl = card.querySelector('.api-badge');
-          if (urlEl && methodEl &&
-              methodEl.textContent.trim().toUpperCase() === message.call.method.toUpperCase() &&
-              (message.call.url.includes(urlEl.textContent.trim()) || urlEl.textContent.trim().includes(message.call.url))) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            card.classList.add('highlight-flash');
-            setTimeout(() => {
-              card.classList.remove('highlight-flash');
-            }, 3000);
-            break;
-          }
-        }
-      }, 300);
-    } else if (message.action === "syncMocks") {
+    if (message.action === "syncMocks") {
       fetchAndRenderApiCalls(apiSearchInput ? apiSearchInput.value : '');
     }
   });

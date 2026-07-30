@@ -40,7 +40,6 @@ export const ACTIONS = {
   // F5 inspect
   GET_INSPECT_STATE: 'getInspectState',
   TOGGLE_INSPECT: 'toggleInspect',
-  INSPECT_ELEMENT_CLICKED: 'inspectElementClicked', // sent by bridge; no handler (legacy)
   // F6 visual edit
   GET_VISUAL_EDIT_STATE: 'getVisualEditState',
   TOGGLE_VISUAL_EDIT: 'toggleVisualEdit',
@@ -55,7 +54,6 @@ export const ACTIONS = {
 export const WINDOW_MESSAGES = {
   API_CALL_RECORDED: 'WEB2MD_API_CALL_RECORDED',
   UPDATE_MOCK_SAVE: 'WEB2MD_UPDATE_MOCK_SAVE',
-  INSPECTED_ELEMENT_CLICKED: 'WEB2MD_INSPECTED_ELEMENT_CLICKED',
   SET_MOCKS: 'WEB2MD_SET_MOCKS',
   SET_MOCKING_ENABLED: 'WEB2MD_SET_MOCKING_ENABLED',
   TOGGLE_INSPECT: 'WEB2MD_TOGGLE_INSPECT',
@@ -83,8 +81,8 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/handlers.js',
   'src/content/region-select/mode.js',
   'src/content/region-select/actions-bar.js',
-  'src/content/html-clone/serializer.js',
   'src/content/html-clone/mock-stub.js',
+  'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js',
   'src/content/visual-edit/visual-edit.js'
 ];

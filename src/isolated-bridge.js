@@ -40,10 +40,6 @@
       try {
         chrome.runtime.sendMessage({ action: "saveMockFromWeb", mock: event.data.mock });
       } catch (e) {}
-    } else if (event.data.type === 'WEB2MD_INSPECTED_ELEMENT_CLICKED') {
-      try {
-        chrome.runtime.sendMessage({ action: "inspectElementClicked", call: event.data.call });
-      } catch (e) {}
     }
   });
 

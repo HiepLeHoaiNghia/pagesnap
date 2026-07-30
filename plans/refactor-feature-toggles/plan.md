@@ -1,8 +1,9 @@
 # Refactor web2md-extension: tách feature thành module + per-feature toggle
 
-status: completed (2026-07-30) — chờ user manual test trong Chrome theo §Verification
+status: fixed + automated checks passed (2026-07-30) — browser smoke manual-pending
 
 ## Changelog
+- 2026-07-30 (follow-up): Sửa region targetElement serialization; bridge injection khi base bundle đã tồn tại + concurrent dedup; reorder mock-stub; xoá dead inspectElementClicked protocol; Netlify PAT local-only + migrate/remove legacy sync an toàn race. Thêm `tests/static-checks.mjs`: 10/10 pass; toàn bộ JS syntax + diff check pass; independent JS review: no findings. Chrome 151 CLI không load unpacked extension (headless/headful đều chỉ thấy component extensions), nên browser smoke manual-pending.
 - 2026-07-30: Thực hiện toàn bộ 8 phase. background.js→8 ESM, content.js→14 module namespace, main_world.js→4 file gated, popup.js→12 ESM + Features toggles, xoá 5 file gốc, README cập nhật. Verify tĩnh: node --check pass, 18 background actions parity OK, Web2MD refs OK, 23 bundle files exist, manifest JSON hợp lệ. Manual test trong Chrome: PENDING (user).
 
 ## Context

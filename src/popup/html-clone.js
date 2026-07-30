@@ -10,7 +10,7 @@
  * shapes diverge enough that a straight reuse would need its own branching
  * anyway, so the duplicate is kept (see brief).
  */
-import { appState, safeStorage } from './state.js';
+import { appState, safeStorage, localOnlyStorage } from './state.js';
 
 const btnDownloadZip = document.getElementById('btn-download-zip');
 const btnDeploy = document.getElementById('btn-deploy');
@@ -89,17 +89,19 @@ async function buildZipBlob() {
 }
 
 export function initHtmlClone() {
-  // Load Netlify token on startup
-  safeStorage.get('netlifyToken').then((token) => {
-    if (checkNetlifyToken && token) {
+  // Move legacy synced tokens into local storage, then remove the synced copy.
+  localOnlyStorage.migrateFromSync('netlifyToken').then((token) => {
+    if (checkNetlifyToken && token && !checkNetlifyToken.value.trim()) {
       checkNetlifyToken.value = token;
     }
   });
 
   if (checkNetlifyToken) {
-    checkNetlifyToken.addEventListener('input', () => {
-      safeStorage.set('netlifyToken', checkNetlifyToken.value.trim());
-    });
+    const persistNetlifyToken = () => {
+      localOnlyStorage.set('netlifyToken', checkNetlifyToken.value.trim());
+    };
+    checkNetlifyToken.addEventListener('change', persistNetlifyToken);
+    checkNetlifyToken.addEventListener('blur', persistNetlifyToken);
   }
 
   // ZIP Download Listener
@@ -140,6 +142,7 @@ export function initHtmlClone() {
       btnDeploy.disabled = true;
 
       try {
+        await localOnlyStorage.set('netlifyToken', token);
         const zipBlob = await buildZipBlob();
 
         const pageKey = `netlifySiteId_${encodeURIComponent(appState.extractedData.url)}`;

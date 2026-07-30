@@ -20,38 +20,48 @@ const MW_CORE_ID = 'web2md-mw-core';
 const MW_API_ID = 'web2md-mw-api';
 const BRIDGE_ID = 'web2md-bridge';
 const REGISTERED_IDS = [MW_CORE_ID, MW_API_ID, BRIDGE_ID];
+const pendingContentInjections = new Map();
+
+async function injectFiles(tabId, frameId, files) {
+  for (const script of files) {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId, frameIds: [frameId] },
+      files: [script]
+    });
+  }
+}
+
+async function ensureConditionalBridges(tabId, frameId, flags) {
+  if (!flags.apiMock && !flags.inspect) return;
+  await injectFiles(tabId, frameId, MOCK_BRIDGE_FILES);
+  await injectFiles(tabId, frameId, [ISOLATED_BRIDGE_FILE]);
+}
 
 // Inject ISOLATED-world content scripts if not already loaded (pinged first).
-export async function ensureContentInjected(tabId, frameId = 0) {
-  try {
-    // Check if the script is already loaded by pinging it
-    await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-    return true;
-  } catch (err) {
+export function ensureContentInjected(tabId, frameId = 0) {
+  const key = `${tabId}:${frameId}`;
+  const pending = pendingContentInjections.get(key);
+  if (pending) return pending;
+
+  const injection = (async () => {
     try {
       const flags = await getFlags();
-      const files = [...CONTENT_BUNDLE];
-      if (flags.apiMock || flags.inspect) {
-        files.push(...MOCK_BRIDGE_FILES);
+      try {
+        await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
+      } catch (err) {
+        await injectFiles(tabId, frameId, CONTENT_BUNDLE);
       }
-      for (const script of files) {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId, frameIds: [frameId] },
-          files: [script]
-        });
-      }
-      if (flags.apiMock || flags.inspect) {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId, frameIds: [frameId] },
-          files: [ISOLATED_BRIDGE_FILE]
-        });
-      }
+      await ensureConditionalBridges(tabId, frameId, flags);
       return true;
     } catch (e) {
       console.error("Script injection failed from background: ", e);
       return false;
     }
-  }
+  })();
+
+  pendingContentInjections.set(key, injection);
+  injection.finally(() => pendingContentInjections.delete(key));
+  return injection;
 }
 
 // Inject MAIN-world scripts (core + conditionally api/vfs/inspector).
