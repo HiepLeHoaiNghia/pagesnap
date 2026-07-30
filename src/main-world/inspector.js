@@ -1,625 +1,10 @@
 (function() {
-  if (window.__web2md_main_world_initialized__) {
+  if (window.__web2md_mw_inspector__) {
     return;
   }
-  window.__web2md_main_world_initialized__ = true;
+  window.__web2md_mw_inspector__ = true;
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function findVFS(obj, depth = 0, visited = new Map()) {
-    if (depth > 12) return null;
-    if (!obj || typeof obj !== 'object') return null;
-
-    const prevDepth = visited.get(obj);
-    if (prevDepth !== undefined && prevDepth <= depth) return null;
-    visited.set(obj, depth);
-
-    // Support Map objects
-    if (obj instanceof Map) {
-      try {
-        const keys = Array.from(obj.keys());
-        if (keys.length >= 2) {
-          let fileKeysCount = 0;
-          let isValidVFS = true;
-          
-          for (const k of keys) {
-            if (typeof k === 'string' && (k.includes('/') || k.includes('.'))) {
-              fileKeysCount++;
-              const val = obj.get(k);
-              const isString = typeof val === 'string';
-              const isFileObj = val && typeof val === 'object' && (typeof val.content === 'string' || typeof val.text === 'string' || typeof val.source === 'string');
-              if (!isString && !isFileObj) {
-                isValidVFS = false;
-                break;
-              }
-            }
-          }
-
-          if (isValidVFS && fileKeysCount >= 2) {
-            const norm = {};
-            obj.forEach((val, key) => {
-              norm[key] = val;
-            });
-            return norm;
-          }
-        }
-      } catch (e) {}
-    }
-
-    const keys = Object.keys(obj);
-    if (keys.length >= 2) {
-      let fileKeysCount = 0;
-      let isValidVFS = true;
-      
-      for (const k of keys) {
-        if (typeof k === 'string' && (k.includes('/') || k.includes('.'))) {
-          fileKeysCount++;
-          const val = obj[k];
-          const isString = typeof val === 'string';
-          const isFileObj = val && typeof val === 'object' && (typeof val.content === 'string' || typeof val.text === 'string' || typeof val.source === 'string');
-          if (!isString && !isFileObj) {
-            isValidVFS = false;
-            break;
-          }
-        }
-      }
-
-      if (isValidVFS && fileKeysCount >= 2) {
-        return obj;
-      }
-    }
-
-    if (Array.isArray(obj) && obj.length > 0) {
-      const first = obj[0];
-      if (first && typeof first === 'object' && ('path' in first || 'name' in first) && ('content' in first || 'text' in first || 'source' in first)) {
-        return obj;
-      }
-    }
-
-    // Traverse keys recursively
-    for (const k of keys) {
-      try {
-        const res = findVFS(obj[k], depth + 1, visited);
-        if (res) return res;
-      } catch (e) {}
-    }
-    return null;
-  }
-
-  function scoreVFS(vfs) {
-    if (!vfs) return -1;
-    let score = 0;
-    let fileCount = 0;
-    let keys = [];
-    
-    if (vfs instanceof Map) {
-      keys = Array.from(vfs.keys());
-    } else if (Array.isArray(vfs)) {
-      keys = vfs.map(f => f.path || f.name || '');
-    } else {
-      keys = Object.keys(vfs);
-    }
-    
-    for (const k of keys) {
-      if (typeof k === 'string') {
-        const lowerK = k.toLowerCase();
-        if (lowerK.endsWith('.tsx') || lowerK.endsWith('.ts') || lowerK.endsWith('.jsx') || lowerK.endsWith('.js') || lowerK.endsWith('.html') || lowerK.endsWith('.css') || lowerK.endsWith('.json')) {
-          score += 15; // High points for code files
-          fileCount++;
-        }
-        
-        let content = '';
-        if (vfs instanceof Map) {
-          const val = vfs.get(k);
-          content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
-        } else if (Array.isArray(vfs)) {
-          const item = vfs.find(f => (f.path || f.name) === k);
-          content = item ? (item.content || item.text || item.source || '') : '';
-        } else {
-          const val = vfs[k];
-          content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
-        }
-        
-        if (content.trim().startsWith('http://') || content.trim().startsWith('https://')) {
-          score -= 20; // Penalize import map mappings
-        } else {
-          score += Math.min(content.length / 50, 30); // Add points based on code size
-        }
-      }
-    }
-    
-    if (fileCount === 0) return -1;
-    return score;
-  }
-
-  function getAllElements(root = document, list = []) {
-    if (!root) return list;
-    try {
-      const elements = root.querySelectorAll('*');
-      for (let i = 0; i < elements.length; i++) {
-        const el = elements[i];
-        list.push(el);
-        if (el.shadowRoot) {
-          getAllElements(el.shadowRoot, list);
-        }
-      }
-    } catch (e) {}
-    return list;
-  }
-
-  function scanDOMForVFS() {
-    const candidates = [];
-    const globalVisited = new Map();
-
-    // Helper to evaluate and track a VFS candidate
-    function trackCandidate(obj) {
-      if (!obj) return;
-      const score = scoreVFS(obj);
-      if (score > 0) {
-        candidates.push({ obj, score });
-      }
-    }
-
-    // 1. Scan global window properties
-    const windowKeys = Object.keys(window);
-    for (const k of windowKeys) {
-      if (k !== 'window' && k !== 'self' && k !== 'top' && k !== 'parent' && k !== 'frames' && k !== 'globalThis') {
-        try {
-          const vfs = findVFS(window[k], 0, globalVisited);
-          if (vfs) trackCandidate(vfs);
-        } catch (e) {}
-      }
-    }
-
-    // 2. Scan DOM elements including Shadow DOM
-    const allElements = getAllElements(document);
-    for (const el of allElements) {
-      const fiberKey = Object.keys(el).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-      if (fiberKey) {
-        const fiber = el[fiberKey];
-        let curr = fiber;
-        while (curr) {
-          if (curr.memoizedProps) {
-            const vfs = findVFS(curr.memoizedProps, 0, globalVisited);
-            if (vfs) trackCandidate(vfs);
-          }
-          if (curr.memoizedState) {
-            const vfs = findVFS(curr.memoizedState, 0, globalVisited);
-            if (vfs) trackCandidate(vfs);
-          }
-          curr = curr.return;
-        }
-      }
-    }
-
-    if (candidates.length === 0) return null;
-    
-    // Sort by score descending and return the best candidate
-    candidates.sort((a, b) => b.score - a.score);
-    return candidates[0].obj;
-  }
-
-  // Define global scan function for manual user debugging in DevTools
-  window.web2mdScan = function() {
-    console.log("[Web2MD] Running manual VFS diagnostic scan...");
-    const vfs = scanDOMForVFS();
-    if (vfs) {
-      console.log("[Web2MD] Match found:", vfs);
-      return vfs;
-    }
-    console.warn("[Web2MD] No VFS found in React Fiber trees.");
-    return null;
-  };
-
-  // Intercept Fetch and XHR calls to sniff API endpoints and payloads
-  const apiCalls = [];
-  window.__web2md_api_calls = apiCalls;
-
-  function parseStackTrace(stack) {
-    if (!stack) return [];
-    const lines = stack.split('\n');
-    const callers = [];
-    for (const line of lines) {
-      if (line.includes('main_world.js') || line.includes('XMLHttpRequest') || line.includes('originalFetch') || line.includes('at fetch') || line.includes('at window.fetch') || line.includes('Error')) {
-        continue;
-      }
-      const matchWithCall = line.match(/^\s*at\s+([^\s(]+)\s*\((.+)\)/);
-      const matchUrlOnly = line.match(/^\s*at\s+(.+)/);
-      
-      if (matchWithCall) {
-        const funcName = matchWithCall[1];
-        const urlAndCoords = matchWithCall[2];
-        callers.push({ functionName: funcName, location: urlAndCoords });
-      } else if (matchUrlOnly) {
-        const urlAndCoords = matchUrlOnly[1];
-        if (urlAndCoords.includes('anonymous')) continue;
-        callers.push({ functionName: 'anonymous', location: urlAndCoords });
-      }
-    }
-    return callers;
-  }
-
-  let isMockingEnabled = true;
-  let apiMocks = [];
-
-  try {
-    const cachedMocks = sessionStorage.getItem('web2md_api_mocks');
-    if (cachedMocks) {
-      apiMocks = JSON.parse(cachedMocks) || [];
-    }
-    const cachedEnabled = sessionStorage.getItem('web2md_mocking_enabled');
-    if (cachedEnabled !== null) {
-      isMockingEnabled = cachedEnabled === 'true';
-    }
-  } catch (e) {
-    console.warn('[Web2MD] Failed to load from sessionStorage:', e);
-  }
-
-  window.addEventListener('message', (event) => {
-    if (event.source === window && event.data) {
-      if (event.data.type === 'WEB2MD_SET_MOCKS') {
-        apiMocks = event.data.mocks || [];
-        try {
-          sessionStorage.setItem('web2md_api_mocks', JSON.stringify(apiMocks));
-        } catch(e) {}
-      } else if (event.data.type === 'WEB2MD_SET_MOCKING_ENABLED') {
-        isMockingEnabled = event.data.enabled !== false;
-        try {
-          sessionStorage.setItem('web2md_mocking_enabled', String(isMockingEnabled));
-        } catch(e) {}
-      }
-    }
-  });
-
-  function matchMock(reqUrl, reqMethod) {
-    if (!isMockingEnabled) return null;
-    try {
-      const parsedReq = new URL(reqUrl, window.location.href);
-      const reqPath = parsedReq.origin + parsedReq.pathname;
-      
-      for (const entry of apiMocks) {
-        if (!entry.isMocked) continue;
-        if (entry.method && entry.method.toUpperCase() !== reqMethod.toUpperCase()) continue;
-        try {
-          const parsedCache = new URL(entry.url, window.location.href);
-          const cachePath = parsedCache.origin + parsedCache.pathname;
-          if (reqPath === cachePath) {
-            return entry;
-          }
-        } catch(e) {}
-      }
-    } catch(e) {}
-    
-    for (const entry of apiMocks) {
-      if (!entry.isMocked) continue;
-      if (entry.method && entry.method.toUpperCase() !== reqMethod.toUpperCase()) continue;
-      if (reqUrl.includes(entry.url) || entry.url.includes(reqUrl)) {
-        return entry;
-      }
-    }
-    return null;
-  }
-
-  function recordCall(callLog) {
-    // Enrichment will be applied by Phase 2 patch below (if loaded)
-    if (typeof window.__web2md_enrichRecordCall === 'function') {
-      window.__web2md_enrichRecordCall(callLog);
-    }
-    apiCalls.push(callLog);
-    window.postMessage({ type: 'WEB2MD_API_CALL_RECORDED', call: callLog }, '*');
-  }
-
-  // Intercept Fetch
-  const originalFetch = window.fetch;
-  window.fetch = async function(...args) {
-    const stack = new Error().stack || '';
-    const callers = parseStackTrace(stack);
-    
-    const input = args[0];
-    const init = args[1];
-    let url = '';
-    let method = 'GET';
-    let headers = {};
-    let body = null;
-
-    if (typeof input === 'string') {
-      url = input;
-    } else if (input instanceof URL) {
-      url = input.href;
-    } else if (input && typeof input === 'object' && 'url' in input) {
-      url = input.url;
-      method = input.method || 'GET';
-      headers = input.headers || {};
-    }
-
-    if (init) {
-      if (init.method) method = init.method;
-      if (init.headers) headers = init.headers;
-      if (init.body) body = init.body;
-    }
-
-    // Format request body if possible
-    let reqBodyStr = null;
-    if (body) {
-      if (typeof body === 'string') {
-        reqBodyStr = body;
-      } else if (body instanceof URLSearchParams) {
-        reqBodyStr = body.toString();
-      } else if (body instanceof FormData) {
-        try {
-          const obj = {};
-          body.forEach((value, key) => { obj[key] = value; });
-          reqBodyStr = JSON.stringify(obj);
-        } catch (e) {}
-      } else {
-        try {
-          reqBodyStr = JSON.stringify(body);
-        } catch (e) {}
-      }
-    }
-
-    const callLog = {
-      type: 'fetch',
-      url: url,
-      method: method.toUpperCase(),
-      originalMethod: method.toUpperCase(),
-      requestHeaders: headers,
-      requestBody: reqBodyStr,
-      stack: stack,
-      callers: callers,
-      timestamp: Date.now()
-    };
-
-    const matched = matchMock(url, method);
-    if (matched) {
-      console.log('[Web2MD Live Mock] Intercepted Fetch:', url);
-      const responseText = matched.responseText || '';
-      const response = new Response(responseText, {
-        status: matched.status || 200,
-        statusText: matched.statusText || 'OK',
-        headers: new Headers(matched.responseHeaders || {})
-      });
-      callLog.status = matched.status || 200;
-      callLog.statusText = matched.statusText || 'OK';
-      callLog.responseHeaders = matched.responseHeaders || {};
-      callLog.responseText = responseText;
-      callLog.originalStatus = matched.originalStatus || matched.status || 200;
-      callLog.originalResponseText = matched.originalResponseText || responseText;
-      callLog.isMocked = true;
-      recordCall(callLog);
-      return response;
-    }
-
-    try {
-      const response = await originalFetch.apply(this, args);
-      const clonedResponse = response.clone();
-      callLog.status = clonedResponse.status;
-      callLog.statusText = clonedResponse.statusText;
-
-      const responseHeaders = {};
-      clonedResponse.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      callLog.responseHeaders = responseHeaders;
-
-      try {
-        const text = await clonedResponse.text();
-        callLog.responseText = text;
-      } catch (e) {
-        callLog.responseText = '';
-      }
-      callLog.originalStatus = callLog.status;
-      callLog.originalResponseText = callLog.responseText;
-      recordCall(callLog);
-      return response;
-    } catch (error) {
-      callLog.error = error.message;
-      recordCall(callLog);
-      throw error;
-    }
-  };
-
-  // Intercept XHR
-  const originalXHR = window.XMLHttpRequest;
-  window.XMLHttpRequest = function() {
-    const xhr = new originalXHR();
-    const callLog = {
-      type: 'xhr',
-      method: 'GET',
-      originalMethod: 'GET',
-      url: '',
-      requestHeaders: {},
-      requestBody: null,
-      timestamp: Date.now()
-    };
-
-    const originalOpen = xhr.open;
-    xhr.open = function(method, url, ...rest) {
-      callLog.method = method.toUpperCase();
-      callLog.originalMethod = method.toUpperCase();
-      callLog.url = url;
-      return originalOpen.apply(this, [method, url, ...rest]);
-    };
-
-    const originalSetRequestHeader = xhr.setRequestHeader;
-    xhr.setRequestHeader = function(header, value) {
-      callLog.requestHeaders[header] = value;
-      return originalSetRequestHeader.apply(this, [header, value]);
-    };
-
-    const originalSend = xhr.send;
-    xhr.send = function(body) {
-      const stack = new Error().stack || '';
-      callLog.stack = stack;
-      callLog.callers = parseStackTrace(stack);
-      
-      if (body) {
-        if (typeof body === 'string') {
-          callLog.requestBody = body;
-        } else {
-          try {
-            callLog.requestBody = JSON.stringify(body);
-          } catch (e) {}
-        }
-      }
-
-      const matchedEntry = matchMock(callLog.url, callLog.method);
-      if (matchedEntry) {
-        console.log('[Web2MD Live Mock] Intercepted XHR:', callLog.url);
-        Object.defineProperties(xhr, {
-          status: {
-            get: () => matchedEntry.status || 200,
-            configurable: true
-          },
-          statusText: {
-            get: () => matchedEntry.statusText || 'OK',
-            configurable: true
-          },
-          readyState: {
-            get: () => 4,
-            configurable: true
-          },
-          responseText: {
-            get: () => matchedEntry.responseText || '',
-            configurable: true
-          },
-          response: {
-            get: () => {
-              if (xhr.responseType === 'json') {
-                try {
-                  return JSON.parse(matchedEntry.responseText || '{}');
-                } catch(e) {
-                  return matchedEntry.responseText || '';
-                }
-              }
-              return matchedEntry.responseText || '';
-            },
-            configurable: true
-          },
-          responseXML: {
-            get: () => null,
-            configurable: true
-          },
-          getAllResponseHeaders: {
-            value: () => {
-              if (!matchedEntry.responseHeaders) return '';
-              return Object.entries(matchedEntry.responseHeaders)
-                .map(([k, v]) => k + ': ' + v)
-                .join('\r\n');
-            },
-            configurable: true
-          },
-          getResponseHeader: {
-            value: (headerName) => {
-              if (!matchedEntry.responseHeaders) return null;
-              return matchedEntry.responseHeaders[headerName.toLowerCase()] || null;
-            },
-            configurable: true
-          }
-        });
-
-        // Trigger readystatechange and load handlers asynchronously to simulate completion
-        setTimeout(() => {
-          const stateEvent = new Event('readystatechange');
-          xhr.dispatchEvent(stateEvent);
-          const loadEvent = new Event('load');
-          xhr.dispatchEvent(loadEvent);
-        }, 0);
-
-        // Record mock execution
-        callLog.status = matchedEntry.status || 200;
-        callLog.statusText = matchedEntry.statusText || 'OK';
-        callLog.responseHeaders = matchedEntry.responseHeaders || {};
-        callLog.responseText = matchedEntry.responseText || '';
-        callLog.originalStatus = matchedEntry.originalStatus || matchedEntry.status || 200;
-        callLog.originalResponseText = matchedEntry.originalResponseText || matchedEntry.responseText || '';
-        callLog.isMocked = true;
-        recordCall(callLog);
-        return;
-      }
-      
-      xhr.addEventListener('readystatechange', () => {
-        if (xhr.readyState === 4) {
-          callLog.status = xhr.status;
-          callLog.statusText = xhr.statusText;
-          
-          const responseHeaders = {};
-          const headersStr = xhr.getAllResponseHeaders();
-          if (headersStr) {
-            headersStr.split('\r\n').forEach(line => {
-              const parts = line.split(': ');
-              if (parts.length >= 2) {
-                responseHeaders[parts[0].toLowerCase()] = parts.slice(1).join(': ');
-              }
-            });
-          }
-          callLog.responseHeaders = responseHeaders;
-          
-          try {
-            callLog.responseText = xhr.responseText;
-          } catch (e) {
-            callLog.responseText = '';
-          }
-          callLog.originalStatus = callLog.status;
-          callLog.originalResponseText = callLog.responseText;
-          recordCall(callLog);
-        }
-      });
-
-      return originalSend.apply(this, [body]);
-    };
-
-    return xhr;
-  };
-  window.XMLHttpRequest.prototype = originalXHR.prototype;
-  Object.keys(originalXHR).forEach(key => {
-    window.XMLHttpRequest[key] = originalXHR[key];
-  });
-
-  // Listen to scan request and API call request from Content Script
-  window.addEventListener('message', (event) => {
-    if (event.source === window && event.data) {
-      if (event.data.type === 'WEB2MD_REQUEST_VFS_SCAN') {
-        const vfs = scanDOMForVFS();
-        let files = [];
-        if (vfs) {
-          if (Array.isArray(vfs)) {
-            files = vfs.map(f => ({
-              path: f.path || f.name || '',
-              content: f.content || f.text || f.source || ''
-            }));
-          } else {
-            Object.keys(vfs).forEach(path => {
-              const val = vfs[path];
-              const content = typeof val === 'string' ? val : (val.content || val.text || val.source || '');
-              files.push({ path, content });
-            });
-          }
-        }
-        window.postMessage({ type: 'WEB2MD_VFS_RESPONSE', files: files }, '*');
-      } else if (event.data.type === 'WEB2MD_REQUEST_API_CALLS') {
-        window.postMessage({ type: 'WEB2MD_API_CALLS_RESPONSE', apiCalls: apiCalls }, '*');
-      } else if (event.data.type === 'WEB2MD_UPDATE_API_CALL') {
-        const { index, updatedCall } = event.data;
-        if (apiCalls[index]) {
-          apiCalls[index] = { ...apiCalls[index], ...updatedCall };
-        }
-      } else if (event.data.type === 'WEB2MD_DELETE_API_CALL') {
-        const { index } = event.data;
-        if (index >= 0 && index < apiCalls.length) {
-          apiCalls.splice(index, 1);
-        }
-      }
-    }
-  });
+  window.__web2mdMW = window.__web2mdMW || {};
 
   // ======================================================================
   //  PHASE 2: Enhanced Stack Trace + Temporal API Tracking
@@ -871,6 +256,7 @@
   }
 
   function findAssociatedApis(element, frameworkInfo) {
+    const apiCalls = window.__web2md_api_calls || [];
     const results = [];
     for (let i = 0; i < apiCalls.length; i++) {
       const call = apiCalls[i];
@@ -926,6 +312,7 @@
 
   function updateTooltip(el, fwInfo, apis) {
     if (!tooltipEl) return;
+    const escapeHtml = window.__web2mdMW.escapeHtml;
     const rect = el.getBoundingClientRect();
     let html = '';
 
@@ -1012,33 +399,6 @@
       }
     }
     return false;
-  }
-
-  function showToast(message, type = 'success') {
-    if (!modalHostEl) return;
-    const shadow = modalHostEl.shadowRoot;
-    const container = shadow.querySelector('.toast-container');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    if (type === 'error') {
-      toast.style.background = '#ef4444';
-    } else if (type === 'warning') {
-      toast.style.background = '#f59e0b';
-    } else {
-      toast.style.background = '#10b981';
-    }
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(20px)';
-      setTimeout(() => {
-        toast.remove();
-      }, 300);
-    }, 2500);
   }
 
   function ensureModalHost() {
@@ -1372,6 +732,7 @@
       if (e.target === backdrop) hideMockEditorModal();
     });
 
+    window.__web2mdMW.modalHostEl = modalHostEl;
     return modalHostEl;
   }
 
@@ -1390,6 +751,8 @@
 
   function loadApiFields(originalIndex) {
     if (!modalHostEl) return;
+    const apiCalls = window.__web2md_api_calls || [];
+    const apiMocks = window.__web2mdMW.apiMocks || [];
     const shadow = modalHostEl.shadowRoot;
     const methodInput = shadow.querySelector('#api-method');
     const urlInput = shadow.querySelector('#api-url');
@@ -1409,7 +772,7 @@
 
     methodInput.value = call.method || 'GET';
     urlInput.value = call.url || '';
-    
+
     const currentMock = apiMocks.find(m => m.url === call.url && m.method === call.method);
     if (currentMock) {
       statusInput.value = currentMock.status || 200;
@@ -1422,6 +785,8 @@
 
   function saveMock(reload = false) {
     if (activeApiIndex === -1 || !modalHostEl) return;
+    const apiCalls = window.__web2md_api_calls || [];
+    const apiMocks = window.__web2mdMW.apiMocks || [];
     const call = apiCalls[activeApiIndex];
     if (!call) return;
 
@@ -1453,12 +818,12 @@
     }, '*');
 
     if (reload) {
-      showToast('Mock saved! Tải lại trang...', 'success');
+      window.__web2mdMW.showToast('Mock saved! Tải lại trang...', 'success');
       setTimeout(() => {
         window.location.reload();
       }, 500);
     } else {
-      showToast('Mock saved successfully (Live)', 'success');
+      window.__web2mdMW.showToast('Mock saved successfully (Live)', 'success');
       setTimeout(() => {
         hideMockEditorModal();
       }, 800);
@@ -1467,6 +832,7 @@
 
   function resetToOriginal() {
     if (activeApiIndex === -1 || !modalHostEl) return;
+    const apiCalls = window.__web2md_api_calls || [];
     const call = apiCalls[activeApiIndex];
     if (!call) return;
 
@@ -1476,12 +842,12 @@
 
     statusInput.value = call.originalStatus || call.status || 200;
     bodyTextarea.value = call.originalResponseText !== undefined ? call.originalResponseText : (call.responseText || '');
-    showToast('Reset to original response values', 'success');
+    window.__web2mdMW.showToast('Reset to original response values', 'success');
   }
 
   function populateDropdown(selectEl, associated, allCalls) {
     selectEl.innerHTML = '';
-    
+
     if (associated.length === 0 && allCalls.length === 0) {
       const opt = document.createElement('option');
       opt.value = '';
@@ -1489,7 +855,7 @@
       selectEl.appendChild(opt);
       return;
     }
-    
+
     if (associated.length > 0) {
       const group = document.createElement('optgroup');
       group.label = '🎯 Associated APIs (Framework/Temporal Match)';
@@ -1504,12 +870,12 @@
       });
       selectEl.appendChild(group);
     }
-    
+
     const associatedIndices = new Set(associated.map(api => api.originalIndex));
     const otherCalls = allCalls
       .map((call, idx) => ({ ...call, originalIndex: idx }))
       .filter(call => !associatedIndices.has(call.originalIndex));
-      
+
     if (otherCalls.length > 0) {
       const group = document.createElement('optgroup');
       group.label = '📡 Other Captured APIs';
@@ -1528,6 +894,7 @@
 
   function showMockEditorModal(el, fwInfo, apis) {
     ensureModalHost();
+    const apiCalls = window.__web2md_api_calls || [];
     const shadow = modalHostEl.shadowRoot;
     const backdrop = shadow.querySelector('.modal-backdrop');
     backdrop.style.display = 'flex';
@@ -1569,9 +936,9 @@
       try {
         const parsed = JSON.parse(textarea.value);
         textarea.value = JSON.stringify(parsed, null, 2);
-        showToast('JSON Formatted', 'success');
+        window.__web2mdMW.showToast('JSON Formatted', 'success');
       } catch (err) {
-        showToast('Invalid JSON: Cannot Format', 'error');
+        window.__web2mdMW.showToast('Invalid JSON: Cannot Format', 'error');
       }
     };
     const newBtnFormat = btnFormat.cloneNode(true);

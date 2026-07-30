@@ -18,37 +18,48 @@
 
 |  #  | File / Resource              | Description                                                                              |
 | :-: | :--------------------------- | :--------------------------------------------------------------------------------------- |
-|  1  | **[manifest.json](manifest.json)** | Extension metadata, permissions (activeTab, storage, scripting), and content script registration |
-|  2  | **[main_world.js](main_world.js)** | MAIN world script traversing Shadow DOM recursively and scoring VFS workspace candidates |
-|  3  | **[content.js](content.js)**   | Content script running Mozilla Readability on page DOM and routing messages to background |
-|  4  | **[background.js](background.js)** | Background service worker caching React VFS projects by Tab ID and registering context menus |
-|  5  | **[popup.js](popup.js)**       | Popup interface driver converting HTML payload to GFM Markdown with live settings toggle  |
+|  1  | **[manifest.json](manifest.json)** | Extension metadata and permissions. No static content scripts — everything is injected on demand |
+|  2  | **[src/background/](src/background/)** | Service worker (ES modules): message router, dynamic script injector, per-feature stores |
+|  3  | **[src/content/](src/content/)** | ISOLATED-world feature modules on the `window.Web2MD` namespace (markdown, region select, HTML clone, visual edit) |
+|  4  | **[src/main-world/](src/main-world/)** | MAIN-world modules — API interceptor, VFS scanner, inspector. Only injected when their feature flag is ON |
+|  5  | **[src/popup/](src/popup/)**   | Popup UI (ES modules) with per-feature toggles and flag-gated sections |
+|  6  | **[src/shared/](src/shared/)** | `constants.js` (message protocol + script bundles) and `feature-flags.js` (flag storage) |
 
 ---
 
 ## 🏛️ Architecture
 
-The extension implements a decoupled message-passing pattern to scan, cache, and serialize project directories from nested React applets:
+Every feature lives in its own module and is wired through a message router. Scripts are injected **on demand only** — a page gets zero Web2MD code until you use a feature on it.
+
+### Runtime layout
 
 ```mermaid
-graph TD
-    classDef popupNode fill:#3E83B5,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef contentNode fill:#336791,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef bgNode fill:#7F52FF,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef libNode fill:#02303A,stroke:#fff,stroke-width:2px,color:#fff;
-
-    Popup["popup.js / popup.html<br>(Popup UI, markdown renderer, settings)"]:::popupNode
-    Content["content.js<br>(Page context listener, Mozilla Readability)"]:::contentNode
-    MainWorld["main_world.js<br>(MAIN world scanning, Shadow DOM crawler)"]:::contentNode
-    Background["background.js<br>(VFS project cache, context menus)"]:::bgNode
-    Libs["lib/ (Turndown, Readability)<br>(Local parsing dependencies)"]:::libNode
+flowchart TD
+    Popup["src/popup/*<br>(UI, feature toggles)"]
+    Background["src/background/*<br>(router, injector, stores)"]
+    Content["src/content/*<br>(Web2MD namespace modules)"]
+    MainWorld["src/main-world/*<br>(interceptor / VFS / inspector)"]
 
     Popup --> Background
-    Popup --> Content
-    Content --> MainWorld
-    Content --> Libs
-    MainWorld --> Background
+    Background -->|"executeScript (on demand)"| Content
+    Background -->|"registerContentScripts (apiMock ON)"| MainWorld
+    Content <-->|postMessage| MainWorld
 ```
+
+### Feature flags & injection policy
+
+| Flag | Feature | Default | What gets injected |
+|---|---|:-:|---|
+| `markdown` | Page → Markdown/HTML copy | ✅ ON | Content bundle, lazily on user action |
+| `regionSelect` | Region selection copy + context menu | ✅ ON | Content bundle, lazily on user action |
+| `htmlClone` | Self-contained HTML / ZIP / Netlify | ✅ ON | Content bundle, lazily on user action |
+| `apiMock` | API interception + mocking (patches `fetch`/XHR) | ❌ OFF | `main-world/api-interceptor.js` + bridge at `document_start` (persistent registration) |
+| `inspect` | Component inspector + mock editor | ❌ OFF | MAIN-world core + interceptor + inspector, on toggle |
+| `visualEdit` | Visual edit mode | ❌ OFF | Content bundle, on toggle |
+| `projectDetect` | React VFS project detection | ❌ OFF | `main-world/vfs-scanner.js` during extract |
+
+> [!IMPORTANT]
+> `apiMock`/`inspect` wrap `window.fetch` and `XMLHttpRequest`, which can interfere with some sites' API calls. They are OFF by default and inject **nothing** while off. Toggle them in **Popup → Settings → Features**, then reload the tab.
 
 ---
 

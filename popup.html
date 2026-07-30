@@ -26,17 +26,17 @@
     <main class="app-main">
       <!-- Toolbar controls -->
       <div class="app-toolbar">
-        <label class="toggle-switch compact-toggle" title="Modify the page text and elements directly">
+        <label class="toggle-switch compact-toggle" title="Modify the page text and elements directly" data-feature="visualEdit">
           <input type="checkbox" id="btn-toggle-edit">
           <span class="slider"></span>
           <span class="label-text">🎨 Visual Edit</span>
         </label>
-        <label class="toggle-switch compact-toggle" title="Inspect page styles and layout">
+        <label class="toggle-switch compact-toggle" title="Inspect page styles and layout" data-feature="inspect">
           <input type="checkbox" id="btn-toggle-inspect">
           <span class="slider"></span>
           <span class="label-text">🔍 Inspect</span>
         </label>
-        <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download">
+        <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download" data-feature="regionSelect">
           <input type="checkbox" id="btn-toggle-select-region">
           <span class="slider"></span>
           <span class="label-text">🎯 Select Region</span>
@@ -44,7 +44,7 @@
       </div>
 
       <!-- Project Banner (Visible only when full project source is detected) -->
-      <div id="project-banner" class="project-banner hidden">
+      <div id="project-banner" class="project-banner hidden" data-feature="projectDetect">
         <span class="banner-icon">📦</span>
         <span id="project-banner-text" class="banner-text">VFS Project Detected</span>
         <button id="btn-download-project" class="banner-action-btn">Download Project</button>
@@ -55,19 +55,19 @@
         <div class="preview-header">
           <div class="tabs-header">
             <button id="tab-md" class="tab-btn active">Markdown</button>
-            <button id="tab-html" class="tab-btn">HTML Clone</button>
-            <button id="tab-api" class="tab-btn">API Mocks</button>
+            <button id="tab-html" class="tab-btn" data-feature="htmlClone">HTML Clone</button>
+            <button id="tab-api" class="tab-btn" data-feature="apiMock">API Mocks</button>
           </div>
         </div>
         <div class="preview-viewport">
           <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
-          <div id="html-preview-wrapper" class="hidden">
+          <div id="html-preview-wrapper" class="hidden" data-feature="htmlClone">
             <iframe id="html-preview-frame" sandbox="allow-same-origin"></iframe>
           </div>
-          <div id="api-preview-wrapper" class="hidden">
+          <div id="api-preview-wrapper" class="hidden" data-feature="apiMock">
             <!-- API List View (Main) -->
             <div id="api-list-view" style="display: flex; flex-direction: column; height: 100%;">
-              <div class="api-config-banner">
+              <div class="api-config-banner" data-feature="htmlClone">
                 <label class="toggle-switch compact-toggle">
                   <input type="checkbox" id="setting-preserve-js-quick">
                   <span class="slider"></span>
@@ -77,7 +77,7 @@
               <div class="api-manager-header">
                 <input type="text" id="api-search" placeholder="Search API endpoints...">
                 <button id="btn-refresh-api" class="icon-btn-refresh" title="Refresh API list">🔄</button>
-                <button id="btn-clear-all-mocks" class="icon-btn-refresh" title="Clear all mocks and restore live APIs" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #f43f5e; font-size: 11px;">🗑️</button>
+                <button id="btn-clear-all-mocks" class="icon-btn-refresh" title="Clear all mocks and restore live APIs" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #f43f5e; font-size: 11px;" data-feature="apiMock">🗑️</button>
               </div>
               <div id="api-list-container">
                 <div class="api-empty-state">No API calls recorded. Please verify "Preserve JS" is checked in configuration and click Extract.</div>
@@ -147,8 +147,8 @@
         <div class="actions-grid">
           <button id="btn-copy" class="secondary-btn" disabled>📋 Copy</button>
           <button id="btn-download" class="secondary-btn" disabled>💾 Download</button>
-          <button id="btn-download-zip" class="secondary-btn" disabled>📦 ZIP Package</button>
-          <button id="btn-deploy" class="secondary-btn accent-btn" disabled>🚀 Deploy Netlify</button>
+          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 ZIP Package</button>
+          <button id="btn-deploy" class="secondary-btn accent-btn" disabled data-feature="htmlClone">🚀 Deploy Netlify</button>
         </div>
       </div>
     </main>
@@ -203,10 +203,12 @@
           </label>
         </div>
         <div class="setting-section-title" style="margin-top: 14px; font-size: 10px; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px;">Deploy Integrations</div>
-        <div class="setting-group-vertical" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
+        <div class="setting-group-vertical" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;" data-feature="htmlClone">
           <label for="setting-netlify-token" style="font-size: 11px; color: var(--text-secondary);">Netlify Personal Access Token</label>
           <input type="password" id="setting-netlify-token" placeholder="npe_..." style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 10px; color: var(--text-primary); font-size: 11px; outline: none; transition: border-color 0.2s;">
         </div>
+        <div class="setting-section-title" style="margin-top: 14px; font-size: 10px; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px;">Features</div>
+        <div id="features-section" class="features-section"></div>
       </div>
     </section>
   </div>
@@ -217,6 +219,9 @@
   <script src="lib/turndown.js"></script>
   <script src="lib/turndown-plugin-gfm.js"></script>
   <script src="lib/jszip.min.js"></script>
-  <script src="popup.js"></script>
+  <script src="src/popup/bootstrap.js"></script>
+  <script src="src/content/markdown/dom-preprocess.js"></script>
+  <script src="src/content/markdown/turndown-config.js"></script>
+  <script type="module" src="src/popup/index.js"></script>
 </body>
 </html>
