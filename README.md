@@ -1,148 +1,120 @@
-# Web2MD — Page to Markdown (web2md-extension)
+<!-- markdownlint-disable MD013 MD033 MD045 -->
 
-> Premium, lightweight Chrome Extension (Manifest V3) that extracts clean content and React VFS workspaces from any web page and converts them into AI-ready Markdown locally in your browser.
+# Web2MD — Chrome Extension
 
-![Manifest V3](https://img.shields.io/badge/Manifest-V3-7F52FF?style=flat-square&logo=google-chrome&logoColor=white) ![JavaScript ES6](https://img.shields.io/badge/JavaScript-ES6-F7DF1E?style=flat-square&logo=javascript&logoColor=black) ![Turndown](https://img.shields.io/badge/Turndown-v7.1-3E83B5?style=flat-square) ![Mozilla Readability](https://img.shields.io/badge/Readability-Mozilla-green?style=flat-square)
+> Manifest V3 Chrome extension that converts web pages, selected regions, cloned HTML packages, API traffic, and React/VFS workspaces into AI-ready artifacts from a no-build JavaScript codebase.
 
----
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-7F52FF?style=flat-square&logo=google-chrome&logoColor=white)
+![No build step](https://img.shields.io/badge/Build-none-16A34A?style=flat-square)
+![Static checks](https://img.shields.io/badge/Static_checks-10%2F10_pass-16A34A?style=flat-square)
+![Browser smoke](https://img.shields.io/badge/Browser_smoke-manual_pending-F59E0B?style=flat-square)
 
-<p align="center">
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/🚀_Quick_Start-blue?style=for-the-badge" alt="Quick Start"></a>
-  <a href="#-architecture"><img src="https://img.shields.io/badge/🏛️_Architecture-8A2BE2?style=for-the-badge" alt="Architecture"></a>
-  <a href="#-features"><img src="https://img.shields.io/badge/⚡_Features-orange?style=for-the-badge" alt="Features"></a>
-</p>
+## Contents
 
----
+- [Quick start](#quick-start)
+- [Feature matrix](#feature-matrix)
+- [Architecture](#architecture)
+- [Diagnostics](#diagnostics)
+- [Testing](#testing)
+- [Privacy](#privacy)
+- [Local server for cloned packages](#local-server-for-cloned-packages)
 
-## 🗺️ Documentation Directory
+## Quick start
 
-|  #  | File / Resource              | Description                                                                              |
-| :-: | :--------------------------- | :--------------------------------------------------------------------------------------- |
-|  1  | **[manifest.json](manifest.json)** | Extension metadata and permissions. No static content scripts — everything is injected on demand |
-|  2  | **[src/background/](src/background/)** | Service worker (ES modules): message router, dynamic script injector, per-feature stores |
-|  3  | **[src/content/](src/content/)** | ISOLATED-world feature modules on the `window.Web2MD` namespace (markdown, region select, HTML clone, visual edit) |
-|  4  | **[src/main-world/](src/main-world/)** | MAIN-world modules — API interceptor, VFS scanner, inspector. Only injected when their feature flag is ON |
-|  5  | **[src/popup/](src/popup/)**   | Popup UI (ES modules) with per-feature toggles and flag-gated sections |
-|  6  | **[src/shared/](src/shared/)** | `constants.js` (message protocol + script bundles) and `feature-flags.js` (flag storage) |
+1. Open `chrome://extensions/` in Chrome or another Chromium browser.
+2. Enable **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose the repository folder that contains this README and `manifest.json`.
 
----
+No install, package, transpile, or build command is required. The extension runs directly from the source files declared in `manifest.json` and `src/shared/constants.js`.
 
-## 🏛️ Architecture
+## Feature matrix
 
-Every feature lives in its own module and is wired through a message router. Scripts are injected **on demand only** — a page gets zero Web2MD code until you use a feature on it.
+| Canonical doc                                                                       | Flag            | Default | Injection timing                                                                                                                   | Reload nuance                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------- | --------------- | :-----: | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Markdown/HTML extraction](docs/features/markdown-html-extraction/feature.md)       | `markdown`      |   ON    | Lazy content-bundle injection when extraction or conversion is requested.                                                          | No blanket reload; retry injection is attempted when the content script is not ready.                                                                                                      |
+| [Region selection](docs/features/region-selection/feature.md)                       | `regionSelect`  |   ON    | Lazy content-bundle injection from the popup toggle. Context-menu capture requires the content listener to have been loaded first. | No blanket reload. Context menu copies the last right-clicked DOM element region, not highlighted text selection or the whole page.                                                        |
+| [HTML clone, ZIP, and Netlify](docs/features/html-clone-zip-netlify/feature.md)     | `htmlClone`     |   ON    | Lazy content-bundle injection during extraction/clone; JSZip is part of the content bundle.                                        | No blanket reload. Use a local HTTP server for realistic package playback.                                                                                                                 |
+| [API mocking](docs/features/api-mocking/feature.md)                                 | `apiMock`       |   OFF   | Persistent `document_start` registration for MAIN-world core/API scripts plus bridge files on all matching pages.                  | Reload after enable and after disable. Complete fetch/XHR history and mocking require the interceptor to exist before page scripts run.                                                    |
+| [Component inspector](docs/features/component-inspector/feature.md)                 | `inspect`       |   OFF   | On-demand popup toggle injection of content bridge plus MAIN-world core/API/VFS/inspector parts.                                   | No blanket reload. API history before toggling is only available if `apiMock` was already active early.                                                                                    |
+| [Visual edit](docs/features/visual-edit/feature.md)                                 | `visualEdit`    |   OFF   | Lazy content-bundle injection from popup toggle.                                                                                   | No blanket reload. Visual edit, inspect, and region selection are mutually exclusive.                                                                                                      |
+| [React VFS project detection](docs/features/react-vfs-project-detection/feature.md) | `projectDetect` |   OFF   | VFS MAIN-world scanner injection is requested on the extraction retry path when the content bundle is not already present.         | If the base content bundle already responds, extraction currently falls back after 500 ms without injecting VFS. Reload or use Inspect to inject VFS before running `window.web2mdScan()`. |
 
-### Runtime layout
+## Architecture
+
+Web2MD is a portable, no-build MV3 extension. `manifest.json` points at the ES-module service worker in `src/background/index.js`; there are no static `content_scripts`. The background service worker owns message routing, context-menu setup, feature-flag synchronization, dynamic script injection, asset proxying, downloads, API-call storage, and project-file storage.
 
 ```mermaid
 flowchart TD
-    Popup["src/popup/*<br>(UI, feature toggles)"]
-    Background["src/background/*<br>(router, injector, stores)"]
-    Content["src/content/*<br>(Web2MD namespace modules)"]
-    MainWorld["src/main-world/*<br>(interceptor / VFS / inspector)"]
+    Popup["Popup modules"]
+    Flags["Feature flags"]
+    Background["Background router"]
+    Content["ISOLATED content bundle"]
+    MainWorld["MAIN-world modules"]
+    Page["Target page"]
 
+    Popup --> Flags
     Popup --> Background
-    Background -->|"executeScript (on demand)"| Content
-    Background -->|"registerContentScripts (apiMock ON)"| MainWorld
-    Content <-->|postMessage| MainWorld
+    Background --> Content
+    Background --> MainWorld
+    Content --> Page
+    MainWorld --> Page
 ```
 
-### Feature flags & injection policy
+### Injection policy
 
-| Flag | Feature | Default | What gets injected |
-|---|---|:-:|---|
-| `markdown` | Page → Markdown/HTML copy | ✅ ON | Content bundle, lazily on user action |
-| `regionSelect` | Region selection copy + context menu | ✅ ON | Content bundle, lazily on user action |
-| `htmlClone` | Self-contained HTML / ZIP / Netlify | ✅ ON | Content bundle, lazily on user action |
-| `apiMock` | API interception + mocking (patches `fetch`/XHR) | ❌ OFF | `main-world/api-interceptor.js` + bridge at `document_start` (persistent registration) |
-| `inspect` | Component inspector + mock editor | ❌ OFF | MAIN-world core + interceptor + inspector, on toggle |
-| `visualEdit` | Visual edit mode | ❌ OFF | Content bundle, on toggle |
-| `projectDetect` | React VFS project detection | ❌ OFF | `main-world/vfs-scanner.js` during extract |
+Core behavior is lazy by default: a tab receives Web2MD scripts only after a user action needs them. The exception is `apiMock`, which registers MAIN-world API interception at `document_start` because fetch/XHR must be patched before site scripts issue early requests. Changing `apiMock` affects registered content scripts, so reload the target tab after enabling or disabling it.
 
-> [!IMPORTANT]
-> `apiMock`/`inspect` wrap `window.fetch` and `XMLHttpRequest`, which can interfere with some sites' API calls. They are OFF by default and inject **nothing** while off. Toggle them in **Popup → Settings → Features**, then reload the tab.
+`inspect` can inject the API interceptor on demand, but that only captures traffic after injection. Use `apiMock` plus reload when early API history or complete mock coverage matters.
 
----
+## Diagnostics
 
-## ⚡ Features
+### VFS scanner
 
-*   ⚡ **Local Content Extraction**: Powered by Mozilla's `Readability.js` to automatically filter out ads, navigation headers, footers, and sidebars.
-*   📦 **React VFS Workspace Scraper**:
-    *   Traverses **Shadow DOM** recursively to bypass Web Component boundaries.
-    *   Inspects global `window` variables and React Fiber `__reactFiber$` trees.
-    *   **Scoring Candidates Algorithm**: Evaluates multiple structures and automatically filters out package imports maps (e.g. `esm.sh`) in favor of genuine codebases.
-*   📝 **Markdown Conversion**: Uses `Turndown.js` with GitHub Flavored Markdown (GFM) support for table formatting, strikethrough, list items, and fenced code blocks.
-*   🎨 **Premium UI/UX**: Dark mode styling using modern typography (`Outfit` and `JetBrains Mono`), sleek linear gradients, smooth hover states, and reactive rendering.
-*   🖱️ **Right-click Context Menu**: Convert whole pages or highlighted selections directly from the cursor to the clipboard with real-time toast notification feedback in the active page.
-*   📊 **Token Counter**: Real-time character count and rough token count estimation (chars/4) to control prompt size for LLM contexts.
+`window.web2mdScan` is installed by `src/main-world/vfs-scanner.js`, not by the base page. Seeing `undefined` before injection is expected.
 
----
+To run the manual VFS diagnostic reliably with the current implementation:
 
-## 🚀 Quick Start
+1. Enable **Inspect** and toggle it on once; that on-demand path injects the VFS scanner together with the inspector parts.
+2. Alternatively, enable `projectDetect` before the first extraction on a fresh/reloaded tab so the extraction retry path can request VFS injection.
+3. If the base content bundle was already loaded, Project Detection alone currently reaches the 500 ms fallback without injecting VFS; reload the tab or use the Inspect path above.
+4. Open page DevTools and run:
 
-Ensure you have **Google Chrome** (or any Chromium browser) installed.
-
-### 1. Load Unpacked Extension
-1. Navigate to `chrome://extensions/` in the browser address bar.
-2. Enable **Developer mode** via the toggle switch in the top-right corner.
-3. Click the **Load unpacked** button in the top-left corner.
-4. Select this directory: `/Users/hiepleh.n/p-source/web2md-extension`.
-
-### 2. Run Diagnostic Scan (Optional)
-Open the Chrome DevTools console on target pages (e.g., Google AI Studio) and type:
 ```javascript
 window.web2mdScan();
 ```
-This prints the identified candidate scoring details.
 
----
+The scanner checks window globals, Shadow DOM, and React Fiber trees, scores candidates, and filters obvious import-map style false positives.
 
-## 🧪 Development Configurations
+## Testing
 
-Local git user details are pre-configured:
+Run the repository static checks directly with Node:
+
 ```bash
-git config user.name "HiepLeHoaiNghia"
-git config user.email "hiep.lhn@gmail.com"
+node tests/static-checks.mjs
 ```
 
----
+Current committed static-check state: **10/10 checks pass**. Live browser smoke testing is still **manual-pending**.
 
-## 🌐 Hướng dẫn mở Gói ZIP / HTML đã clone đúng cách (How to run cloned HTML & ZIP Package)
+There is no package install, build, bundle, or generated output step for normal development.
 
-Khi tải xuống dưới định dạng **ZIP Package**, cấu trúc thư mục của trang web sau khi giải nén sẽ bao gồm:
-- `index.html`: Cấu trúc DOM chính của trang web (đã được liên kết với CSS và JS ngoài).
-- `styles.css`: Chứa toàn bộ CSS của trang web đã được trích xuất.
-- `scripts.js`: Chứa mã JavaScript tương tác (nếu bạn bật tùy chọn *Preserve JS*).
-- `assets/`: Thư mục chứa hình ảnh, font chữ, icon đã được tải về dưới dạng tệp tin cục bộ.
+## Privacy
 
-Do các chính sách bảo mật nghiêm ngặt của trình duyệt (CORS / Same-Origin Policy) đối với giao thức `file://`:
-- Một số script động, web fonts hoặc tài nguyên trong Shadow DOM có thể bị chặn load nếu bạn chỉ click đúp mở trực tiếp file `index.html`.
-- Các tính năng giả lập API Mocking cũng yêu cầu origin an toàn (`http://localhost`) để hoạt động đầy đủ.
+| Area                               | Behavior                                                                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Extraction and Markdown conversion | Runs locally in the browser tab and extension context.                                                                                              |
+| HTML clone and ZIP                 | May ask the background service worker to fetch cross-origin stylesheets, scripts, images, fonts, or other assets so packages can be self-contained. |
+| Netlify deploy                     | Optional. Uses the Netlify API only when the user provides a Personal Access Token and clicks deploy.                                               |
+| Netlify PAT storage                | Stored through local-only extension storage. Legacy synced token copies are migrated out and removed.                                               |
+| API mocking                        | Intercepts fetch/XHR in the page MAIN world only when the relevant feature path is injected or registered.                                          |
 
-### Hướng dẫn chạy gói mã nguồn:
+## Local server for cloned packages
 
-#### Bước 1: Giải nén tệp ZIP
-Giải nén tệp tin ZIP bạn vừa tải về để có thư mục chứa mã nguồn hoàn chỉnh.
+For cloned HTML or ZIP packages, prefer an HTTP origin over opening `index.html` through `file://`. This avoids common browser restrictions around CORS, module/script loading, fonts, and mocked API playback.
 
-#### Bước 2: Chạy qua Local HTTP Server (Khuyên dùng)
-Hãy khởi chạy một server HTTP local ngay trong thư mục giải nén để trình duyệt cấp origin `http://localhost`. Bạn có thể chọn một trong các cách sau:
-
-##### Cách 1: Sử dụng Node.js
-Nếu máy bạn đã cài Node.js, hãy mở Terminal tại thư mục vừa giải nén và chạy:
-```bash
-npx http-server -p 8080
-# Hoặc
-npx serve
-```
-Sau đó truy cập đường dẫn hiển thị (ví dụ: `http://localhost:8080`).
-
-##### Cách 2: Sử dụng Python (Sẵn có trên macOS/Linux)
-Mở Terminal tại thư mục vừa giải nén và chạy:
 ```bash
 python3 -m http.server 8000
+# then open http://localhost:8000
 ```
-Sau đó truy cập `http://localhost:8000` trong trình duyệt.
 
-##### Cách 3: Sử dụng Extension VS Code (Giao diện đồ họa)
-1. Mở thư mục đã giải nén bằng VS Code.
-2. Đảm bảo đã cài đặt extension **Live Server**.
-3. Click chuột phải vào file `index.html` và chọn **"Open with Live Server"**.
+Node-based static servers such as `npx http-server -p 8080` or `npx serve` also work when available. See the [HTML clone, ZIP, and Netlify feature doc](docs/features/html-clone-zip-netlify/feature.md) for feature-specific package guidance.
