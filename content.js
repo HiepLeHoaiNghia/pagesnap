@@ -10,6 +10,12 @@ let isRegionSelectionActive = false;
 let lastHoveredElement = null;
 let currentSelectedElement = null;
 let selectionHistory = [];
+let lastRightClickedElement = null;
+
+// Track the last right-clicked element for the context menu
+document.addEventListener("contextmenu", (e) => {
+  lastRightClickedElement = e.target;
+}, true);
 
 // Inject custom region CSS rules once
 (function injectRegionStyles() {
@@ -35,13 +41,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "toggleVisualEdit") {
     toggleVisualEditMode(request.enabled);
     sendResponse({ success: true, active: isVisualEditActive });
+  } else if (request.action === "getRegionSelectionState") {
+    sendResponse({ active: isRegionSelectionActive });
   } else if (request.action === "toggleRegionSelection") {
-    toggleRegionSelectionMode();
+    toggleRegionSelectionMode(request.enabled);
+    sendResponse({ success: true, active: isRegionSelectionActive });
+  } else if (request.action === "contextMenuCopyRegion") {
+    if (lastRightClickedElement) {
+      handleRegionAction(lastRightClickedElement, request.format);
+    } else {
+      showToast("❌ No element selected to copy", true);
+    }
     sendResponse({ success: true });
   } else if (request.action === "getInspectState") {
     sendResponse({ active: isInspectActive });
   } else if (request.action === "toggleInspect") {
     isInspectActive = request.enabled;
+    if (isInspectActive) {
+      if (isRegionSelectionActive) {
+        toggleRegionSelectionMode(false);
+      }
+      if (isVisualEditActive) {
+        toggleVisualEditMode(false);
+      }
+    }
     window.postMessage({ type: 'WEB2MD_TOGGLE_INSPECT', enabled: request.enabled }, '*');
     sendResponse({ success: true, active: isInspectActive });
   } else if (request.action === "getApiCalls") {
@@ -74,6 +97,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(res => sendResponse({ success: true, html: res.html, package: res.package }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
+  } else if (request.action === "convertHtmlToMarkdown") {
+    try {
+      const markdown = htmlToMarkdown(request.html, request.metadata, request.settings);
+      sendResponse({ success: true, markdown: markdown });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
   }
   return true; // Keep channel open for async response
 });
@@ -298,14 +329,27 @@ function preProcessDOMForConversion(clonedNode, originalDoc) {
     console.error("syncFormValues failed:", e);
   }
   try {
-    preProcessLayoutTables(clonedNode);
+    // Step 1: Identify and mark layout tables bottom-up
+    const tables = Array.from(clonedNode.querySelectorAll('table'));
+    tables.reverse().forEach(table => {
+      if (isLayoutTable(table)) {
+        table.setAttribute('data-web2md-layout-table', 'true');
+      }
+    });
   } catch (e) {
-    console.error("preProcessLayoutTables failed:", e);
+    console.error("Marking layout tables failed:", e);
   }
   try {
+    // Step 2: Process form controls globally in-place
     preProcessFormControls(clonedNode, originalDoc);
   } catch (e) {
     console.error("preProcessFormControls failed:", e);
+  }
+  try {
+    // Step 3: Flatten layout tables
+    preProcessLayoutTables(clonedNode);
+  } catch (e) {
+    console.error("preProcessLayoutTables failed:", e);
   }
 }
 
@@ -334,9 +378,10 @@ function isLayoutTable(table) {
     return false;
   }
 
-  // If it contains nested tables, those might be grids. Since we process bottom-up,
-  // layout tables inside would already have been replaced. If we still see nested tables, it's likely a container/data layout.
-  if (table.querySelector('table')) {
+  // If it contains nested tables that are NOT layout tables
+  const nestedTables = Array.from(table.querySelectorAll('table')).filter(t => t !== table);
+  const hasNestedDataTables = nestedTables.some(t => t.getAttribute('data-web2md-layout-table') !== 'true');
+  if (hasNestedDataTables) {
     return false;
   }
 
@@ -356,6 +401,46 @@ function isLayoutTable(table) {
     if (hasMoreThanThreeCols) {
       return false; // More than 3 columns in a row suggests a data grid, not a layout table
     }
+
+    // Tighten conditions for tables with more than 3 rows to avoid falsely flattening data tables/matrices
+    if (directRows.length > 3) {
+      // Check for label presence (form layouts usually have labels/form-item-labels in most rows)
+      let labelCount = 0;
+      directRows.forEach(row => {
+        if (row.querySelector('label, .x-form-item-label, .x-form-cb-label, strong')) {
+          labelCount++;
+        }
+      });
+      // If less than half of the rows have labels, it's likely a data grid/matrix
+      if (labelCount < directRows.length / 2) {
+        return false;
+      }
+
+      // Check for repetitive checkbox/radio/input matrix structures
+      let firstRowColCount = -1;
+      let sameColCount = true;
+      let inputRowCount = 0;
+      
+      for (const row of directRows) {
+        const cols = Array.from(row.querySelectorAll('td')).filter(td => td.closest('tr') === row);
+        if (cols.length > 0) {
+          if (firstRowColCount === -1) {
+            firstRowColCount = cols.length;
+          } else if (cols.length !== firstRowColCount) {
+            sameColCount = false;
+          }
+          if (row.querySelector('input, select, textarea')) {
+            inputRowCount++;
+          }
+        }
+      }
+      
+      // If all rows have the same column count (>1) and almost all rows contain inputs (like a checkbox matrix),
+      // it is a data table, not a layout table.
+      if (sameColCount && firstRowColCount > 1 && inputRowCount > directRows.length * 0.7) {
+        return false;
+      }
+    }
   }
 
   // A layout table should contain form elements (labels, fields, buttons)
@@ -372,212 +457,43 @@ function isLayoutTable(table) {
  * Preprocesses form layout tables at DOM level into paragraphs with alignment
  */
 function preProcessLayoutTables(rootNode) {
-  const tables = Array.from(rootNode.querySelectorAll('table'));
+  const tables = Array.from(rootNode.querySelectorAll('table[data-web2md-layout-table="true"]'));
   const doc = rootNode.ownerDocument || rootNode;
   
   // Process bottom-up to handle nested tables
   tables.reverse().forEach(table => {
-    // Skip if it is not a layout table
-    if (!isLayoutTable(table)) {
-      return;
-    }
-    
     const directRows = Array.from(table.querySelectorAll('tr')).filter(tr => tr.closest('table') === table);
     
-    const formatNodeInline = (el) => {
-      if (el.tagName === 'INPUT' && el.getAttribute('type') === 'hidden') {
-        return null;
-      }
-      
-      let parent = el;
-      while (parent && parent !== table) {
-        const styleAttr = parent.getAttribute('style') || '';
-        if (styleAttr.includes('display: none') || styleAttr.includes('display:none') || 
-            styleAttr.includes('visibility: hidden') || styleAttr.includes('visibility:hidden')) {
-          return null;
-        }
-        parent = parent.parentElement;
-      }
-
-      if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
-        const btnText = el.textContent.trim();
-        if (el.querySelector('[class*="plus"]') || btnText === '+') return '[ + ]';
-        if (el.querySelector('[class*="close"]') || el.querySelector('[class*="remove"]') || btnText === 'x' || btnText === '×') return '[ ✖ ]';
-        return `[ ${btnText || 'Button'} ]`;
-      }
-      
-      if (el.tagName === 'LABEL' || el.classList.contains('x-form-item-label')) {
-        return `**${el.textContent.replace(/:$/, '').trim()}**:`;
-      }
-      
-      if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
-        const type = el.getAttribute('type') ? el.getAttribute('type').toLowerCase() : 'text';
-        if (type === 'checkbox' || type === 'radio') {
-          const realEl = el.id ? document.getElementById(el.id) : null;
-          const isChecked = realEl ? realEl.checked : el.checked;
-          return isChecked ? '[x]' : '[ ]';
-        }
-        
-        const realEl = el.id ? document.getElementById(el.id) : null;
-        const targetEl = realEl || el;
-        
-        let val = '';
-        if (targetEl.value !== undefined) {
-          val = targetEl.value;
-        } else {
-          val = targetEl.getAttribute('value') || '';
-        }
-        
-        const isSelect = el.tagName === 'SELECT' || 
-                         el.getAttribute('role') === 'combobox' || 
-                         el.classList.contains('x-form-combobox') ||
-                         (el.closest('.x-field') && el.closest('.x-field').querySelector('[class*="trigger"]') !== null);
-        if (isSelect) {
-          let selectedText = val;
-          let optionsList = [];
-          
-          if (el.tagName === 'SELECT') {
-            const realSelect = realEl || el;
-            if (realSelect.selectedIndex >= 0 && realSelect.options[realSelect.selectedIndex]) {
-              selectedText = realSelect.options[realSelect.selectedIndex].text.trim();
-            }
-            optionsList = Array.from(realSelect.options || []).map(opt => opt.text.trim());
-          } else {
-            if (targetEl.value) {
-              selectedText = targetEl.value;
-            } else if (targetEl.getAttribute('value')) {
-              selectedText = targetEl.getAttribute('value');
-            } else {
-              selectedText = targetEl.textContent.trim();
-            }
-            
-            const comboId = targetEl.id || '';
-            let pickerEl = null;
-            if (comboId) {
-              const pickerId = comboId.replace('-inputEl', '').replace('-input', '') + '-picker';
-              pickerEl = document.getElementById(pickerId) || document.querySelector(`[id*="${comboId.replace('-inputEl', '').replace('-input', '')}"]`);
-            }
-            if (!pickerEl) {
-              const ariaOwns = targetEl.getAttribute('aria-owns') || targetEl.getAttribute('aria-controls');
-              if (ariaOwns) {
-                pickerEl = document.getElementById(ariaOwns);
-              }
-            }
-            if (pickerEl) {
-              const items = pickerEl.querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"], li');
-              optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
-            }
-            if (optionsList.length === 0) {
-              const activeLists = document.querySelectorAll('.x-boundlist:not([style*="display: none"]), .x-combo-list:not([style*="display: none"])');
-              if (activeLists.length === 1) {
-                const items = activeLists[0].querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"]');
-                optionsList = Array.from(items).map(item => item.textContent.trim()).filter(Boolean);
-              }
-            }
-          }
-          
-          if (optionsList.length > 0) {
-            return `[ ${selectedText || ' '} ▾ ] (${optionsList.join(' | ')})`;
-          }
-          return `[ ${selectedText || ' '} ▾ ]`;
-        }
-        return `[ ${val || '    '} ]`;
-      }
-      
-      return null;
-    };
-
-    const getLeafNodes = (root) => {
-      const leaves = [];
-      const walk = (n) => {
-        if (n.nodeType === 3) {
-          if (n.textContent.trim()) {
-            leaves.push(n);
-          }
-          return;
-        }
-        if (n.nodeType === 1) {
-          const tagName = n.tagName;
-          if (tagName === 'INPUT' || tagName === 'SELECT' || tagName === 'TEXTAREA' || tagName === 'BUTTON' || 
-              n.classList.contains('x-btn') || n.classList.contains('x-form-item-label') || tagName === 'LABEL') {
-            leaves.push(n);
-            return;
-          }
-          n.childNodes.forEach(walk);
-        }
-      };
-      root.childNodes.forEach(walk);
-      return leaves;
-    };
-
-    const rowsCols = [];
+    let maxCol0Len = 0;
+    const rowInfo = [];
+    
     directRows.forEach(row => {
       const cols = Array.from(row.querySelectorAll('td')).filter(td => td.closest('tr') === row);
-      const colTexts = [];
       
-      cols.forEach(col => {
-        const leaves = getLeafNodes(col);
-        if (leaves.length > 0) {
-          const formattedItems = [];
-          leaves.forEach(leaf => {
-            if (leaf.nodeType === 3) {
-              const txt = leaf.textContent.trim();
-              if (txt) {
-                formattedItems.push({ type: 'text', value: txt, text: txt });
-              }
-            } else {
-              const formatted = formatNodeInline(leaf);
-              if (formatted) {
-                formattedItems.push({ type: 'interactive', value: formatted, text: (leaf.value || leaf.textContent || '').trim() });
-              } else {
-                const txt = leaf.textContent.trim();
-                if (txt) {
-                  formattedItems.push({ type: 'text', value: txt, text: txt });
-                }
-              }
-            }
-          });
-          
-          const filteredItems = [];
-          formattedItems.forEach((item, idx) => {
-            if (item.type === 'text') {
-              const isDuplicate = formattedItems.some((other, oIdx) => {
-                if (other.type === 'interactive') {
-                  const val = (other.text || '').trim();
-                  return val.includes(item.text) || item.text.includes(val);
-                }
-                if (other.type === 'text' && oIdx < idx) {
-                  return other.text === item.text;
-                }
-                return false;
-              });
-              if (isDuplicate) return;
-            } else {
-              const isDuplicate = formattedItems.some((other, oIdx) => {
-                return other.type === 'interactive' && oIdx < idx && other.value === item.value;
-              });
-              if (isDuplicate) return;
-            }
-            filteredItems.push(item.value);
-          });
-          
-          if (filteredItems.length > 0) {
-            colTexts.push(filteredItems.join(' '));
+      // Filter active columns that have content or form controls
+      const activeCols = cols.filter(col => {
+        let parent = col;
+        let isHidden = false;
+        while (parent && parent !== table) {
+          const styleAttr = parent.getAttribute && parent.getAttribute('style') || '';
+          if (styleAttr.includes('display: none') || styleAttr.includes('display:none') || 
+              styleAttr.includes('visibility: hidden') || styleAttr.includes('visibility:hidden')) {
+            isHidden = true;
+            break;
           }
+          parent = parent.parentNode;
         }
+        if (isHidden) return false;
+        return col.textContent.trim().length > 0 || col.querySelector('input, select, textarea, button, img, a, span, strong, del, s, strike') !== null;
       });
       
-      if (colTexts.length > 0) {
-        rowsCols.push(colTexts);
-      }
-    });
-    
-    let maxCol0Len = 0;
-    rowsCols.forEach(cols => {
-      if (cols.length > 1) {
-        const col0Len = cols[0].length;
-        if (col0Len > maxCol0Len) {
-          maxCol0Len = col0Len;
+      if (activeCols.length > 0) {
+        rowInfo.push({ row, cols: activeCols });
+        if (activeCols.length > 1) {
+          const len = activeCols[0].textContent.trim().length;
+          if (len > maxCol0Len) {
+            maxCol0Len = len;
+          }
         }
       }
     });
@@ -586,27 +502,44 @@ function preProcessLayoutTables(rootNode) {
     replacementPara.className = 'web2md-processed-form-layout';
     
     let addedRow = false;
-    rowsCols.forEach((cols) => {
-      let rowText = '';
-      if (cols.length > 1) {
-        const paddingLen = maxCol0Len - cols[0].length;
-        const paddedCol0 = cols[0] + '\u00A0'.repeat(paddingLen > 0 ? paddingLen : 0);
-        rowText = [paddedCol0, ...cols.slice(1)].join('\u00A0\u00A0');
-      } else if (cols.length === 1) {
-        rowText = cols[0];
+    rowInfo.forEach(({ row, cols }) => {
+      if (addedRow) {
+        replacementPara.appendChild(doc.createElement('br'));
       }
       
-      if (rowText.trim()) {
-        if (addedRow) {
-          replacementPara.appendChild(doc.createElement('br'));
+      cols.forEach((col, colIdx) => {
+        if (colIdx > 0) {
+          // Separator between columns
+          replacementPara.appendChild(doc.createTextNode('\u00A0\u00A0'));
         }
-        replacementPara.appendChild(doc.createTextNode(rowText));
-        addedRow = true;
-      }
+        
+        // If it is the first column and there are other columns, pad it
+        if (colIdx === 0 && cols.length > 1) {
+          const textLen = col.textContent.trim().length;
+          const paddingLen = maxCol0Len - textLen;
+          
+          while (col.firstChild) {
+            replacementPara.appendChild(col.firstChild);
+          }
+          if (paddingLen > 0) {
+            replacementPara.appendChild(doc.createTextNode('\u00A0'.repeat(paddingLen)));
+          }
+        } else {
+          // Just move all children
+          while (col.firstChild) {
+            replacementPara.appendChild(col.firstChild);
+          }
+        }
+      });
+      
+      addedRow = true;
     });
     
     if (addedRow) {
       table.parentNode.replaceChild(replacementPara, table);
+    } else {
+      // If table is completely empty/hidden, just remove it
+      table.parentNode.removeChild(table);
     }
   });
 }
@@ -1048,24 +981,45 @@ function htmlToMarkdown(html, metadata, settings) {
       if (rows.length === 0) return '';
 
       let maxCols = 0;
-      const tableData = rows.map(row => {
+      let hasRealThHeader = false;
+      const tableData = [];
+
+      rows.forEach(row => {
         const cells = Array.from(row.querySelectorAll('th, td')).map(cell => {
           return cell.textContent.replace(/\s+/g, ' ').replace(/\xa0/g, ' ').trim();
         });
+        
+        // Filter out completely empty rows (sizers)
+        if (cells.length === 0 || cells.every(cell => cell === '')) {
+          return;
+        }
+
         if (cells.length > maxCols) maxCols = cells.length;
-        return cells;
-      }).filter(row => row.length > 0);
+        
+        // Check if this row actually has a th element (meaning it's a header row)
+        if (row.querySelector('th') !== null) {
+          hasRealThHeader = true;
+        }
+
+        tableData.push(cells);
+      });
 
       if (tableData.length === 0) return '';
 
       let markdownTable = '\n\n';
-      let hasHeader = node.querySelector('th') !== null;
       let headers = [];
       let startIdx = 0;
 
-      if (hasHeader) {
+      if (hasRealThHeader) {
         headers = tableData[0];
         startIdx = 1;
+        if (headers.length > maxCols) {
+          headers = headers.slice(0, maxCols);
+        } else {
+          while (headers.length < maxCols) {
+            headers.push('');
+          }
+        }
       } else {
         let headerTexts = [];
         let foundHeaders = false;
@@ -1155,10 +1109,24 @@ function htmlToMarkdown(html, metadata, settings) {
               headers.push('');
             }
           }
+          
+          // Check if headers match the first row in tableData
+          let headersMatchFirstRow = false;
+          if (tableData.length > 0) {
+            const firstRowNormalized = tableData[0].map(c => c.toLowerCase());
+            const headersNormalized = headers.map(c => c.toLowerCase());
+            headersMatchFirstRow = (firstRowNormalized.length === headersNormalized.length) &&
+                                   firstRowNormalized.every((val, idx) => val === headersNormalized[idx]);
+          }
+          if (headersMatchFirstRow) {
+            startIdx = 1;
+          } else {
+            startIdx = 0;
+          }
         } else {
           headers = Array(maxCols).fill('');
+          startIdx = 0;
         }
-        startIdx = 0;
       }
 
       markdownTable += '| ' + headers.map(h => h || ' ').join(' | ') + ' |\n';
@@ -1276,7 +1244,7 @@ async function handleSelectionConversion() {
     };
     
     const markdown = htmlToMarkdown(selectedHtml, metadata, settings);
-    await navigator.clipboard.writeText(markdown);
+    await copyTextToClipboard(markdown);
     showToast("⚡ Selection copied as Markdown!");
   } catch (error) {
     console.error("Selection conversion failed: ", error);
@@ -1467,7 +1435,7 @@ async function handlePageConversion() {
       }
     }
     
-    await navigator.clipboard.writeText(markdown);
+    await copyTextToClipboard(markdown);
     showToast("⚡ Page copied as Markdown!");
   } catch (error) {
     console.error("Page conversion failed: ", error);
@@ -2537,21 +2505,36 @@ function toggleRegionSelectionMode(forceValue) {
     if (isVisualEditActive) {
       toggleVisualEditMode(false);
     }
+    if (isInspectActive) {
+      isInspectActive = false;
+      window.postMessage({ type: 'WEB2MD_TOGGLE_INSPECT', enabled: false }, '*');
+    }
     
     document.addEventListener("mouseover", handleRegionMouseOver, true);
     document.addEventListener("mouseout", handleRegionMouseOut, true);
     document.addEventListener("click", handleRegionClick, true);
+    document.addEventListener("keydown", handleRegionKeyDown, true);
     
-    showToast("🎯 Selection mode active. Click any element to select.");
+    showToast("🎯 Selection mode active. Click any element to select. Press Esc to cancel.");
   } else {
     document.removeEventListener("mouseover", handleRegionMouseOver, true);
     document.removeEventListener("mouseout", handleRegionMouseOut, true);
     document.removeEventListener("click", handleRegionClick, true);
+    document.removeEventListener("keydown", handleRegionKeyDown, true);
     
     if (lastHoveredElement) {
       lastHoveredElement.classList.remove("web2md-region-highlighted");
       lastHoveredElement = null;
     }
+  }
+}
+
+function handleRegionKeyDown(e) {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleRegionSelectionMode(false);
+    showToast("🎯 Selection mode cancelled.");
   }
 }
 
@@ -2828,6 +2811,93 @@ document.addEventListener("click", (e) => {
   }
 }, { capture: true, passive: true });
 
+function findParentHeaders(element) {
+  const levels = [];
+  let current = element;
+  const cleanText = (txt) => txt ? txt.trim().replace(/\s+/g, ' ') : '';
+  
+  const headerSelectors = [
+    '.x-panel-header-text', '.x-panel-title', '.x-panel-header',
+    '.x-fieldset-header-text', '.x-fieldset-header', 'legend',
+    '.panel-title', '.panel-heading', '.section-title', '.section-heading',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+  ];
+  
+  while (current && current !== document.body) {
+    const parent = current.parentElement;
+    if (!parent) break;
+    
+    const levelHeaders = [];
+    
+    // 1. Check preceding siblings of current
+    let sibling = current.previousElementSibling;
+    while (sibling) {
+      if (/^H[1-6]$/i.test(sibling.tagName)) {
+        const text = cleanText(sibling.textContent);
+        if (text) {
+          levelHeaders.unshift({ text, level: parseInt(sibling.tagName[1]) });
+        }
+      } else {
+        for (const selector of headerSelectors) {
+          const founds = sibling.matches(selector) ? [sibling] : Array.from(sibling.querySelectorAll(selector));
+          founds.forEach(found => {
+            const text = cleanText(found.textContent);
+            if (text) {
+              levelHeaders.unshift({ text, level: found.tagName.match(/^H[1-6]$/i) ? parseInt(found.tagName[1]) : null });
+            }
+          });
+        }
+      }
+      sibling = sibling.previousElementSibling;
+    }
+    
+    // 2. Check header elements inside parent (that are not inside current)
+    for (const selector of headerSelectors) {
+      const founds = parent.querySelectorAll(selector);
+      founds.forEach(found => {
+        if (!current.contains(found)) {
+          const text = cleanText(found.textContent);
+          if (text) {
+            const position = found.compareDocumentPosition(current);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+              levelHeaders.unshift({ text, level: found.tagName.match(/^H[1-6]$/i) ? parseInt(found.tagName[1]) : null });
+            }
+          }
+        }
+      });
+    }
+    
+    if (levelHeaders.length > 0) {
+      const seen = new Set();
+      const uniqueLevelHeaders = [];
+      levelHeaders.forEach(h => {
+        if (!seen.has(h.text)) {
+          seen.add(h.text);
+          uniqueLevelHeaders.push(h);
+        }
+      });
+      levels.push(uniqueLevelHeaders);
+    }
+    
+    current = parent;
+  }
+  
+  levels.reverse();
+  
+  const globalSeen = new Set();
+  const finalHeaders = [];
+  levels.forEach(levelList => {
+    levelList.forEach(h => {
+      if (!globalSeen.has(h.text)) {
+        globalSeen.add(h.text);
+        finalHeaders.push(h);
+      }
+    });
+  });
+  
+  return finalHeaders;
+}
+
 async function handleRegionAction(element, action) {
   // Temporarily flag elements hidden by CSS stylesheets in the live DOM
   const markedElements = [];
@@ -2865,14 +2935,27 @@ async function handleRegionAction(element, action) {
       } catch (err) {
         console.error("Region DOM pre-processing failed: ", err);
       }
-      const markdown = htmlToMarkdown(clone.outerHTML, metadata, settings);
-      await navigator.clipboard.writeText(markdown);
+      let markdown = htmlToMarkdown(clone.outerHTML, metadata, settings);
+      
+      // Find parent/preceding headings for context
+      const headers = findParentHeaders(element);
+      if (headers.length > 0) {
+        let headerMarkdown = '';
+        headers.forEach((h, index) => {
+          const level = h.level || (index + 2); // Default to h2, h3...
+          const hashes = '#'.repeat(Math.min(level, 6));
+          headerMarkdown += `${hashes} ${h.text}\n\n`;
+        });
+        markdown = headerMarkdown + markdown;
+      }
+      
+      await copyTextToClipboard(markdown);
       showToast("⚡ Region copied as Markdown!");
     } 
     else if (action === "html") {
       const apiCalls = await getApiCallsFromMainWorld();
       const res = await serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
-      await navigator.clipboard.writeText(res.nodeHtml);
+      await copyTextToClipboard(res.nodeHtml);
       showToast("⚡ Region HTML copied to clipboard!");
     } 
     else if (action === "download-html") {
@@ -2950,5 +3033,50 @@ async function handleRegionAction(element, action) {
     markedElements.forEach(desc => {
       desc.removeAttribute('data-web2md-ignore');
     });
+  }
+}
+
+/**
+ * Robustly copies text to clipboard, falling back to document.execCommand if navigator.clipboard is unavailable or restricted.
+ */
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn("navigator.clipboard.writeText failed, trying fallback:", err);
+    }
+  }
+  
+  // Fallback using textarea and execCommand
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  
+  // Keep it off-screen and static
+  textArea.style.position = "fixed";
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.width = "2em";
+  textArea.style.height = "2em";
+  textArea.style.padding = "0";
+  textArea.style.border = "none";
+  textArea.style.outline = "none";
+  textArea.style.boxShadow = "none";
+  textArea.style.background = "transparent";
+  
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (successful) return true;
+    throw new Error("execCommand('copy') returned false");
+  } catch (err) {
+    document.body.removeChild(textArea);
+    console.error("Fallback copy failed:", err);
+    throw err;
   }
 }

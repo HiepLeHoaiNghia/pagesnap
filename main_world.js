@@ -910,7 +910,7 @@
     if (tooltipEl) return;
     tooltipEl = document.createElement('div');
     tooltipEl.id = 'web2md-tooltip';
-    tooltipEl.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;line-height:1.4;color:#e5e7eb;background:#1f2937;border:1px solid #374151;border-radius:8px;padding:8px 10px;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;word-break:break-all;';
+    tooltipEl.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;line-height:1.4;color:#e5e7eb;background:#1f2937;border:1px solid #374151;border-radius:8px;padding:8px 10px;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;word-break:break-all;';
     document.documentElement.appendChild(tooltipEl);
   }
 
@@ -998,12 +998,11 @@
 
   function isInspectOverlay(el) {
     if (!el) return false;
-    if (el.id === 'web2md-highlighter' || el.id === 'web2md-tooltip' || el.id === 'web2md-modal-root') {
-      return true;
-    }
     let current = el;
     while (current) {
-      if (current.id === 'web2md-modal-root') return true;
+      if (current.id === 'web2md-highlighter' || current.id === 'web2md-tooltip' || current.id === 'web2md-modal-root') {
+        return true;
+      }
       if (current.parentNode) {
         current = current.parentNode;
       } else if (current.host) {
@@ -1644,6 +1643,19 @@
 
   function handleInspectClick(e) {
     if (!isInspectMode) return;
+
+    if (tooltipEl && tooltipEl.contains(e.target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (lastInspectedEl) {
+        const fwInfo = detectFrameworkInfo(lastInspectedEl);
+        const apis = findAssociatedApis(lastInspectedEl, fwInfo);
+        showMockEditorModal(lastInspectedEl, fwInfo, apis);
+      }
+      return;
+    }
+
     if (isInspectOverlay(e.target)) return;
 
     e.preventDefault();

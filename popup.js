@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkPreserveJsQuick = document.getElementById('setting-preserve-js-quick');
   const btnToggleEdit = document.getElementById('btn-toggle-edit');
   const btnToggleInspect = document.getElementById('btn-toggle-inspect');
+  const btnToggleSelectRegion = document.getElementById('btn-toggle-select-region');
 
   // State Variables
   let extractedData = null;
@@ -69,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPackage = null;
   let activePreviewTab = 'markdown';
   let editingApiIndex = -1;
+  let activeTabId = null;
+  let activeFrameId = 0;
 
   // Default Settings
   const defaultSettings = {
@@ -132,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     notifyTabMockingState(settings.preserveJs);
   });
 
-  // Query active tab's edit mode and inspect mode state on popup load
+  // Query active tab's edit mode, inspect mode, and region selection state on popup load
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0) {
       const activeTab = tabs[0];
@@ -151,6 +154,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
+        chrome.tabs.sendMessage(activeTab.id, { action: "getRegionSelectionState" }, (response) => {
+          if (!chrome.runtime.lastError && response && response.active !== undefined) {
+            if (btnToggleSelectRegion) {
+              btnToggleSelectRegion.checked = response.active;
+            }
+          }
+        });
       }
     }
   });
@@ -164,6 +174,17 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           if (tabs && tabs.length > 0) {
             chrome.tabs.sendMessage(tabs[0].id, { action: "toggleInspect", enabled: false }, () => {
+              if (chrome.runtime.lastError) {}
+            });
+          }
+        });
+      }
+      // Mutual exclusion: disable region selection mode when visual edit is enabled
+      if (enabled && btnToggleSelectRegion && btnToggleSelectRegion.checked) {
+        btnToggleSelectRegion.checked = false;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleRegionSelection", enabled: false }, () => {
               if (chrome.runtime.lastError) {}
             });
           }
@@ -201,6 +222,17 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       }
+      // Mutual exclusion: disable region selection mode when inspect mode is enabled
+      if (enabled && btnToggleSelectRegion && btnToggleSelectRegion.checked) {
+        btnToggleSelectRegion.checked = false;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "toggleRegionSelection", enabled: false }, () => {
+              if (chrome.runtime.lastError) {}
+            });
+          }
+        });
+      }
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
@@ -219,18 +251,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnSelectRegion = document.getElementById('btn-select-region');
-  if (btnSelectRegion) {
-    btnSelectRegion.addEventListener('click', () => {
+  if (btnToggleSelectRegion) {
+    btnToggleSelectRegion.addEventListener('change', () => {
+      const enabled = btnToggleSelectRegion.checked;
+      
+      // Mutual exclusion: disable visual edit and inspect when region selection is enabled
+      if (enabled) {
+        if (btnToggleEdit && btnToggleEdit.checked) {
+          btnToggleEdit.checked = false;
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+              chrome.tabs.sendMessage(tabs[0].id, { action: "toggleVisualEdit", enabled: false }, () => {
+                if (chrome.runtime.lastError) {}
+              });
+            }
+          });
+        }
+        if (btnToggleInspect && btnToggleInspect.checked) {
+          btnToggleInspect.checked = false;
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+              chrome.tabs.sendMessage(tabs[0].id, { action: "toggleInspect", enabled: false }, () => {
+                if (chrome.runtime.lastError) {}
+              });
+            }
+          });
+        }
+      }
+      
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
         if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
           showError("Cannot inspect Chrome system pages.");
+          btnToggleSelectRegion.checked = false;
           return;
         }
 
-        chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection" }, (response) => {
+        chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled }, (response) => {
           if (chrome.runtime.lastError) {
             const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
             let p = Promise.resolve();
@@ -253,15 +311,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             p.then(() => {
               setTimeout(() => {
-                chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection" });
-                window.close();
+                chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled });
+                if (enabled) {
+                  window.close();
+                }
               }, 200);
             }).catch(err => {
               console.error("Script injection failed: ", err);
               showError("Please refresh the page before selecting region.");
+              btnToggleSelectRegion.checked = false;
             });
           } else {
-            window.close();
+            if (enabled) {
+              window.close();
+            }
           }
         });
       });
@@ -566,6 +629,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // Send extraction request to content.js in target frame
+          activeTabId = activeTab.id;
+          activeFrameId = targetFrameId;
           chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
             // Handle runtime error (e.g. content script not loaded yet)
             if (chrome.runtime.lastError) {
@@ -623,6 +688,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * Helper to dynamically inject content scripts if not pre-loaded, then retry extraction
    */
   function injectScriptsAndRetry(tabId, frameId = 0) {
+    activeTabId = tabId;
+    activeFrameId = frameId;
     const scripts = ["lib/readability.js", "lib/turndown.js", "lib/turndown-plugin-gfm.js", "lib/jszip.min.js", "isolated_bridge.js", "content.js"];
     
     // Inject scripts sequentially
@@ -714,6 +781,30 @@ document.addEventListener('DOMContentLoaded', () => {
    * Converts clean HTML to Markdown and updates UI preview
    */
   function processAndDisplayMarkdown(data, settings) {
+    const htmlToConvert = settings.rawMode ? (data.rawContent || data.content) : (data.content || data.rawContent);
+
+    if (activeTabId !== null) {
+      chrome.tabs.sendMessage(activeTabId, {
+        action: "convertHtmlToMarkdown",
+        html: htmlToConvert,
+        metadata: data,
+        settings: settings
+      }, { frameId: activeFrameId }, (response) => {
+        if (chrome.runtime.lastError || !response || !response.success) {
+          console.warn("[Web2MD Popup] Failed to convert via content script, using local fallback:", chrome.runtime.lastError || response?.error);
+          const localMarkdown = localHtmlToMarkdown(htmlToConvert, data, settings);
+          finalizeAndDisplayMarkdown(localMarkdown, data, settings);
+        } else {
+          finalizeAndDisplayMarkdown(response.markdown, data, settings);
+        }
+      });
+    } else {
+      const localMarkdown = localHtmlToMarkdown(htmlToConvert, data, settings);
+      finalizeAndDisplayMarkdown(localMarkdown, data, settings);
+    }
+  }
+
+  function localHtmlToMarkdown(htmlToConvert, data, settings) {
     try {
       if (typeof TurndownService === 'undefined') {
         throw new Error("TurndownService core library is not loaded.");
@@ -810,8 +901,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Convert HTML content: use raw HTML if rawMode is enabled
-      const htmlToConvert = settings.rawMode ? (data.rawContent || data.content) : (data.content || data.rawContent);
       let markdown = turndownService.turndown(htmlToConvert);
 
       // Clean excessive newlines
@@ -833,6 +922,15 @@ document.addEventListener('DOMContentLoaded', () => {
         markdown = fm + markdown;
       }
 
+      return markdown;
+    } catch (e) {
+      console.error(e);
+      return "Local Conversion Error: " + e.message;
+    }
+  }
+
+  function finalizeAndDisplayMarkdown(markdown, data, settings) {
+    try {
       // Fallback: if Turndown produced very little content compared to visible page text,
       // use the pre-extracted visible text from content script
       if (data.visibleText && data.visibleTextLength > 500) {
@@ -906,7 +1004,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btnExtract.disabled = false;
     } catch (e) {
       console.error(e);
-      showError(`Conversion error: ${e.message}`);
+      showError(`Display/Conversion error: ${e.message}`);
+      
+      // Make sure extract button is re-enabled anyway
+      btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
+      btnExtract.disabled = false;
     }
   }
 

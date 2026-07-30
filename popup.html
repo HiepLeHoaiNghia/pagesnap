@@ -26,19 +26,21 @@
     <main class="app-main">
       <!-- Toolbar controls -->
       <div class="app-toolbar">
-        <label class="toggle-switch compact-toggle">
+        <label class="toggle-switch compact-toggle" title="Modify the page text and elements directly">
           <input type="checkbox" id="btn-toggle-edit">
           <span class="slider"></span>
           <span class="label-text">🎨 Visual Edit</span>
         </label>
-        <label class="toggle-switch compact-toggle">
+        <label class="toggle-switch compact-toggle" title="Inspect page styles and layout">
           <input type="checkbox" id="btn-toggle-inspect">
           <span class="slider"></span>
           <span class="label-text">🔍 Inspect</span>
         </label>
-        <button id="btn-select-region" class="toolbar-action-btn" title="Select a custom region on the page to copy/download">
-          🎯 Select Region
-        </button>
+        <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download">
+          <input type="checkbox" id="btn-toggle-select-region">
+          <span class="slider"></span>
+          <span class="label-text">🎯 Select Region</span>
+        </label>
       </div>
 
       <!-- Project Banner (Visible only when full project source is detected) -->

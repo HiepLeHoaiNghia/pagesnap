@@ -4,6 +4,33 @@
  */
 
 
+// Register context menus on installation
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "web2md-region-md",
+    title: "Copy this region as Markdown",
+    contexts: ["all"]
+  });
+  chrome.contextMenus.create({
+    id: "web2md-region-html",
+    title: "Copy this region as HTML",
+    contexts: ["all"]
+  });
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "web2md-region-md" || info.menuItemId === "web2md-region-html") {
+    const success = await ensureScriptsInjected(tab.id);
+    if (success) {
+      chrome.tabs.sendMessage(tab.id, {
+        action: "contextMenuCopyRegion",
+        format: info.menuItemId === "web2md-region-md" ? "markdown" : "html"
+      });
+    }
+  }
+});
+
 // Helper to dynamically inject content scripts if not pre-loaded
 async function ensureScriptsInjected(tabId, frameId = 0) {
   try {
