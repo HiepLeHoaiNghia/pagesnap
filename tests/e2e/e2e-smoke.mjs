@@ -127,9 +127,28 @@ const server = http.createServer((req, res) => {
   </div>
 </body>
 </html>`);
-// plan-exempt — close route if block
+// plan-exempt — multi-page pagination test routes
     return;
   }
+
+  if (req.url === '/book/page-1.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 1: The Beginning</title><link rel="next" href="/book/page-2.html"></head><body><article><h1>Chapter 1: The Beginning</h1><p>This is the first chapter of the story detailing the origin.</p></article></body></html>`);
+    return;
+  }
+
+  if (req.url === '/book/page-2.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 2: The Journey</title><link rel="next" href="/book/page-3.html"></head><body><article><h1>Chapter 2: The Journey</h1><p>This is the second chapter detailing the long voyage across the sea.</p></article></body></html>`);
+    return;
+  }
+
+  if (req.url === '/book/page-3.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 3: The Climax</title></head><body><article><h1>Chapter 3: The Climax</h1><p>This is the final chapter where victory is achieved.</p></article></body></html>`);
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
@@ -288,7 +307,9 @@ async function runE2E() {
     const rawModeToggleExists = await popupPage.locator('#btn-toggle-raw-mode').count();
     assert.equal(rawModeToggleExists, 1, 'Full Page toggle must exist on popup toolbar');
     console.log('  ✓ Full Page toggle control verified in popup toolbar');
-    // ==========================================
+    const autoPaginationToggleExists = await popupPage.locator('#btn-toggle-auto-pagination').count();
+    assert.equal(autoPaginationToggleExists, 1, 'Auto-pagination toggle must exist on popup toolbar');
+    console.log('  ✓ Smart Pagination toggle control verified in popup toolbar');
 // plan-exempt — deep E2E assertion coverage for extraction and snapshot
     console.log('\n▶ TEST 4: Article Content Extraction & Clean Snapshot Integrity');
     await page.bringToFront();
@@ -305,6 +326,8 @@ async function runE2E() {
       'src/content/markdown/dom-preprocess.js',
       'src/content/markdown/turndown-config.js',
       'src/content/markdown/extractor.js',
+      'src/content/markdown/pagination-detector.js',
+      'src/content/markdown/multi-page-crawler.js',
       'src/content/html-clone/serializer.js'
     ];
 
@@ -404,8 +427,58 @@ async function runE2E() {
 // plan-exempt — fix duplicate assertion lines
     console.log('  ✓ Backlog Smart Adapter verified: ticket key, properties table, description, and comments extracted cleanly');
 
+// plan-exempt — smart pagination E2E acceptance test
+    // ==========================================
+    // TEST 6: Smart Multi-Page Pagination Crawl & Markdown Merge
+    // ==========================================
+    console.log('\n▶ TEST 6: Smart Multi-Page Pagination Crawl & Markdown Merge');
+    await page.goto(`http://localhost:${PORT}/book/page-1.html`);
+
+    for (const file of scriptsToInject) {
+      await page.addScriptTag({ path: path.join(extensionPath, file) });
+    }
+
+    const paginationResult = await page.evaluate(async () => {
+      // 1. Verify next-page link detection
+      const discoveredNextUrl = window.PageSnap.findNextPageUrl(document, window.location.href);
+
+      // 2. Perform 3-page sequential crawl and merge
+      const initialData = window.PageSnap.extractPageContent();
+      const settings = { frontmatter: true, rawMode: false, includeImages: true, includeLinks: true };
+
+      const crawlResult = await window.PageSnap.crawlAndMergePages({
+        initialData: initialData,
+        maxDepth: 3,
+        settings: settings,
+        delayMs: 50
+      });
+
+      const md = crawlResult.markdown;
+
+      return {
+        discoveredNextUrl: discoveredNextUrl,
+        pagesCount: crawlResult.pagesCount,
+        hasChapter1: md.includes('Chapter 1: The Beginning') && md.includes('origin'),
+        hasChapter2: md.includes('Chapter 2: The Journey') && md.includes('voyage across the sea'),
+        hasChapter3: md.includes('Chapter 3: The Climax') && md.includes('victory is achieved'),
+        hasPage2Header: md.includes('## Page 2: Chapter 2: The Journey'),
+        hasPage3Header: md.includes('## Page 3: Chapter 3: The Climax'),
+        hasTotalPagesFrontmatter: md.includes('totalPagesMerged: 3')
+      };
+    });
+
+    assert.ok(paginationResult.discoveredNextUrl && paginationResult.discoveredNextUrl.includes('/book/page-2.html'), 'Pagination detector must find page-2 link');
+    assert.equal(paginationResult.pagesCount, 3, 'Crawler must successfully crawl and merge all 3 pages');
+    assert.equal(paginationResult.hasChapter1, true, 'Merged Markdown must preserve Chapter 1');
+    assert.equal(paginationResult.hasChapter2, true, 'Merged Markdown must append Chapter 2');
+    assert.equal(paginationResult.hasChapter3, true, 'Merged Markdown must append Chapter 3');
+    assert.equal(paginationResult.hasPage2Header, true, 'Merged Markdown must insert ## Page 2 header');
+    assert.equal(paginationResult.hasPage3Header, true, 'Merged Markdown must insert ## Page 3 header');
+    assert.equal(paginationResult.hasTotalPagesFrontmatter, true, 'Frontmatter must record totalPagesMerged: 3');
+    console.log('  ✓ Smart Pagination verified: 3 pages discovered, crawled, and merged into unified Markdown');
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 5 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 6 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

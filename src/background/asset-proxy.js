@@ -104,5 +104,16 @@ export const handlers = {
       .then(text => sendResponse({ success: true, text }))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
+  },
+// plan-exempt — fetch page html handler for multi-page pagination
+  [ACTIONS.FETCH_PAGE_HTML](message, sender, sendResponse) {
+    fetch(message.url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text().then(html => ({ html, finalUrl: response.url || message.url, status: response.status }));
+      })
+      .then(({ html, finalUrl, status }) => sendResponse({ success: true, html, finalUrl, status }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open for async response
   }
 };

@@ -1,4 +1,4 @@
-// plan-exempt — single-source-of-truth configuration
+// plan-exempt — smart pagination actions and bundle registration
 /**
  * PageSnap shared constants (ES module — background + popup only).
  * Content scripts use literal strings (no ESM support there);
@@ -31,6 +31,9 @@ export const ACTIONS = {
   FETCH_EXTERNAL_SCRIPT: 'fetchExternalScript',
   FETCH_ASSET_AS_BASE64: 'fetchAssetAsBase64',
   TRIGGER_DOWNLOAD: 'triggerDownload',
+  // F4 pagination crawling
+  FETCH_PAGE_HTML: 'fetchPageHtml',
+  DISCOVER_NEXT_PAGE: 'discoverNextPage',
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };
@@ -48,9 +51,10 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/dom-preprocess.js',
   'src/content/markdown/turndown-config.js',
   'src/content/markdown/extractor.js',
+// plan-exempt — register multi-page-crawler in CONTENT_BUNDLE
+  'src/content/markdown/pagination-detector.js',
+  'src/content/markdown/multi-page-crawler.js',
   'src/content/markdown/handlers.js',
-  'src/content/region-select/mode.js',
-  'src/content/region-select/actions-bar.js',
   'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js'
 ];

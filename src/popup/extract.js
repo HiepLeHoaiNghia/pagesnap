@@ -90,12 +90,55 @@ export function normalizeMarkdown(md) {
 /**
  * Processes extracted article/HTML data into Markdown and updates the UI
  */
-export function processAndDisplayMarkdown(data, settings) {
-// plan-exempt — support rawMode full page extraction
+// plan-exempt — smart multi-page crawl support in processAndDisplayMarkdown
+export async function processAndDisplayMarkdown(data, settings) {
+  const togglePagination = document.getElementById('btn-toggle-auto-pagination');
+  const selectDepth = document.getElementById('select-pagination-depth');
+  const isAutoPagination = togglePagination && togglePagination.checked;
+  const maxDepth = selectDepth ? parseInt(selectDepth.value, 10) : 3;
+
+  if (isAutoPagination && typeof PageSnap !== 'undefined' && PageSnap.crawlAndMergePages) {
+    try {
+      previewModeEl.innerText = '📑 Crawling pages...';
+      const crawlResult = await PageSnap.crawlAndMergePages({
+        initialData: data,
+        maxDepth: maxDepth,
+        settings: settings,
+        delayMs: 300,
+        onProgress: (p) => {
+          if (p.status.startsWith('fetching_page_')) {
+            previewModeEl.innerText = `📑 Fetching page ${p.current}/${p.total}...`;
+          } else if (p.status.startsWith('extracted_page_')) {
+            previewModeEl.innerText = `📑 Merged page ${p.current}/${p.total}`;
+          }
+        }
+      });
+
+      appState.markdownText = crawlResult.markdown;
+      appState.currentMarkdown = crawlResult.markdown;
+      appState.articleTitle = data.title || 'webpage';
+      appState.pageUrl = data.url || '';
+
+      markdownPreview.value = crawlResult.markdown;
+      updateStats();
+
+      previewModeEl.innerText = `📑 Merged ${crawlResult.pagesCount} Pages`;
+      previewModeEl.title = `Auto-crawled and merged ${crawlResult.pagesCount} pages.`;
+
+      btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
+      btnExtract.disabled = false;
+      if (btnCopy) btnCopy.disabled = false;
+      if (btnDownload) btnDownload.disabled = false;
+      if (btnDownloadZip) btnDownloadZip.disabled = false;
+      return;
+    } catch (crawlErr) {
+      console.warn("Multi-page crawl failed, falling back to single page:", crawlErr);
+    }
+  }
+
   const isRaw = !!(settings && settings.rawMode);
   let contentToConvert = isRaw ? (data.rawContent || data.content) : data.content;
   let isFallback = isRaw || !data.readabilitySuccess;
-
   // Use visible text if content is empty
   if (!contentToConvert || contentToConvert.trim().length === 0) {
     contentToConvert = data.visibleText || '';
@@ -338,6 +381,19 @@ export function initExtract() {
     autoExtractPage();
   });
 
+  const togglePagination = document.getElementById('btn-toggle-auto-pagination');
+  const selectDepth = document.getElementById('select-pagination-depth');
+  if (togglePagination && selectDepth) {
+    togglePagination.addEventListener('change', () => {
+      selectDepth.style.display = togglePagination.checked ? 'inline-block' : 'none';
+      autoExtractPage();
+    });
+    selectDepth.addEventListener('change', () => {
+      if (togglePagination.checked) {
+        autoExtractPage();
+      }
+    });
+  }
 // plan-exempt — fix duplicate if
   if (btnCopy) {
     btnCopy.addEventListener('click', async () => {

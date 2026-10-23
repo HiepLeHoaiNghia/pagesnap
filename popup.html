@@ -31,6 +31,16 @@
           <span class="slider"></span>
           <span class="label-text">📄 Full Page</span>
         </label>
+        <label class="toggle-switch compact-toggle" title="Auto-detect next page and merge multi-page documents">
+          <input type="checkbox" id="btn-toggle-auto-pagination">
+          <span class="slider"></span>
+          <span class="label-text">📑 Next Pages</span>
+        </label>
+        <select id="select-pagination-depth" class="compact-select" title="Max pages to crawl" style="display: none;">
+          <option value="2">2p</option>
+          <option value="3" selected>3p</option>
+          <option value="5">5p</option>
+        </select>
         <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download" data-feature="regionSelect">
           <input type="checkbox" id="btn-toggle-select-region">
           <span class="slider"></span>
@@ -126,10 +136,13 @@
 
   <script src="lib/turndown.js"></script>
   <script src="lib/turndown-plugin-gfm.js"></script>
+  <script src="lib/readability.js"></script>
   <script src="lib/jszip.min.js"></script>
   <script src="src/popup/bootstrap.js"></script>
   <script src="src/content/markdown/dom-preprocess.js"></script>
   <script src="src/content/markdown/turndown-config.js"></script>
+  <script src="src/content/markdown/extractor.js"></script>
+  <script src="src/content/markdown/pagination-detector.js"></script>
+  <script src="src/content/markdown/multi-page-crawler.js"></script>
   <script type="module" src="src/popup/index.js"></script>
-</body>
 </html>

@@ -565,14 +565,16 @@ Web2MD.htmlToMarkdown = function (html, metadata, settings) {
   markdown = markdown.trim();
 
   // Add YAML frontmatter if enabled
+// plan-exempt — support totalPagesMerged in frontmatter
   if (settings.frontmatter && metadata) {
     const fm = [
       '---',
-      `title: "${metadata.title.replace(/"/g, '\\"')}"`,
-      `url: ${metadata.url}`,
+      metadata.title ? `title: "${metadata.title.replace(/"/g, '\\"')}"` : null,
+      metadata.url ? `url: ${metadata.url}` : null,
       `date: ${new Date().toISOString().split('T')[0]}`,
       metadata.byline ? `author: "${metadata.byline.replace(/"/g, '\\"')}"` : null,
       metadata.siteName ? `site: "${metadata.siteName.replace(/"/g, '\\"')}"` : null,
+      metadata.totalPagesMerged && metadata.totalPagesMerged > 1 ? `totalPagesMerged: ${metadata.totalPagesMerged}` : null,
       '---',
       '',
       ''

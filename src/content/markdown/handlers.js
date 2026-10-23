@@ -108,5 +108,15 @@ PageSnap.registerHandlers({
       sendResponse({ success: false, error: err.message });
     }
     return true;
+  },
+// plan-exempt — pagination discovery handler
+  discoverNextPage: (request, sender, sendResponse) => {
+    try {
+      const nextUrl = (window.PageSnap || window.Web2MD).findNextPageUrl(document, window.location.href);
+      sendResponse({ success: true, nextUrl });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
   }
 });
