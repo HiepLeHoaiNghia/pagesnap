@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup HTML Snapshot: clean standalone ZIP package download.
+ * PageSnap popup HTML Snapshot: clean standalone ZIP package download.
  */
 import { appState } from './state.js';
 

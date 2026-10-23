@@ -14,7 +14,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="logo-area">
-        <span class="logo-icon">📸</span>
+        <img src="icons/icon-48.png" class="logo-icon" width="22" height="22" style="border-radius: 6px;" alt="PageSnap">
         <h1 class="logo-text">Page<span class="highlight">Snap</span></h1>
       </div>
       <div class="header-actions">
@@ -26,6 +26,11 @@
     <main class="app-main">
       <!-- Toolbar controls -->
       <div class="app-toolbar">
+        <label class="toggle-switch compact-toggle" title="Extract full page body without skipping elements">
+          <input type="checkbox" id="btn-toggle-raw-mode">
+          <span class="slider"></span>
+          <span class="label-text">📄 Full Page</span>
+        </label>
         <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download" data-feature="regionSelect">
           <input type="checkbox" id="btn-toggle-select-region">
           <span class="slider"></span>
@@ -62,9 +67,9 @@
           <span class="btn-icon">⚡</span> Extract Page
         </button>
         <div class="actions-grid">
-          <button id="btn-copy" class="secondary-btn" disabled>📋 Copy</button>
+          <button id="btn-copy" class="secondary-btn" disabled>📋 Copy Markdown</button>
           <button id="btn-download" class="secondary-btn" disabled>💾 Download .MD</button>
-          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 Download HTML</button>
+          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 ZIP Package</button>
         </div>
       </div>
     </main>

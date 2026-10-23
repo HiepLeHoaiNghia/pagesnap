@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD Background Service Worker (entry point).
+ * PageSnap Background Service Worker (entry point).
  * Wires per-feature handler maps into the message router and keeps
  * context menus in sync with the current feature flags.
  */

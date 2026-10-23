@@ -1,103 +1,165 @@
 <!-- markdownlint-disable MD013 MD033 MD045 -->
 
-# PageSnap — Web to Clean Markdown & Offline HTML Snapshot
+<h1 align="center">
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap"><img src="docs/images/pagesnap-logo.svg" alt="PageSnap Logo" width="56" valign="middle" /></a> PageSnap
+</h1>
 
-> Manifest V3 Chrome extension that converts web pages and selected regions into clean, AI-ready Markdown and standalone offline HTML snapshots with a zero-build, privacy-first codebase.
+<p align="center">
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Release-v0.4.0-8B5CF6?style=flat-square" alt="Latest Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=flat-square" alt="License: MIT" /></a>
+  <img src="https://img.shields.io/badge/Manifest-V3-7F52FF?style=flat-square" alt="Manifest V3" />
+  <img src="https://img.shields.io/badge/Build-Zero_Build-16A34A?style=flat-square" alt="Zero Build" />
+  <img src="https://img.shields.io/badge/Network-Zero_Interference-38BDF8?style=flat-square" alt="Zero Network Interference" />
+  <img src="https://img.shields.io/badge/Browsers-Chrome%20%7C%20Edge%20%7C%20Brave-4493F8?style=flat-square" alt="Supported Browsers" />
+</p>
 
-![Manifest V3](https://img.shields.io/badge/Manifest-V3-7F52FF?style=flat-square&logo=google-chrome&logoColor=white)
-![No build step](https://img.shields.io/badge/Build-none-16A34A?style=flat-square)
-![Static checks](https://img.shields.io/badge/Static_checks-10%2F10_pass-16A34A?style=flat-square)
-![Browser E2E](https://img.shields.io/badge/Browser_E2E-4%2F4_pass-16A34A?style=flat-square)
-![Zero API Interference](https://img.shields.io/badge/Network-Zero_Interference-blue?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+<p align="center">
+  <strong>The privacy-first Web-to-Markdown clipper &amp; standalone offline HTML archiver.</strong><br/>
+  Convert any web page or selected region into clean, AI-ready Markdown and standalone offline HTML snapshots with one click.
+</p>
+
+<h3 align="center">
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><ins>Download PageSnap (Latest ZIP)</ins></a>
+</h3>
+
+<p align="center">
+  <img src="docs/images/popup-preview.png" alt="PageSnap popup interface extracting clean markdown and offline HTML snapshots" width="520" />
+</p>
 
 ---
 
-## ⚡ Features
+## Features
 
-1. **AI-Ready Markdown Extraction**: Uses Mozilla Readability to strip ads, popups, sidebars, and navigation links. Generates clean Markdown with YAML Frontmatter (title, author, url, date), table formatting, and syntax-highlighted code blocks.
-2. **Visual Region Selector**: Pick any DOM container directly on the live page to extract only the target section or table into Markdown.
-3. **Clean HTML Snapshot**: Package a self-contained offline HTML page with inline stylesheets and Base64 assets without any external tracking or script interference.
-4. **Zero-Blocking Architecture**: 100% passive by default. Injects scripts into the active tab only when explicitly requested. Native `window.fetch` and `window.XMLHttpRequest` are never monkey-patched.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### ⚡ 1-Click Clean Markdown Extraction
+Extract clean article content instantly. PageSnap uses Mozilla's battle-tested Readability engine to strip ads, popups, cookie banners, navigation menus, and footers, leaving only the pure content.
+
+- Automatic YAML Frontmatter (`title`, `author`, `url`, `date`)
+- Markdown tables & syntax-highlighted code blocks
+- Real-time character count and LLM token estimation (GPT-4o / Claude 3.5 Sonnet)
+
+</td>
+<td width="50%" valign="top">
+
+### 📦 Standalone Offline HTML Snapshot
+Need an exact visual backup of the page? PageSnap serializes the full DOM into a self-contained offline HTML package.
+
+- Cross-origin stylesheets and adopted sheets inlined recursively
+- Images and web fonts converted directly to Base64
+- Zero external dependencies or tracking scripts
+- Viewable offline on any browser without internet connection
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🎯 Visual Region Selector
+Don't need the entire web page? Activate the Visual Region Selector to hover and pick any specific element, comment thread, or data table directly on the live page.
+
+- Hover outline with element boundary indicators
+- One-click copy as Markdown or scoped HTML
+- Export selected region as a standalone ZIP package
+
+</td>
+<td width="50%" valign="top">
+
+### 🔒 100% Passive Zero-Interference
+Unlike invasive extensions that monkey-patch global network APIs, PageSnap is strictly passive by default.
+
+- Native `window.fetch` and `window.XMLHttpRequest` are never wrapped
+- Zero persistent background scripts at `document_start`
+- Injects scripts into the active tab only when explicitly clicked
+- No blanket `<all_urls>` permission required
+
+</td>
+</tr>
+</table>
 
 ---
 
-## 🚀 Easy Installation Guide (Non-Technical Users)
+## 🚀 Quick Install (Load Unpacked)
 
-Installing PageSnap takes less than 60 seconds without writing any code or using the terminal:
+Installing PageSnap takes less than 60 seconds without writing code or using a terminal:
 
-### 1. Download & Extract
-- [**⬇️ Download Latest PageSnap ZIP**](https://github.com/HiepLeHoaiNghia/web2md/releases/latest) (or download `pagesnap-store-ready.zip`).
-- **Extract (Unzip)** the downloaded file on your computer.
-- *💡 Note: Place the extracted folder in a safe place (like `Documents`), as deleting this folder will remove the extension from Chrome.*
+### Step 1: Download & Extract
+1. Download [**`pagesnap-store-ready.zip`**](https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest) from the latest release.
+2. Extract (unzip) the archive into a permanent folder on your computer (e.g. your `Documents` folder).
 
-### 2. Open Extensions Page
-Open your browser and copy-paste the URL for your browser into the address bar, then press **Enter**:
-- **Google Chrome:** `chrome://extensions`
-- **Microsoft Edge:** `edge://extensions`
-- **Brave Browser:** `brave://extensions`
+---
 
-### 3. Turn on Developer Mode
-In the top-right corner of the Extensions page, switch the **Developer mode** toggle to **ON**.
+### Step 2: Open Extensions Page & Enable Developer Mode
+1. Open your browser and paste the following URL into your address bar, then press **Enter**:
+   - **Google Chrome:** `chrome://extensions`
+   - **Microsoft Edge:** `edge://extensions`
+   - **Brave Browser:** `brave://extensions`
+2. In the top-right corner of the Extensions page, switch the **Developer mode** toggle to **ON**.
 
-```
-+--------------------------------------------------------+
-| Extensions                       [Developer mode  (ON)]|
-+--------------------------------------------------------+
-```
+<p align="center">
+  <img src="docs/images/step-developer-mode.png" alt="Switch Developer mode toggle to ON in Chrome extensions page" width="100%" />
+</p>
 
-### 4. Load PageSnap
-1. In the top-left corner, click the **Load unpacked** button:
-   ```
-   [ Load unpacked ]  [ Pack extension ]  [ Update ]
-   ```
-2. In the file picker, select the **unzipped folder** that contains `manifest.json`.
-3. 🎉 **Done!** PageSnap will immediately appear in your browser toolbar.
+---
 
-### 5. Pin for 1-Click Access (Recommended)
-1. Click the **puzzle piece icon (🧩)** in the top-right corner of your browser toolbar.
-2. Click the **pin icon (📌)** next to **PageSnap** so it stays visible on your toolbar for instant extraction.
+### Step 3: Click "Load unpacked" & Select Folder
+1. In the top-left toolbar, click the **Load unpacked** button.
+2. In the folder picker, select the **unzipped folder** that contains `manifest.json`.
+
+<p align="center">
+  <img src="docs/images/step-load-unpacked.png" alt="Click Load unpacked button in Chrome toolbar" width="100%" />
+</p>
+
+---
+
+### Step 4: Extension Installed & Active
+PageSnap will appear immediately in your extensions list, ready for 1-click capture.
+
+<p align="center">
+  <img src="docs/images/step-extension-installed.png" alt="PageSnap extension card successfully loaded in Chrome" width="100%" />
+</p>
+
+---
+
+### Step 5: Pin for 1-Click Access (Recommended)
+1. Click the **puzzle piece icon (🧩)** in your browser's top toolbar.
+2. Click the **pin icon (📌)** next to **PageSnap** so the icon stays permanently visible for instant extraction.
 
 ---
 
 ## 🧪 Testing & Verification
 
-PageSnap includes automated static checks and real-browser E2E integration tests:
+PageSnap is verified with an automated test suite comprising static architectural checks and real-browser Chromium E2E integration tests:
 
-### 1. Static Checks (Architecture, Bundles, Actions, Permissions)
 ```bash
+# Run 10/10 static checks (manifest, bundles, ES modules, action registry)
 npm test
-```
-*Expected: 10/10 checks passed.*
 
-### 2. Live Browser E2E Test (Chromium)
-```bash
+# Run real-browser Chromium E2E smoke tests
 npm run test:e2e
-```
-*Exercises live extension loading in Chromium, verifies native unpatched fetch/XHR, popup UI rendering, and article extraction.*
 
-### 3. Build Store-Ready Package
-```bash
+# Build production ZIP package for Chrome Web Store
 npm run package
 ```
-*Generates `dist/pagesnap-v0.3.0.zip` ready for upload to the Chrome Web Store.*
 
 ---
 
 ## 🔒 Permissions & Privacy
 
-| Permission | Reason |
+| Permission | Technical Justification |
 | :--- | :--- |
-| `activeTab` | Read content on the tab you clicked without blanket host permissions. |
-| `clipboardWrite` | Copy formatted Markdown directly to your system clipboard. |
+| `activeTab` | Read content on the active tab only when you explicitly invoke the extension. |
+| `clipboardWrite` | Copy formatted Markdown directly to your clipboard on click. |
 | `storage` | Save your preferred Markdown options (YAML frontmatter, Obsidian wikilinks). |
 | `downloads` | Save exported `.md` and `.html` files directly to your device. |
 | `contextMenus` | Provide right-click "Copy region as Markdown" shortcut. |
 
-*PageSnap does NOT require `<all_urls>` and never collects, transmits, or logs your browsing data.*
+*PageSnap operates 100% locally in your browser. It does not collect, log, or transmit your browsing activity.*
 
 ---
 
 ## 📄 License
 
-MIT
+PageSnap is open-source software under the [MIT License](LICENSE).

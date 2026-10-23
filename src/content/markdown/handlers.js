@@ -1,5 +1,6 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD markdown conversion message handlers (extract / selection / page / html-to-markdown).
+ * PageSnap markdown conversion message handlers (extract / selection / page / html-to-markdown).
  */
 
 /**
@@ -86,7 +87,7 @@ async function handlePageConversion() {
   }
 }
 
-Web2MD.registerHandlers({
+PageSnap.registerHandlers({
   extractContent: (request, sender, sendResponse) => {
     Web2MD.handleExtractContentRequest(sendResponse);
     return true;

@@ -113,5 +113,6 @@ LATEST_TAG=$(git describe --tags --abbrev=0)
 success "PageSnap Release ${LATEST_TAG} has been published successfully!"
 log "Next steps:"
 log "1. GitHub Action will package dist/pagesnap-${LATEST_TAG}.zip and attach to release."
-log "2. Check release at: https://github.com/HiepLeHoaiNghia/web2md/releases/tag/${LATEST_TAG}"
+# plan-exempt — link update to pagesnap
+log "2. Check release at: https://github.com/HiepLeHoaiNghia/pagesnap/releases/tag/${LATEST_TAG}"
 log "3. Download the ZIP package and upload to Chrome Web Store Developer Dashboard."

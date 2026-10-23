@@ -1,19 +1,20 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD content shared utilities: toast notifications and clipboard copy.
+ * PageSnap content shared utilities: toast notifications and clipboard copy.
  */
 
 /**
  * Injects a modern floating toast notification on the page
  */
-Web2MD.showToast = function (message, isWarning = false) {
+PageSnap.showToast = Web2MD.showToast = function (message, isWarning = false) {
   // Remove existing toast if any
-  const existingToast = document.getElementById('web2md-toast');
+  const existingToast = document.getElementById('pagesnap-toast') || document.getElementById('web2md-toast');
   if (existingToast) {
     existingToast.remove();
   }
 
   const toast = document.createElement('div');
-  toast.id = 'web2md-toast';
+  toast.id = 'pagesnap-toast';
   toast.innerText = message;
 
   // Custom styles for premium look
@@ -59,7 +60,7 @@ Web2MD.showToast = function (message, isWarning = false) {
 /**
  * Robustly copies text to clipboard, falling back to document.execCommand if navigator.clipboard is unavailable or restricted.
  */
-Web2MD.copyTextToClipboard = async function (text) {
+PageSnap.copyTextToClipboard = Web2MD.copyTextToClipboard = async function (text) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     try {
       await navigator.clipboard.writeText(text);

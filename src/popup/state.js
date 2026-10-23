@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup shared state: safe storage helper, settings defaults/load/save,
+ * PageSnap popup shared state: safe storage helper, settings defaults/load/save,
  * and the mutable extraction state shared across popup modules.
  */
 

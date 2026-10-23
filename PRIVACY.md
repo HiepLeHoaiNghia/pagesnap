@@ -1,13 +1,13 @@
-# Privacy Policy for Web2MD
+# Privacy Policy for PageSnap
 
 *Last updated: October 23, 2026*
 
-Web2MD is committed to protecting your privacy. This extension is designed with a **privacy-first, zero-telemetry architecture**.
+PageSnap is committed to protecting your privacy. This extension is designed with a **privacy-first, zero-telemetry architecture**.
 
 ---
 
 ## 1. No Data Collection or Transmission
-- **Web2MD does not collect, track, log, or sell any personal information or browsing history.**
+- **PageSnap does not collect, track, log, or sell any personal information or browsing history.**
 - All content extraction, Readability processing, and Markdown conversion run **100% locally** in your browser tab.
 - No network requests are made to any remote analytics, tracking, or telemetry servers.
 
@@ -26,13 +26,13 @@ Web2MD is committed to protecting your privacy. This extension is designed with 
 ---
 
 ## 3. Third-Party Services
-Web2MD does not share data with any third-party services, advertisers, or AI training pipelines.
+PageSnap does not share data with any third-party services, advertisers, or AI training pipelines.
 
 ---
 
 ## 4. Open Source
-Web2MD is free and open-source software under the MIT License. The entire source code can be inspected and verified at:
-[https://github.com/](https://github.com/)
+PageSnap is free and open-source software under the MIT License. The entire source code can be inspected and verified at:
+[https://github.com/HiepLeHoaiNghia/pagesnap](https://github.com/HiepLeHoaiNghia/pagesnap)
 
 ---
 

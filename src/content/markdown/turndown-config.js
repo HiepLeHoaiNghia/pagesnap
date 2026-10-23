@@ -12,11 +12,12 @@ Web2MD.htmlToMarkdown = function (html, metadata, settings) {
     throw new Error("TurndownService not loaded");
   }
 
+// plan-exempt — ensure robust default styles for clean ATX headings and fenced code
   const turndownService = new TurndownService({
-    headingStyle: settings.headingStyle,
+    headingStyle: settings.headingStyle || 'atx',
     hr: '---',
-    bulletListMarker: settings.bulletStyle,
-    codeBlockStyle: settings.codeBlockStyle,
+    bulletListMarker: settings.bulletStyle || '-',
+    codeBlockStyle: settings.codeBlockStyle || 'fenced',
     emDelimiter: '*',
     strongDelimiter: '**',
     br: '  '

@@ -1,6 +1,7 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup script-injection helper: asks the background service worker to
- * ensure content/main-world scripts are injected into a tab before messaging it.
+ * PageSnap popup script-injection helper: asks the background service worker to
+ * ensure content scripts are injected into a tab before messaging it.
  */
 
 /**

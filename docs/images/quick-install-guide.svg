@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" width="100%" height="100%">
+  <defs>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+
+  <!-- Step 1 Card -->
+  <g transform="translate(10, 10)">
+    <rect width="220" height="240" rx="12" fill="#1e293b" stroke="#334155" stroke-width="2" />
+    <circle cx="36" cy="36" r="18" fill="url(#purpleGrad)" />
+    <text x="36" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+    <text x="64" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="bold" fill="#f8fafc">Download &amp; Unzip</text>
+
+    <!-- Visual Box -->
+    <rect x="20" y="70" width="180" height="90" rx="8" fill="#0f172a" stroke="#475569" stroke-dasharray="4 4" />
+    <rect x="75" y="85" width="40" height="48" rx="4" fill="#3b82f6" opacity="0.8" />
+    <text x="95" y="115" font-family="sans-serif" font-size="20" fill="#ffffff" text-anchor="middle">📦</text>
+    <path d="M 125 105 L 145 105 M 138 98 L 146 105 L 138 112" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round" />
+    <text x="110" y="180" font-family="sans-serif" font-size="12" font-weight="600" fill="#38bdf8" text-anchor="middle">pagesnap-store-ready.zip</text>
+    <text x="110" y="200" font-family="sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Extract folder to Documents</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <path d="M 238 130 L 248 130" stroke="#64748b" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)" />
+
+  <!-- Step 2 Card -->
+  <g transform="translate(250, 10)">
+    <rect width="220" height="240" rx="12" fill="#1e293b" stroke="#334155" stroke-width="2" />
+    <circle cx="36" cy="36" r="18" fill="url(#purpleGrad)" />
+    <text x="36" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+    <text x="64" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="bold" fill="#f8fafc">Developer Mode</text>
+
+    <!-- Visual Box -->
+    <rect x="20" y="70" width="180" height="90" rx="8" fill="#0f172a" stroke="#334155" />
+    <!-- Address Bar -->
+    <rect x="30" y="80" width="160" height="22" rx="4" fill="#1e293b" />
+    <text x="38" y="95" font-family="monospace" font-size="10" fill="#38bdf8">chrome://extensions</text>
+
+    <!-- Toggle Switch mockup -->
+    <text x="32" y="132" font-family="sans-serif" font-size="10" font-weight="600" fill="#94a3b8">Developer mode</text>
+    <rect x="135" y="120" width="36" height="18" rx="9" fill="url(#emeraldGrad)" />
+    <circle cx="161" cy="129" r="7" fill="#ffffff" />
+
+    <text x="110" y="180" font-family="sans-serif" font-size="12" font-weight="600" fill="#10b981" text-anchor="middle">Toggle switch to ON</text>
+    <text x="110" y="200" font-family="sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Found in top-right corner</text>
+  </g>
+
+  <!-- Step 3 Card -->
+  <g transform="translate(490, 10)">
+    <rect width="220" height="240" rx="12" fill="#1e293b" stroke="#334155" stroke-width="2" />
+    <circle cx="36" cy="36" r="18" fill="url(#purpleGrad)" />
+    <text x="36" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+    <text x="64" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="bold" fill="#f8fafc">Load Unpacked</text>
+
+    <!-- Visual Box -->
+    <rect x="20" y="70" width="180" height="90" rx="8" fill="#0f172a" stroke="#334155" />
+    <!-- Load unpacked button -->
+    <rect x="35" y="95" width="150" height="34" rx="6" fill="#3b82f6" />
+    <text x="110" y="117" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">📂 Load unpacked</text>
+
+    <text x="110" y="180" font-family="sans-serif" font-size="12" font-weight="600" fill="#38bdf8" text-anchor="middle">Select unzipped folder</text>
+    <text x="110" y="200" font-family="sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Contains manifest.json</text>
+  </g>
+
+  <!-- Step 4 Card -->
+  <g transform="translate(730, 10)">
+    <rect width="220" height="240" rx="12" fill="#1e293b" stroke="#334155" stroke-width="2" />
+    <circle cx="36" cy="36" r="18" fill="url(#purpleGrad)" />
+    <text x="36" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+    <text x="64" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="bold" fill="#f8fafc">Pin &amp; Use</text>
+
+    <!-- Visual Box -->
+    <rect x="20" y="70" width="180" height="90" rx="8" fill="#0f172a" stroke="#334155" />
+    <!-- Toolbar icons -->
+    <rect x="35" y="85" width="150" height="30" rx="6" fill="#1e293b" />
+    <text x="60" y="106" font-family="sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">🧩</text>
+    <path d="M 85 100 L 100 100" stroke="#475569" stroke-width="1.5" />
+    <text x="120" y="106" font-family="sans-serif" font-size="16" fill="#f59e0b" text-anchor="middle">📌</text>
+    <rect x="146" y="93" width="20" height="20" rx="5" fill="url(#purpleGrad)" />
+    <rect x="151" y="97" width="10" height="12" rx="1.5" fill="#ffffff" />
+
+    <text x="110" y="180" font-family="sans-serif" font-size="12" font-weight="600" fill="#10b981" text-anchor="middle">Click 🧩 then Pin 📌</text>
+    <text x="110" y="200" font-family="sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Ready for 1-click capture!</text>
+  </g>
+</svg>

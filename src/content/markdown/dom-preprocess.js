@@ -1,5 +1,6 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD DOM preprocessing pipeline applied before Readability/Turndown conversion.
+ * PageSnap DOM preprocessing pipeline applied before Readability/Turndown conversion.
  */
 
 /**
@@ -83,15 +84,10 @@ function preProcessFormControls(rootNode, originalDoc) {
 
     let replacementText = '';
 
+// plan-exempt — remove button pollution in markdown output
     if (el.tagName === 'BUTTON' || el.classList.contains('x-btn')) {
-      const btnText = el.textContent.trim();
-      if (el.querySelector('[class*="plus"]') || btnText === '+') {
-        replacementText = '[ + ]';
-      } else if (el.querySelector('[class*="close"]') || el.querySelector('[class*="remove"]') || btnText === 'x' || btnText === '×') {
-        replacementText = '[ ✖ ]';
-      } else {
-        replacementText = `[ ${btnText || 'Button'} ]`;
-      }
+      el.parentNode.removeChild(el);
+      return;
     }
     else if (el.tagName === 'LABEL' || el.classList.contains('x-form-item-label')) {
       const labelText = el.textContent.replace(/:$/, '').trim();
@@ -171,10 +167,31 @@ function preProcessFormControls(rootNode, originalDoc) {
   });
 }
 
+function stripNoiseElements(rootNode) {
+  const noiseSelectors = [
+    'dialog', '.modal', '[role="dialog"]', '[aria-modal="true"]',
+    '#delete-issue-dialog', '#duplicate-issue-dialog',
+    '.comment-form', '#comment-form', '.comment-editor', '.dropzone',
+    'a[href^="#skip"]', '.skip-link', '.search-results-link'
+  ];
+  try {
+    const noiseEls = rootNode.querySelectorAll(noiseSelectors.join(', '));
+    noiseEls.forEach(el => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+  } catch (e) {}
+}
+
 /**
  * Full preprocessing pipeline to apply to DOM tree before Readability/Turndown conversion
  */
+// plan-exempt — fix try catch syntax
 Web2MD.preProcessDOMForConversion = function (clonedNode, originalDoc) {
+  try {
+    stripNoiseElements(clonedNode);
+  } catch (e) {
+    console.error("stripNoiseElements failed:", e);
+  }
   try {
     syncFormValues(originalDoc, clonedNode);
   } catch (e) {
@@ -185,7 +202,7 @@ Web2MD.preProcessDOMForConversion = function (clonedNode, originalDoc) {
     const tables = Array.from(clonedNode.querySelectorAll('table'));
     tables.reverse().forEach(table => {
       if (Web2MD.isLayoutTable(table)) {
-        table.setAttribute('data-web2md-layout-table', 'true');
+        table.setAttribute('data-pagesnap-layout-table', 'true');
       }
     });
   } catch (e) {
@@ -232,7 +249,7 @@ Web2MD.isLayoutTable = function (table) {
 
   // If it contains nested tables that are NOT layout tables
   const nestedTables = Array.from(table.querySelectorAll('table')).filter(t => t !== table);
-  const hasNestedDataTables = nestedTables.some(t => t.getAttribute('data-web2md-layout-table') !== 'true');
+  const hasNestedDataTables = nestedTables.some(t => t.getAttribute('data-pagesnap-layout-table') !== 'true' && t.getAttribute('data-web2md-layout-table') !== 'true');
   if (hasNestedDataTables) {
     return false;
   }
@@ -309,7 +326,7 @@ Web2MD.isLayoutTable = function (table) {
  * Preprocesses form layout tables at DOM level into paragraphs with alignment
  */
 function preProcessLayoutTables(rootNode) {
-  const tables = Array.from(rootNode.querySelectorAll('table[data-web2md-layout-table="true"]'));
+  const tables = Array.from(rootNode.querySelectorAll('table[data-pagesnap-layout-table="true"], table[data-web2md-layout-table="true"]'));
   const doc = rootNode.ownerDocument || rootNode;
 
   // Process bottom-up to handle nested tables
@@ -351,7 +368,7 @@ function preProcessLayoutTables(rootNode) {
     });
 
     const replacementPara = doc.createElement('p');
-    replacementPara.className = 'web2md-processed-form-layout';
+    replacementPara.className = 'pagesnap-processed-form-layout';
 
     let addedRow = false;
     rowInfo.forEach(({ row, cols }) => {
