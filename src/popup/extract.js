@@ -39,32 +39,13 @@ export function showError(msg) {
 // plan-exempt — resilient download with instant feedback and automatic fallback
 // plan-exempt — bulletproof instant anchor download with blob URL
 // plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
-export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
+// plan-exempt — true interactive Save As file dialog with accurate state handling
+export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
     const blob = new Blob([content], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
 
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      chrome.downloads.download({
-        url: blobUrl,
-        filename: filename,
-        saveAs: true
-      }, (downloadId) => {
-        if (chrome.runtime.lastError || !downloadId) {
-          console.warn("[PageSnap] chrome.downloads note, using anchor fallback:", chrome.runtime.lastError);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = blobUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            if (a.parentNode) a.parentNode.removeChild(a);
-          }, 2000);
-        }
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-      });
-    } else {
+    function fallbackAnchorDownload() {
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = blobUrl;
@@ -74,10 +55,39 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
       setTimeout(() => {
         if (a.parentNode) a.parentNode.removeChild(a);
         URL.revokeObjectURL(blobUrl);
-      }, 5000);
+      }, 10000);
+      onStateChange('saved');
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      onStateChange('prompting');
+      chrome.downloads.download({
+        url: blobUrl,
+        filename: filename,
+        saveAs: true
+      }, (downloadId) => {
+        if (chrome.runtime.lastError) {
+          const errMsg = chrome.runtime.lastError.message || '';
+          if (errMsg.toLowerCase().includes('cancel')) {
+            // User explicitly canceled file dialog in Finder/Explorer
+            onStateChange('canceled');
+          } else {
+            console.warn("[PageSnap] chrome.downloads error, fallback:", errMsg);
+            fallbackAnchorDownload();
+          }
+        } else if (downloadId) {
+          onStateChange('saved');
+        } else {
+          onStateChange('canceled');
+        }
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+      });
+    } else {
+      fallbackAnchorDownload();
     }
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
   }
 }
 
@@ -456,10 +466,6 @@ export function initExtract() {
       if (!textToDownload) return;
 
       const origHtml = btnDownload.innerHTML;
-      btnDownload.innerHTML = '✅ Saved!';
-      setTimeout(() => {
-        btnDownload.innerHTML = origHtml;
-      }, 2000);
 
       let safeTitle = (appState.articleTitle || 'webpage')
         .toLowerCase()
@@ -468,11 +474,22 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-      if (isHtmlTab) {
-        downloadFile(textToDownload, `${safeTitle}-snapshot.html`, 'text/html;charset=utf-8');
-      } else {
-        downloadFile(textToDownload, `${safeTitle}.md`, 'text/markdown;charset=utf-8');
-      }
+      const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
+      const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
+
+      downloadFile(textToDownload, filename, mime, (status) => {
+        if (status === 'prompting') {
+          btnDownload.innerHTML = '📂 Chọn nơi lưu...';
+        } else if (status === 'saved') {
+          btnDownload.innerHTML = '✅ Saved!';
+          setTimeout(() => {
+            btnDownload.innerHTML = origHtml;
+          }, 2000);
+        } else {
+          btnDownload.innerHTML = origHtml;
+        }
+// plan-exempt — close download listener
+      });
     });
   }
 
