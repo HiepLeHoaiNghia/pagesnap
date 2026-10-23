@@ -41,47 +41,51 @@ export function showError(msg) {
 // plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
 // plan-exempt — true interactive Save As file dialog with accurate state handling
 // plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
-export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
-  onStateChange('prompting');
+// plan-exempt — guaranteed direct download with self-contained Base64 data URL
+function utf8ToBase64(str) {
+  try {
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    return btoa(str);
+  }
+}
 
-  function popupDirectDownload() {
-    try {
-      const blob = new Blob([content], { type: mimeType });
-      const blobUrl = URL.createObjectURL(blob);
+export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
+  try {
+    const base64 = utf8ToBase64(content);
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      chrome.downloads.download({
+        url: dataUrl,
+        filename: filename,
+        saveAs: false
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+        }
+        onStateChange('saved');
+      });
+    } else {
       const a = document.createElement('a');
       a.style.display = 'none';
-      a.href = blobUrl;
+      a.href = dataUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      }, 15000);
+      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
       onStateChange('saved');
-    } catch (e) {
-      console.error("[PageSnap] Popup direct download error:", e);
-      onStateChange('error');
     }
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
   }
-
-  if (appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.sendMessage) {
-    chrome.tabs.sendMessage(appState.activeTabId, {
-      action: 'triggerClientDownload',
-      content: content,
-      filename: filename,
-      mimeType: mimeType
-    }, { frameId: appState.activeFrameId || 0 }, (response) => {
-      if (chrome.runtime.lastError || !response || !response.success) {
-        popupDirectDownload();
-      } else {
-        onStateChange('saved');
-      }
-    });
-  } else {
-    popupDirectDownload();
-  }
-// plan-exempt — clean downloadFile closing
 }
 
 /**
