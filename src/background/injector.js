@@ -1,7 +1,7 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
  * Dynamic content-script injection for the ISOLATED world.
- * Web2MD injects scripts lazily only when the user triggers an action.
+ * PageSnap injects scripts lazily only when the user triggers an action.
  */
 
 import {
@@ -37,7 +37,7 @@ export function ensureContentInjected(tabId, frameId = 0) {
       }
       return true;
     } catch (e) {
-      console.error('[Web2MD] Script injection failed from background:', e);
+      console.error('[PageSnap] Script injection failed from background:', e);
       return false;
     }
   })();

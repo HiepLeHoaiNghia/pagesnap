@@ -1,4 +1,4 @@
-# Chrome Web Store Listing Package for Web2MD
+# Chrome Web Store Listing Package for PageSnap
 
 This document contains all pre-written copy, descriptions, and justification texts ready to copy-paste directly into the [Chrome Web Store Developer Console](https://chrome.google.com/webstore/devconsole).
 
@@ -6,7 +6,7 @@ This document contains all pre-written copy, descriptions, and justification tex
 
 ## 🏷️ 1. Store Metadata
 
-- **Extension Name:** `Web2MD — Page to Markdown for AI & Obsidian`
+- **Extension Name:** `PageSnap — Web to Markdown & HTML Snapshot`
 - **Category:** `Productivity` (Secondary: `Workflow & Planning`)
 - **Language:** `English`
 - **Pricing:** `Free`
@@ -20,18 +20,18 @@ This document contains all pre-written copy, descriptions, and justification tex
 
 ### Detailed Description
 ```markdown
-⚡ Web2MD — The Fastest, Zero-Build Web to Clean Markdown Clipper for AI & Note-Taking
+⚡ PageSnap — The Fastest, Zero-Build Web to Clean Markdown Clipper & Offline Snapshot
 
 Convert any webpage, technical documentation, or online article into clean, distraction-free Markdown ready for ChatGPT, Claude, Cursor, Obsidian, and Notion.
 
-Unlike traditional web clippers that dump messy HTML or include unwanted ads, sidebars, and navigation links, Web2MD uses Mozilla's battle-tested Readability engine to isolate the core article content and turn it into clean GitHub-Flavored Markdown.
+Unlike traditional web clippers that dump messy HTML or include unwanted ads, sidebars, and navigation links, PageSnap uses Mozilla's battle-tested Readability engine to isolate the core article content and turn it into clean GitHub-Flavored Markdown.
 
 ---
 
 🔥 KEY FEATURES
 
 1. ⚡ 1-Click Clean Markdown Extraction
-Extract clean article content instantly. Web2MD automatically removes popups, cookie banners, navigation menus, ads, and footers, leaving only the text, headings, and images you care about.
+Extract clean article content instantly. PageSnap automatically removes popups, cookie banners, navigation menus, ads, and footers, leaving only the text, headings, and images you care about.
 
 2. 🤖 AI & LLM Ready (with Token Estimation)
 Get real-time character and estimated token counts (for GPT-4o / Claude 3.5 Sonnet context windows). Includes YAML Frontmatter metadata (title, author, url, date) so your AI prompts always have context.
@@ -53,14 +53,14 @@ Toggle Obsidian wikilink formatting (`[[link]]`) directly in the extension setti
 🔒 PRIVACY & ZERO TELEMETRY PROMISE
 
 - 100% Local Processing: All parsing happens directly in your browser.
-- Zero Data Collection: Web2MD does not track your browsing history, collect analytics, or send queries to external servers.
-- No Blanket Host Permissions: Web2MD only accesses the page when you explicitly click the extension or select a region.
+- Zero Data Collection: PageSnap does not track your browsing history, collect analytics, or send queries to external servers.
+- No Blanket Host Permissions: PageSnap only accesses the page when you explicitly click the extension or select a region.
 
 ---
 
 📖 OPEN SOURCE
-Web2MD is 100% open-source under the MIT License.
-Contribute or inspect the code on GitHub: https://github.com/
+PageSnap is 100% open-source under the MIT License.
+Contribute or inspect the code on GitHub: https://github.com/HiepLeHoaiNghia/pagesnap
 ```
 
 ---
@@ -86,4 +86,4 @@ When submitting to the Chrome Web Store, Google requires a justification for eac
 - Does this extension collect user data? **No**
 - Does this extension sell user data? **No**
 - Does this extension use data for unrelated purposes? **No**
-- Privacy Policy URL: Provide the public link to your `PRIVACY.md` (e.g. `https://github.com/<your-username>/web2md-extension/blob/main/PRIVACY.md` or a GitHub Pages link).
+- Privacy Policy URL: Provide the public link to your `PRIVACY.md` (e.g. `https://github.com/HiepLeHoaiNghia/pagesnap/blob/main/PRIVACY.md` or a GitHub Pages link).

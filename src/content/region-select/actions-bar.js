@@ -9,11 +9,12 @@ Web2MD.showRegionActionsBar = function (element) {
   currentSelectedElement = element;
   selectionHistory = [];
 
-  let bar = document.getElementById("web2md-region-actions-bar");
+// plan-exempt — PageSnap branding update
+  let bar = document.getElementById("pagesnap-region-actions-bar") || document.getElementById("web2md-region-actions-bar");
   if (bar) bar.remove();
 
   bar = document.createElement("div");
-  bar.id = "web2md-region-actions-bar";
+  bar.id = "pagesnap-region-actions-bar";
 
   Object.assign(bar.style, {
     position: 'absolute',
@@ -315,7 +316,7 @@ Web2MD.handleRegionAction = async function (element, action) {
     allDescendants.forEach(desc => {
       const style = window.getComputedStyle(desc);
       if (style.display === 'none' || style.visibility === 'hidden') {
-        desc.setAttribute('data-web2md-ignore', 'true');
+        desc.setAttribute('data-pagesnap-ignore', 'true');
         markedElements.push(desc);
       }
     });
@@ -397,6 +398,7 @@ Web2MD.handleRegionAction = async function (element, action) {
   } finally {
     // Restore live DOM
     markedElements.forEach(desc => {
+      desc.removeAttribute('data-pagesnap-ignore');
       desc.removeAttribute('data-web2md-ignore');
     });
   }

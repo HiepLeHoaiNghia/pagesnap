@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup feature gating: hides/shows UI marked with data-feature="<flagName>"
+ * PageSnap popup feature gating: hides/shows UI marked with data-feature="<flagName>"
  * and renders the Features toggle list inside the settings panel.
  */
 import { getFlags, setFlag } from '../shared/feature-flags.js';

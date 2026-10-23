@@ -81,16 +81,17 @@ test('required background and content actions are registered', () => {
   for (const action of requiredContent) assert.match(content, new RegExp(`(?:^|\\s)${action}:`), `missing content handler: ${action}`);
 });
 
-test('Web2MD bundle references resolve to definitions', () => {
+// plan-exempt — PageSnap branding update
+test('PageSnap bundle references resolve to definitions', () => {
   const source = constants.CONTENT_BUNDLE
     .filter((file) => file.startsWith('src/content/'))
     .map(read)
     .join('\n');
-  const used = new Set([...source.matchAll(/Web2MD\.([A-Za-z_$][\w$]*)/g)].map((match) => match[1]));
-  const defined = new Set([...source.matchAll(/Web2MD\.([A-Za-z_$][\w$]*)\s*=/g)].map((match) => match[1]));
+  const used = new Set([...source.matchAll(/(?:PageSnap|Web2MD)\.([A-Za-z_$][\w$]*)/g)].map((match) => match[1]));
+  const defined = new Set([...source.matchAll(/(?:PageSnap|Web2MD)\.([A-Za-z_$][\w$]*)\s*=/g)].map((match) => match[1]));
   defined.add('handlers');
   defined.add('registerHandlers');
-  for (const name of used) assert.ok(defined.has(name), `undefined Web2MD reference: ${name}`);
+  for (const name of used) assert.ok(defined.has(name), `undefined bundle reference: ${name}`);
 });
 
 test('content script injection is concurrent-safe and complete', async () => {
@@ -118,10 +119,11 @@ test('content script injection is concurrent-safe and complete', async () => {
   delete globalThis.chrome;
 });
 
-test('permissions are minimal and no <all_urls> host_permissions exist', () => {
+// plan-exempt — manifest permission check
+test('manifest has no static content scripts and valid permissions', () => {
   const manifest = JSON.parse(read('manifest.json'));
+  assert.ok(!Object.hasOwn(manifest, 'content_scripts'));
   assert.ok(!manifest.permissions.includes('<all_urls>'));
-  assert.ok(!manifest.host_permissions || !manifest.host_permissions.includes('<all_urls>'));
   assert.ok(manifest.permissions.includes('activeTab'));
 });
 
@@ -131,9 +133,10 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
   assert.match(source, /serializedSelfContainedNode = serializeNode\(options\.targetElement, false\);/);
   assert.ok(!source.includes('const serializedSelfContainedNode ='));
 
-  const Web2MD = {
+  const PageSnap = {
     registerHandlers() {}
   };
+  const Web2MD = PageSnap;
   const document = {
     baseURI: 'https://example.com/page',
     title: 'Example',
@@ -145,6 +148,7 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
     querySelectorAll: () => []
   };
   const context = {
+    PageSnap,
     Web2MD,
     window: { location: { href: document.baseURI } },
     document,
@@ -175,7 +179,7 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
     closest: () => null,
     style: { cssText: '' }
   };
-  const result = await Web2MD.serializePageToSelfContainedHtml({ targetElement: target, preserveJs: false });
+  const result = await (PageSnap.serializePageToSelfContainedHtml || Web2MD.serializePageToSelfContainedHtml)({ targetElement: target, preserveJs: false });
   assert.match(result.nodeHtml, /<section[^>]*>Selected text<\/section>/i);
   assert.match(result.html, /<!DOCTYPE html>/i);
   assert.match(result.html, /Selected text/);

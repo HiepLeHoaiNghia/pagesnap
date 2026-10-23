@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup preview tab switching (Markdown / HTML Snapshot) and
+ * PageSnap popup preview tab switching (Markdown / HTML Snapshot) and
  * footer action button visibility per active tab.
  */
 import { appState } from './state.js';
@@ -17,17 +17,33 @@ const btnDownloadZip = document.getElementById('btn-download-zip');
 /**
  * Dispatch table for footer action button layout based on active tab
  */
+// plan-exempt — dynamic tab buttons for HTML and Markdown
 const TAB_LAYOUT_DISPATCH = {
   markdown: (gridEl) => {
-    if (btnCopy) btnCopy.style.display = 'block';
-    if (btnDownload) btnDownload.style.display = 'block';
+    if (btnCopy) {
+      btnCopy.style.display = 'block';
+      btnCopy.innerHTML = '📋 Copy Markdown';
+    }
+    if (btnDownload) {
+      btnDownload.style.display = 'block';
+      btnDownload.innerHTML = '💾 Download .MD';
+    }
     if (btnDownloadZip) btnDownloadZip.style.display = 'none';
     gridEl.style.gridTemplateColumns = '1fr 1fr';
   },
   html: (gridEl) => {
-    if (btnCopy) btnCopy.style.display = 'block';
-    if (btnDownload) btnDownload.style.display = 'block';
-    if (btnDownloadZip) btnDownloadZip.style.display = 'block';
+    if (btnCopy) {
+      btnCopy.style.display = 'block';
+      btnCopy.innerHTML = '📋 Copy HTML';
+    }
+    if (btnDownload) {
+      btnDownload.style.display = 'block';
+      btnDownload.innerHTML = '💾 Download .HTML';
+    }
+    if (btnDownloadZip) {
+      btnDownloadZip.style.display = 'block';
+      btnDownloadZip.innerHTML = '📦 ZIP Package';
+    }
     gridEl.style.gridTemplateColumns = '1fr 1fr 1fr';
   }
 };

@@ -1,13 +1,13 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD HTML Clone: builds a downloadable ZIP package from a serialized structured package.
+ * PageSnap HTML Snapshot: builds a downloadable ZIP package from a serialized structured package.
  */
 
 /**
- * Packages a structured serialization result (html/css/js/assets) into a ZIP file
+ * Packages a structured serialization result (html/css/assets) into a ZIP file
  * and triggers its download via the background script.
  */
-Web2MD.buildZipFromPackage = async function (pkg, apiCalls, filename) {
+PageSnap.buildZipFromPackage = Web2MD.buildZipFromPackage = async function (pkg, apiCalls, filename) {
   const zip = new JSZip();
   zip.file("index.html", pkg.html);
   if (pkg.css && pkg.css.trim().length > 0) {

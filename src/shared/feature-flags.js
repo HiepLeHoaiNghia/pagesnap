@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD Feature Flags (ES module — background + popup only).
+ * PageSnap Feature Flags (ES module — background + popup only).
  * Content scripts never read flags directly; the background
  * injector decides what gets injected based on these flags.
  */
@@ -21,7 +21,7 @@ export function getFlags() {
       });
     } catch (e) {
       // Storage access may fail if extension context is invalidated
-      console.warn('[Web2MD] Failed to read flags from chrome.storage:', e);
+      console.warn('[PageSnap] Failed to read flags from chrome.storage:', e);
       resolve({ ...FEATURE_DEFAULTS });
     }
   });

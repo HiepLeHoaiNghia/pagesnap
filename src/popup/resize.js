@@ -1,5 +1,6 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup window resize: restores saved popup size and wires the
+ * PageSnap popup window resize: restores saved popup size and wires the
  * drag-to-resize handle.
  */
 import { safeStorage } from './state.js';

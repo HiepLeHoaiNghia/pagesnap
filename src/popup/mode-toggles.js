@@ -1,14 +1,37 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup header toggles: Select Region.
+ * PageSnap popup header toggles: Full Page mode and Select Region.
  * Live-synced with the active tab's current state on load.
  */
 import { ensureInjected } from './inject.js';
-import { showError } from './extract.js';
+import { showError, processAndDisplayMarkdown } from './extract.js';
+import { appState, loadSettings, saveSettings } from './state.js';
 
 const btnToggleSelectRegion = document.getElementById('btn-toggle-select-region');
+const btnToggleRawMode = document.getElementById('btn-toggle-raw-mode');
+const checkRaw = document.getElementById('setting-raw');
 
 export function initModeToggles() {
+  // Sync Full Page toggle with saved settings
+  loadSettings().then((settings) => {
+    if (btnToggleRawMode) {
+      btnToggleRawMode.checked = !!settings.rawMode;
+    }
+  });
+
+  if (btnToggleRawMode) {
+    btnToggleRawMode.addEventListener('change', () => {
+      const enabled = btnToggleRawMode.checked;
+      if (checkRaw) checkRaw.checked = enabled;
+
+      saveSettings().then((newSettings) => {
+        if (appState.extractedData) {
+          processAndDisplayMarkdown(appState.extractedData, newSettings);
+        }
+      });
+    });
+  }
+
   // Query active tab's region selection state on popup load
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0) {

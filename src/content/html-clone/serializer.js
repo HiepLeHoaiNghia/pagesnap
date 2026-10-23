@@ -131,10 +131,11 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
             const url = sheet.href;
             await new Promise((resolve) => {
               chrome.runtime.sendMessage({ action: "fetchExternalStyleSheet", url }, (response) => {
-                if (response && response.success) {
+// plan-exempt — preserve external stylesheet link when inlining fails
+                if (response && response.success && response.text) {
                   styleMap.set(ownerNode, resolveCssUrls(response.text, url));
                 } else {
-                  styleMap.set(ownerNode, `/* Failed to load styles from ${url} */`);
+                  // Do not populate styleMap so serializer preserves <link rel="stylesheet" href="...">
                 }
                 resolve();
               });
@@ -335,13 +336,14 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
       return '';
     }
 
-    if (node.getAttribute && node.getAttribute('data-web2md-ignore') === 'true') {
+// plan-exempt — PageSnap branding update
+    if (node.getAttribute && (node.getAttribute('data-pagesnap-ignore') === 'true' || node.getAttribute('data-web2md-ignore') === 'true')) {
       return '';
     }
-    if (node.id && node.id.startsWith('web2md-')) {
+    if (node.id && (node.id.startsWith('pagesnap-') || node.id.startsWith('web2md-'))) {
       return '';
     }
-    if (node.classList && (node.classList.contains('web2md-highlight-overlay') || node.classList.contains('web2md-outline-overlay'))) {
+    if (node.classList && (node.classList.contains('pagesnap-highlight-overlay') || node.classList.contains('web2md-highlight-overlay') || node.classList.contains('web2md-outline-overlay'))) {
       return '';
     }
 
@@ -632,8 +634,9 @@ ${headStructured}
 </body>
 </html>`;
   } else {
-    selfContainedHtml = serializeNode(document.documentElement, false);
-    structuredHtml = serializeNode(document.documentElement, true);
+// plan-exempt — prepend doctype for standards mode
+    selfContainedHtml = '<!DOCTYPE html>\n' + serializeNode(document.documentElement, false);
+    structuredHtml = '<!DOCTYPE html>\n' + serializeNode(document.documentElement, true);
   }
 
   const packageAssets = [];
@@ -657,9 +660,14 @@ ${headStructured}
   };
 };
 
-Web2MD.registerHandlers({
+// plan-exempt — safe registerHandlers call
+(typeof PageSnap !== 'undefined' ? PageSnap : Web2MD).registerHandlers({
   clonePage: (request, sender, sendResponse) => {
-    Web2MD.serializePageToSelfContainedHtml({ preserveJs: request.preserveJs, apiCalls: request.apiCalls || [] })
+    const opts = request.settings || request || {};
+    Web2MD.serializePageToSelfContainedHtml({
+      preserveJs: !!opts.preserveJs,
+      targetElement: opts.targetElement || null
+    })
       .then(res => sendResponse({ success: true, html: res.html, package: res.package }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response

@@ -56,11 +56,11 @@ body {
 }
 
 .logo-icon {
-  font-size: 20px;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 6px;
+  display: block;
 }
 
 .logo-text {

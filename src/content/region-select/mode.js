@@ -1,8 +1,8 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD Region Selection Mode: hover/click element picking and context-menu entry point.
+ * PageSnap Region Selection Mode: hover/click element picking and context-menu entry point.
  */
-Web2MD.isRegionSelectionActive = false;
+PageSnap.isRegionSelectionActive = Web2MD.isRegionSelectionActive = false;
 let lastHoveredElement = null;
 let lastRightClickedElement = null;
 
@@ -13,12 +13,12 @@ document.addEventListener("contextmenu", (e) => {
 
 // Inject custom region CSS rules once
 (function injectRegionStyles() {
-  const id = "web2md-region-select-styles";
-  if (document.getElementById(id)) return;
+  const id = "pagesnap-region-select-styles";
+  if (document.getElementById(id) || document.getElementById("web2md-region-select-styles")) return;
   const style = document.createElement("style");
   style.id = id;
   style.textContent = `
-    .web2md-region-highlighted {
+    .pagesnap-region-highlighted, .web2md-region-highlighted {
       outline: 2px dashed #8b5cf6 !important;
       outline-offset: -2px !important;
       cursor: crosshair !important;

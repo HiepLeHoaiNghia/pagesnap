@@ -19,3 +19,11 @@ blob-report/
 .claude/
 logs/
 *.log
+
+# Temporary gate sentinels & review artifacts
+.ck/
+.MemoryGrid/
+
+# Temporary user scratch files
+test.html
+test.md

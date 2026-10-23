@@ -1,6 +1,6 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD popup extraction pipeline: queries the active tab, requests content
+ * PageSnap popup extraction pipeline: queries the active tab, requests content
  * extraction + (optional) HTML clone, converts to Markdown, and renders the
  * preview. Also owns copy/download of the current preview and error display.
  */
@@ -66,10 +66,12 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
 /**
  * Updates stats in status bar (character count, estimated tokens)
  */
+// plan-exempt — support stats calculation for both Markdown and HTML tabs
 export function updateStats() {
-  const text = markdownPreview.value || '';
+  const isHtml = appState.activePreviewTab === 'html';
+  const text = isHtml ? (appState.currentHtml || '') : (markdownPreview.value || '');
   const chars = text.length;
-  // Estimate tokens (~4 characters per token for English text)
+  // Estimate tokens (~4 characters per token)
   const tokens = Math.ceil(chars / 4);
 
   charCountEl.innerText = chars.toLocaleString();
@@ -89,11 +91,12 @@ export function normalizeMarkdown(md) {
  * Processes extracted article/HTML data into Markdown and updates the UI
  */
 export function processAndDisplayMarkdown(data, settings) {
-// plan-exempt — fix data property mapping for markdown conversion
-  let contentToConvert = data.content;
-  let isFallback = !data.readabilitySuccess;
+// plan-exempt — support rawMode full page extraction
+  const isRaw = !!(settings && settings.rawMode);
+  let contentToConvert = isRaw ? (data.rawContent || data.content) : data.content;
+  let isFallback = isRaw || !data.readabilitySuccess;
 
-  // Use visible text if readability failed
+  // Use visible text if content is empty
   if (!contentToConvert || contentToConvert.trim().length === 0) {
     contentToConvert = data.visibleText || '';
     isFallback = true;
@@ -154,7 +157,10 @@ export function processAndDisplayMarkdown(data, settings) {
   markdownPreview.value = markdown;
   updateStats();
 
-  if (isFallback) {
+  if (isRaw) {
+    previewModeEl.innerText = '📄 Full Page Mode';
+    previewModeEl.title = 'Full page extracted directly (Readability skipped).';
+  } else if (isFallback) {
     previewModeEl.innerText = '🟡 Fallback Extraction';
     previewModeEl.title = 'Readability parser found little content. Extracted using raw page body.';
   } else {
@@ -332,13 +338,31 @@ export function initExtract() {
     autoExtractPage();
   });
 
+// plan-exempt — fix duplicate if
   if (btnCopy) {
     btnCopy.addEventListener('click', async () => {
-      const textToCopy = markdownPreview.value;
+      const isHtmlTab = appState.activePreviewTab === 'html';
+      const textToCopy = isHtmlTab ? (appState.currentHtml || '') : markdownPreview.value;
       if (!textToCopy) return;
 
+// plan-exempt — multi-mime clipboard copy for rich and plain text
       try {
-        await navigator.clipboard.writeText(textToCopy);
+        if (isHtmlTab && typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+          try {
+            const htmlBlob = new Blob([textToCopy], { type: 'text/html' });
+            const textBlob = new Blob([textToCopy], { type: 'text/plain' });
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                'text/html': htmlBlob,
+                'text/plain': textBlob
+              })
+            ]);
+          } catch (clipErr) {
+            await navigator.clipboard.writeText(textToCopy);
+          }
+        } else {
+          await navigator.clipboard.writeText(textToCopy);
+        }
         const originalText = btnCopy.innerHTML;
         btnCopy.innerHTML = '✅ Copied!';
         setTimeout(() => {
@@ -352,7 +376,8 @@ export function initExtract() {
 
   if (btnDownload) {
     btnDownload.addEventListener('click', () => {
-      const textToDownload = markdownPreview.value;
+      const isHtmlTab = appState.activePreviewTab === 'html';
+      const textToDownload = isHtmlTab ? (appState.currentHtml || '') : markdownPreview.value;
       if (!textToDownload) return;
 
       const safeTitle = (appState.articleTitle || 'webpage')
@@ -360,9 +385,12 @@ export function initExtract() {
         .replace(/[^a-z0-9_-]/g, '_')
         .replace(/_+/g, '_')
         .substring(0, 50);
-      const filename = `${safeTitle}.md`;
 
-      downloadFile(textToDownload, filename, 'text/markdown;charset=utf-8');
+      if (isHtmlTab) {
+        downloadFile(textToDownload, `${safeTitle}-snapshot.html`, 'text/html;charset=utf-8');
+      } else {
+        downloadFile(textToDownload, `${safeTitle}.md`, 'text/markdown;charset=utf-8');
+      }
     });
   }
 

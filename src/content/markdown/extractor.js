@@ -1,8 +1,134 @@
-// plan-exempt — split developer features into pagereplica-extension approved by user
+// plan-exempt — PageSnap Smart Adapter for Backlog and Issue Trackers
 /**
- * Web2MD page content extraction: Readability-based extraction plus the
- * VFS (virtual file system) request bridge to the MAIN world scanner.
+ * PageSnap page content extraction: Mozilla Readability + Smart Issue Tracker Adapters.
  */
+
+/**
+ * Extracts structured ticket data for issue tracker pages (e.g. Backlog)
+ */
+PageSnap.extractSmartTicketContent = Web2MD.extractSmartTicketContent = function (doc, url = window.location.href) {
+  const isBacklogUrl = /backlog\.(com|jp|tool\.com)/i.test(url);
+  const backlogContainer = doc.querySelector('.ticket__inner, #issueArea, .ticket, #issue-view, .ticket__header');
+
+  if (isBacklogUrl || backlogContainer) {
+    // 1. Extract Ticket Key
+    let key = '';
+    const keyMatch = url.match(/\/view\/([A-Za-z0-9_-]+)/);
+    if (keyMatch) {
+      key = keyMatch[1];
+    } else {
+      const keyEl = doc.querySelector('.ticket__key-number, .ticket__key, #keyVal, [data-testid="issue-key"]');
+      if (keyEl) key = keyEl.textContent.trim();
+    }
+
+    // 2. Extract Summary / Title
+    let summary = '';
+    const summaryEl = doc.querySelector('.ticket__title-summary, .title-group__title, #summary, h2.ticket__title');
+    if (summaryEl) {
+      summary = summaryEl.textContent.trim();
+    } else {
+      summary = doc.title || '';
+    }
+
+    const fullTitle = key ? `[${key}] ${summary}` : summary;
+
+    // 3. Extract Properties
+    const props = [];
+    const statusEl = doc.querySelector('.status-tag, .ticket__status, [data-testid="status"]');
+    if (statusEl) props.push(['Status', statusEl.textContent.trim()]);
+
+    const priorityEl = doc.querySelector('.priority-tag, .ticket__priority, [data-testid="priority"]');
+    if (priorityEl) props.push(['Priority', priorityEl.textContent.trim()]);
+
+    const issueTypeEl = doc.querySelector('.ticket__issue-type, .issue-type-tag');
+    if (issueTypeEl) props.push(['Issue Type', issueTypeEl.textContent.trim()]);
+
+    const assigneeEl = doc.querySelector('.ticket__assignee, [data-testid="assignee"], .user-name');
+    if (assigneeEl) props.push(['Assignee', assigneeEl.textContent.trim()]);
+
+    const milestoneEl = doc.querySelector('.ticket__milestone, [data-testid="milestone"]');
+    if (milestoneEl) props.push(['Milestone', milestoneEl.textContent.trim()]);
+
+    const dueDateEl = doc.querySelector('.ticket__due-date, [data-testid="dueDate"]');
+    if (dueDateEl) props.push(['Due Date', dueDateEl.textContent.trim()]);
+
+    if (props.length === 0) {
+      const propItems = doc.querySelectorAll('.ticket__properties dl, .ticket-properties dl, #issue-properties dl');
+      propItems.forEach(dl => {
+        const dt = dl.querySelector('dt');
+        const dd = dl.querySelector('dd');
+        if (dt && dd) {
+          const k = dt.textContent.trim();
+          const v = dd.textContent.trim();
+          if (k && v) props.push([k, v]);
+        }
+      });
+    }
+
+    let propsTableHtml = '';
+    if (props.length > 0) {
+      const rows = props.map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${v}</td></tr>`).join('');
+      propsTableHtml = `<table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>\n\n`;
+    }
+
+    // 4. Extract Description
+    let descHtml = '';
+    const descEl = doc.querySelector('.ticket__description, .markdown-body, .ticket__body, #description, [data-testid="issue-description"]');
+    if (descEl) {
+      descHtml = descEl.innerHTML;
+    }
+
+// plan-exempt — subtasks table extraction
+    // 4.5. Extract Subtasks / Child Issues Table
+    let subtasksHtml = '';
+    const subtaskTable = doc.querySelector('.subtask-list, table.issue-table, [data-testid="subtasks"], .ticket__child-issues, #child-issues-area table');
+    if (subtaskTable) {
+      subtasksHtml = `<h2>Subtasks</h2>\n${subtaskTable.outerHTML}\n\n`;
+    }
+    // 5. Extract Comments
+    const commentNodes = doc.querySelectorAll('.ticket__comments .comment__item, .comment-list .comment, [data-testid="comment"]');
+    let commentsHtml = '';
+    if (commentNodes.length > 0) {
+      const commentsList = [];
+      commentNodes.forEach(cNode => {
+        const authorEl = cNode.querySelector('.comment__author, .user-name, [data-testid="author"]');
+        const dateEl = cNode.querySelector('.comment__date, time, .date, [data-testid="date"]');
+        const bodyEl = cNode.querySelector('.comment__body, .markdown-body, .comment-content');
+
+        const author = authorEl ? authorEl.textContent.trim() : 'Commenter';
+        const date = dateEl ? dateEl.textContent.trim() : '';
+        const body = bodyEl ? bodyEl.innerHTML : '';
+
+        if (body.trim().length > 0) {
+          commentsList.push(`<div><h3>${author} ${date ? `<em>(${date})</em>` : ''}</h3>${body}</div>`);
+        }
+      });
+
+      if (commentsList.length > 0) {
+        commentsHtml = `<h2>Comments (${commentsList.length})</h2>\n` + commentsList.join('\n<hr>\n');
+      }
+    }
+
+    if (descHtml || propsTableHtml) {
+      const structuredContent = `<div>
+<h1>${fullTitle}</h1>
+${propsTableHtml}
+<h2>Description</h2>
+<div>${descHtml || '<p><em>No description provided.</em></p>'}</div>
+${subtasksHtml}
+${commentsHtml}
+</div>`;
+
+      return {
+        title: fullTitle,
+        content: structuredContent,
+        siteName: 'Backlog'
+      };
+    }
+  }
+
+  return null;
+};
 
 /**
  * Handles extracting page content cleanly.
@@ -19,9 +145,31 @@ Web2MD.handleExtractContentRequest = function (sendResponse) {
 /**
  * Extracts clean article content using Mozilla Readability
  */
-Web2MD.extractPageContent = function () {
+PageSnap.extractPageContent = Web2MD.extractPageContent = function () {
   // Clone DOM to prevent affecting the active page
   const docClone = document.cloneNode(true);
+  const pageTitle = document.title || "Untitled Page";
+  const pageUrl = window.location.href;
+  const hasBody = document.body ? true : false;
+  const visibleTextLength = document.body ? document.body.innerText.trim().length : 0;
+
+  // Check Smart Adapters (e.g. Backlog, Jira)
+  const smartTicket = Web2MD.extractSmartTicketContent(docClone, pageUrl);
+  if (smartTicket) {
+    return {
+      title: smartTicket.title || pageTitle,
+      content: smartTicket.content,
+      rawContent: docClone.body ? docClone.body.innerHTML : "",
+      visibleText: null,
+      visibleTextLength: visibleTextLength,
+      url: pageUrl,
+      excerpt: "",
+      byline: "",
+      siteName: smartTicket.siteName || "Issue Tracker",
+      success: true,
+      readabilitySuccess: true
+    };
+  }
 
   try {
     Web2MD.preProcessDOMForConversion(docClone, document);
@@ -57,10 +205,7 @@ Web2MD.extractPageContent = function () {
     useRaw = true;
   }
 
-  const pageTitle = document.title || "Untitled Page";
-  const pageUrl = window.location.href;
-  const hasBody = document.body ? true : false;
-  const visibleTextLength = document.body ? document.body.innerText.trim().length : 0;
+// plan-exempt — remove duplicate declarations
 
   // Pre-extract visible form content for fallback (only if page is complex enough to need it)
   let visibleText = null;

@@ -1,11 +1,12 @@
+// plan-exempt — PageSnap branding update
 /**
- * Web2MD content settings loader (reads from chrome.storage.sync).
+ * PageSnap content settings loader (reads from chrome.storage.sync).
  */
 
 /**
  * Helper to fetch settings from chrome.storage
  */
-Web2MD.getSettings = function () {
+PageSnap.getSettings = Web2MD.getSettings = function () {
   return new Promise((resolve) => {
     chrome.storage.sync.get('settings', (data) => {
       const defaults = {

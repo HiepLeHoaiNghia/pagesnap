@@ -4,6 +4,7 @@
   "description": "Convert web pages to clean, AI-ready Markdown and standalone offline HTML snapshots with one click.",
   "type": "module",
   "scripts": {
+    "start": "./scripts/launch.sh",
     "test": "node tests/static-checks.mjs",
     "test:e2e": "node tests/e2e/e2e-smoke.mjs",
     "package": "node scripts/package.mjs",
