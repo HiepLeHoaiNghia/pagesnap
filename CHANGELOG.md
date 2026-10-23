@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v0.4.0...pagesnap-extension-v0.5.0) (2026-10-23)
+
+
+### Features
+
+* **pagesnap:** rebrand to PageSnap, clean snapshots, and adopt release blueprint ([e0e5db8](https://github.com/HiepLeHoaiNghia/pagesnap/commit/e0e5db87001cb11d5001c18e72796cfa7cf8e880))
+* **pagesnap:** rebrand to PageSnap, clean snapshots, and adopt release blueprint ([#7](https://github.com/HiepLeHoaiNghia/pagesnap/issues/7)) ([e0e5db8](https://github.com/HiepLeHoaiNghia/pagesnap/commit/e0e5db87001cb11d5001c18e72796cfa7cf8e880))
+
 ## [0.4.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v0.3.0...pagesnap-extension-v0.4.0) (2026-10-23)
 
 
