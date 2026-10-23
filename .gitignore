@@ -1,0 +1,21 @@
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Dependencies & Build artifacts
+node_modules/
+dist/
+build/
+*.zip
+*.crx
+
+# Temporary test profiles & reports
+tmp/
+test-results/
+playwright-report/
+blob-report/
+
+# Agent & Session logs
+.claude/
+logs/
+*.log

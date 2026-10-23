@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD Region Selection Mode: hover/click element picking and context-menu entry point.
  */
@@ -34,13 +35,6 @@ Web2MD.toggleRegionSelectionMode = function (forceValue) {
   Web2MD.isRegionSelectionActive = enabled;
 
   if (enabled) {
-    if (Web2MD.isVisualEditActive) {
-      Web2MD.toggleVisualEditMode(false);
-    }
-    if (Web2MD.isInspectActive) {
-      Web2MD.isInspectActive = false;
-      window.postMessage({ type: 'WEB2MD_TOGGLE_INSPECT', enabled: false }, '*');
-    }
 
     document.addEventListener("mouseover", handleRegionMouseOver, true);
     document.addEventListener("mouseout", handleRegionMouseOut, true);

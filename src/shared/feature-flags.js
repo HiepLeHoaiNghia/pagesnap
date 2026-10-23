@@ -1,17 +1,14 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD Feature Flags (ES module — background + popup only).
- * Content/main-world scripts never read flags directly; the background
+ * Content scripts never read flags directly; the background
  * injector decides what gets injected based on these flags.
  */
 
 export const FEATURE_DEFAULTS = {
   markdown: true,       // F1 Page → Markdown/HTML copy
   regionSelect: true,   // F2 Region selection copy + context menu
-  htmlClone: true,      // F3 Self-contained HTML / ZIP / Netlify deploy
-  apiMock: false,       // F4 API interception + mocking (patches fetch/XHR)
-  inspect: false,       // F5 Component inspector + mock editor
-  visualEdit: false,    // F6 Visual edit mode
-  projectDetect: false  // F7 VFS/React project detection
+  htmlClone: true       // F3 Clean self-contained HTML snapshot / ZIP
 };
 
 const STORAGE_KEY = 'featureFlags';
@@ -23,6 +20,8 @@ export function getFlags() {
         resolve({ ...FEATURE_DEFAULTS, ...(data && data[STORAGE_KEY]) });
       });
     } catch (e) {
+      // Storage access may fail if extension context is invalidated
+      console.warn('[Web2MD] Failed to read flags from chrome.storage:', e);
       resolve({ ...FEATURE_DEFAULTS });
     }
   });

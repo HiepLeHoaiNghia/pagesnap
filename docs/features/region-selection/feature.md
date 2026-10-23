@@ -6,11 +6,11 @@
 
 <p>
   <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/MVP-0.3.0-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/Feature-Region%20Selection-purple?style=flat-square" />
 </p>
 
-Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdown-html-extraction/feature.md) · [HTML Clone ZIP Netlify](../html-clone-zip-netlify/feature.md) · [Visual Edit](../visual-edit/feature.md) · [Component Inspector](../component-inspector/feature.md)
+Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdown-html-extraction/feature.md) · [HTML Clone Snapshot](../html-clone-zip-netlify/feature.md)
 
 ---
 
@@ -21,7 +21,7 @@ Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdow
 | **Scope**            | Popup toggle, context-menu region copy, hover highlight, expand/shrink selection, and scoped Markdown/HTML/ZIP export.                   |
 | **Default state**    | 🟢 `regionSelect: true` in `src/shared/feature-flags.js`.                                                                                |
 | **Selection source** | 🟢 Clicked element from selection mode or `lastRightClickedElement` from the `contextmenu` event.                                        |
-| **Main limits**      | 🟡 Browser live smoke is manual-pending; static checks committed pass 10/10. Cross-frame selection depends on the injected target frame. |
+| **Main limits**      | 🟢 Automated Playwright E2E tests pass 4/4 (`tests/e2e/e2e-smoke.mjs`); static checks pass 10/10. Cross-frame selection depends on the injected target frame. |
 
 ```mermaid
 flowchart TD
@@ -157,3 +157,4 @@ Region export starts from an element reference rather than a text `Range`. That 
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Refactored in v0.3.0: decoupled from visual-edit and inspect modes; verified live in Chromium E2E test suite (4/4 pass). |

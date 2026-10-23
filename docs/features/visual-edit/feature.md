@@ -5,14 +5,16 @@
 > Temporarily edits the live page DOM so users can adjust text, links, and images before extracting or cloning.
 
 <p>
-  <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/Feature-Visual%20Edit-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Deprecated%20%26%20Removed-red?style=flat-square" />
+  <img src="https://img.shields.io/badge/Version-Removed%20in%200.3.0-lightgrey?style=flat-square" />
 </p>
 
 Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdown-html-extraction/feature.md) · [Region Selection](../region-selection/feature.md) · [Component Inspector](../component-inspector/feature.md)
 
 ---
+> [!IMPORTANT]
+> **Deprecation Notice (v0.3.0):** This feature has been removed from `web2md-extension`. Editing text is directly supported in markdown after extraction, eliminating unnecessary DOM mutation on live sites.
+
 
 ## 🔍 1. Overview
 
@@ -152,3 +154,4 @@ React/Vue/Angular rerenders may restore component output from app state. Users s
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Deprecated and removed in v0.3.0; eliminated `visual-edit.js` and header toolbar toggle. |

@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD HTML Clone: builds a downloadable ZIP package from a serialized structured package.
  */
@@ -32,9 +33,6 @@ Web2MD.buildZipFromPackage = async function (pkg, apiCalls, filename) {
     });
   }
 
-  if (apiCalls && apiCalls.length > 0) {
-    zip.file("mock_apis.json", JSON.stringify(apiCalls, null, 2));
-  }
 
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const reader = new FileReader();

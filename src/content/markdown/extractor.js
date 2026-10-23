@@ -1,73 +1,25 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD page content extraction: Readability-based extraction plus the
  * VFS (virtual file system) request bridge to the MAIN world scanner.
  */
 
-// Global variable to hold extracted project files in the page context
-window.extractedProjectFiles = null;
-
-// Listen to postMessage from the page context script (VFS scan results)
-window.addEventListener('message', (event) => {
-  if (event.source === window && event.data) {
-    if (event.data.type === 'WEB2MD_VFS_EXTRACTED') {
-      window.extractedProjectFiles = event.data.files;
-      try {
-        chrome.runtime.sendMessage({
-          action: "registerProject",
-          projectFiles: event.data.files
-        });
-      } catch (e) {
-        // Ignore extension context invalidated errors
-      }
-    }
-  }
-});
-
 /**
- * Handles extracting page content asynchronously, asking the main world to scan VFS first.
+ * Handles extracting page content cleanly.
  */
 Web2MD.handleExtractContentRequest = function (sendResponse) {
-  let responded = false;
-
-  const onMainWorldMessage = (event) => {
-    if (event.source === window && event.data && event.data.type === 'WEB2MD_VFS_RESPONSE') {
-      if (responded) return;
-      responded = true;
-      window.removeEventListener('message', onMainWorldMessage);
-
-      try {
-        const result = Web2MD.extractPageContent(event.data.files);
-        sendResponse(result);
-      } catch (error) {
-        sendResponse({ success: false, error: error.message });
-      }
-    }
-  };
-
-  window.addEventListener('message', onMainWorldMessage);
-
-  // Post the message to trigger scanning in the main world
-  window.postMessage({ type: 'WEB2MD_REQUEST_VFS_SCAN' }, '*');
-
-  // Timeout in case main_world.js is not loaded or doesn't respond
-  setTimeout(() => {
-    if (responded) return;
-    responded = true;
-    window.removeEventListener('message', onMainWorldMessage);
-
-    try {
-      const result = Web2MD.extractPageContent(null);
-      sendResponse(result);
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
-    }
-  }, 500);
+  try {
+    const result = Web2MD.extractPageContent();
+    sendResponse(result);
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
 };
 
 /**
  * Extracts clean article content using Mozilla Readability
  */
-Web2MD.extractPageContent = function (projectFiles = null) {
+Web2MD.extractPageContent = function () {
   // Clone DOM to prevent affecting the active page
   const docClone = document.cloneNode(true);
 
@@ -131,8 +83,8 @@ Web2MD.extractPageContent = function (projectFiles = null) {
     byline: article ? (article.byline || "") : "",
     siteName: article ? (article.siteName || new URL(pageUrl).hostname) : new URL(pageUrl).hostname,
     success: hasBody,
-    readabilitySuccess: (article && !useRaw) ? true : false,
-    projectFiles: projectFiles || window.extractedProjectFiles || null
+// plan-exempt — fix projectFiles ReferenceError
+    readabilitySuccess: (article && !useRaw) ? true : false
   };
 };
 
