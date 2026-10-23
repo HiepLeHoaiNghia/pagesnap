@@ -1,10 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Web2MD — Page to Markdown",
-  "version": "0.2.0",
-  "description": "Convert any web page to clean, AI-ready Markdown with one click.",
-  "permissions": ["activeTab", "clipboardWrite", "storage", "scripting", "downloads", "contextMenus"],
-  "host_permissions": ["<all_urls>"],
+  "name": "PageSnap — Web to Markdown & HTML Snapshot",
+  "version": "0.3.0",
+  "description": "Convert web pages to clean, AI-ready Markdown and standalone offline HTML snapshots with one click.",
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "storage",
+    "scripting",
+    "downloads",
+    "contextMenus"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

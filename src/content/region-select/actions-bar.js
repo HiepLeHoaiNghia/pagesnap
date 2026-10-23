@@ -1,3 +1,4 @@
+// plan-exempt — remove vestigial getApiCallsFromMainWorld
 /**
  * Web2MD Region Selection actions bar: floating toolbar shown after picking an element.
  */
@@ -361,15 +362,12 @@ Web2MD.handleRegionAction = async function (element, action) {
       Web2MD.showToast("⚡ Region copied as Markdown!");
     }
     else if (action === "html") {
-      const apiCalls = await Web2MD.getApiCallsFromMainWorld();
-      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
+      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false, targetElement: element });
       await Web2MD.copyTextToClipboard(res.nodeHtml);
       Web2MD.showToast("⚡ Region HTML copied to clipboard!");
     }
     else if (action === "download-html") {
-      const apiCalls = await Web2MD.getApiCallsFromMainWorld();
-      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
-
+      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false, targetElement: element });
       const blob = new Blob([res.html], { type: 'text/html;charset=utf-8' });
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -389,10 +387,9 @@ Web2MD.handleRegionAction = async function (element, action) {
       }
 
       Web2MD.showToast("📦 Packaging region assets into ZIP...");
-      const apiCalls = await Web2MD.getApiCallsFromMainWorld();
-      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: true, apiCalls, targetElement: element });
+      const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false, targetElement: element });
 
-      await Web2MD.buildZipFromPackage(res.package, apiCalls, `${baseFilename}-region-package.zip`);
+      await Web2MD.buildZipFromPackage(res.package, null, `${baseFilename}-region-package.zip`);
     }
   } catch (error) {
     console.error("Region action failed:", error);

@@ -5,14 +5,17 @@
 > Provides an on-demand page overlay that identifies React/Vue/Angular/DOM elements and associates them with captured APIs for mock editing.
 
 <p>
-  <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/Feature-Component%20Inspector-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Spun%20Off%20to%20PageReplica-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/Version-Migrated%20in%200.3.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Repository-pagereplica--extension-purple?style=flat-square" />
 </p>
 
 Related: [README](../../../README.md) · [API Mocking](../api-mocking/feature.md) · [Region Selection](../region-selection/feature.md) · [Visual Edit](../visual-edit/feature.md) · [React VFS Project Detection](../react-vfs-project-detection/feature.md)
 
 ---
+> [!IMPORTANT]
+> **Migration Notice (v0.3.0):** This feature has been removed from `web2md-extension` and spun off into the dedicated developer repository **`pagereplica-extension`** (`/Users/hiepleh.n/p-source/pagereplica-extension`).
+
 
 ## 🔍 1. Overview
 
@@ -152,3 +155,4 @@ Production builds often minify component names or hide debug source data. The fa
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Spun off from Web2MD into dedicated repository `pagereplica-extension`. Removed inspector overlay and MAIN-world scripts from Web2MD. |

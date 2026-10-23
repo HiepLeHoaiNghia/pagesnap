@@ -3,11 +3,12 @@
  * flag, and the click handler that triggers region copy.
  */
 
-import { ACTIONS } from '../shared/constants.js';
+// plan-exempt — using APP_CONFIG single source of truth
+import { ACTIONS, APP_CONFIG } from '../shared/constants.js';
 import { ensureContentInjected } from './injector.js';
 
-const MENU_MD = 'web2md-region-md';
-const MENU_HTML = 'web2md-region-html';
+const MENU_MD = APP_CONFIG.MENU_MD_ID;
+const MENU_HTML = APP_CONFIG.MENU_HTML_ID;
 
 export async function syncContextMenus(flags) {
   await new Promise(resolve => chrome.contextMenus.removeAll(resolve));

@@ -5,14 +5,17 @@
 > Detects in-browser virtual file systems from globals, React Fiber trees, and shadow DOM, then exports project source as Markdown or ZIP.
 
 <p>
-  <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/Feature-Project%20Detection-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Spun%20Off%20to%20PageReplica-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/Version-Migrated%20in%200.3.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Repository-pagereplica--extension-purple?style=flat-square" />
 </p>
 
 Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdown-html-extraction/feature.md) · [HTML Clone ZIP Netlify](../html-clone-zip-netlify/feature.md) · [Component Inspector](../component-inspector/feature.md)
 
 ---
+> [!IMPORTANT]
+> **Migration Notice (v0.3.0):** This feature has been removed from `web2md-extension` and spun off into the dedicated developer repository **`pagereplica-extension`** (`/Users/hiepleh.n/p-source/pagereplica-extension`).
+
 
 ## 🔍 1. Overview
 
@@ -161,3 +164,4 @@ The scanner response is attached to `appState.extractedData` for the current pop
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Spun off from Web2MD into dedicated repository `pagereplica-extension`. Removed VFS scanner, project banner, and 500 ms scan delay from Web2MD extraction path. |

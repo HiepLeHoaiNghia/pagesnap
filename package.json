@@ -1,0 +1,25 @@
+{
+  "name": "pagesnap-extension",
+  "version": "0.3.0",
+  "description": "Convert web pages to clean, AI-ready Markdown and standalone offline HTML snapshots with one click.",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/static-checks.mjs",
+    "test:e2e": "node tests/e2e/e2e-smoke.mjs",
+    "package": "node scripts/package.mjs",
+    "release": "./scripts/release/full-release.sh"
+  },
+  "keywords": [
+    "pagesnap",
+    "markdown",
+    "html-snapshot",
+    "single-file",
+    "chrome-extension",
+    "readability",
+    "ai",
+    "obsidian",
+    "llm-context"
+  ],
+  "author": "PageSnap Contributors",
+  "license": "MIT"
+}
