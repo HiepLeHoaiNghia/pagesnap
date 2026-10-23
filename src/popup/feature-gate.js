@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD popup feature gating: hides/shows UI marked with data-feature="<flagName>"
  * and renders the Features toggle list inside the settings panel.
@@ -6,15 +7,8 @@ import { getFlags, setFlag } from '../shared/feature-flags.js';
 
 const FEATURE_LABELS = {
   regionSelect: 'Region selection',
-  htmlClone: 'HTML clone & ZIP',
-  apiMock: 'API mocking',
-  inspect: 'Inspect mode',
-  visualEdit: 'Visual edit',
-  projectDetect: 'Project detection'
+  htmlClone: 'HTML Snapshot & ZIP'
 };
-
-// Flags that inject scripts into pages and therefore need a "reload tab" hint.
-const INJECTS_INTO_PAGE = new Set(['apiMock', 'inspect']);
 
 /**
  * Hides/shows every element with a data-feature attribute based on the current flags.
@@ -27,7 +21,7 @@ export function applyFeatureGates(flags) {
 }
 
 /**
- * Renders one toggle row per (non-markdown) feature flag into #features-section.
+ * Renders one toggle row per feature flag into #features-section.
  */
 export function renderFeatureToggles(flags) {
   const container = document.getElementById('features-section');
@@ -58,13 +52,6 @@ export function renderFeatureToggles(flags) {
     label.appendChild(slider);
     label.appendChild(labelText);
     row.appendChild(label);
-
-    if (INJECTS_INTO_PAGE.has(name)) {
-      const hint = document.createElement('div');
-      hint.className = 'feature-toggle-hint';
-      hint.textContent = 'Injects scripts into pages — may affect some sites. Reload tab after changing.';
-      row.appendChild(hint);
-    }
 
     input.addEventListener('change', async () => {
       const newFlags = await setFlag(name, input.checked);

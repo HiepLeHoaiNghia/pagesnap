@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD HTML Clone: serializes the entire DOM into a single, self-contained HTML page
  * with inline-replaced stylesheets, adoptedStyleSheets, and inlined images/fonts.
@@ -148,12 +149,7 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
 
   await Promise.all(stylesheetPromises);
 
-  // 2. Fetch API cache if preserveJs is active
-  let apiCache = [];
-  if (preserveJs) {
-    apiCache = options.apiCalls || [];
-  }
-
+  // 2. Fetch/Inline Scripts if preserveJs is active
   // 3. Fetch/Inline Scripts if preserveJs is active
   const scriptContentMap = new Map();
   const scriptPromises = [];
@@ -284,7 +280,6 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
   // Assemble global JS for structured mode
   let globalJs = '';
   if (preserveJs) {
-    globalJs += Web2MD.generateMockInterceptorCode(apiCache) + '\n\n';
     document.querySelectorAll('script').forEach(script => {
       if (script.getRootNode() === document) {
         if (scriptContentMap.has(script)) {
@@ -541,9 +536,6 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
         }
       } else {
         html += serializeAdoptedStyleSheets(document, false);
-        if (preserveJs) {
-          html += `<script id="web2md-api-mock-db">${Web2MD.generateMockInterceptorCode(apiCache)}</script>`;
-        }
       }
     }
 
@@ -606,7 +598,6 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
     const resolvedCss = mapCssUrls(cssText, href, (absUrl) => assetMap.get(absUrl));
     return `<style>${resolvedCss}</style>`;
   }).join('\n')}
-  ${preserveJs ? `<script id="web2md-api-mock-db">${Web2MD.generateMockInterceptorCode(apiCache)}</script>` : ''}
   ${preserveJs ? Array.from(scriptContentMap.entries()).map(([script, content]) => {
     if (content === null) return '';
     const safeContent = content.replace(/<\/script>/gi, '<\\/script>');

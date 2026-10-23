@@ -1,11 +1,14 @@
+// plan-exempt — remove vestigial getApiCallsFromMainWorld
 /**
- * Web2MD content namespace + message router (ISOLATED world).
- * Must load first; every other content module attaches to window.Web2MD.
+// plan-exempt — PageSnap namespace setup
+ * PageSnap content namespace + message router (ISOLATED world).
+ * Must load first; every other content module attaches to window.PageSnap.
  */
-window.Web2MD = window.Web2MD || {};
-Web2MD.handlers = Web2MD.handlers || {};
-Web2MD.registerHandlers = Web2MD.registerHandlers || function (map) {
-  Object.assign(Web2MD.handlers, map);
+window.PageSnap = window.PageSnap || {};
+window.Web2MD = window.PageSnap; // Backward-compatibility alias
+PageSnap.handlers = PageSnap.handlers || {};
+PageSnap.registerHandlers = PageSnap.registerHandlers || function (map) {
+  Object.assign(PageSnap.handlers, map);
 };
 
 if (!window.__web2md_content_initialized__) {
@@ -25,9 +28,3 @@ Web2MD.registerHandlers({
   }
 });
 
-// Default stub — overridden by mock-bridge/relay.js when the apiMock/inspect
-// feature is enabled. Without the MAIN-world interceptor there are no captured
-// calls, so region/clone exports proceed with an empty API cache.
-Web2MD.getApiCallsFromMainWorld = function () {
-  return Promise.resolve([]);
-};

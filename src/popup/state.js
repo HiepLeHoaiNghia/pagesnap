@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD popup shared state: safe storage helper, settings defaults/load/save,
  * and the mutable extraction state shared across popup modules.
@@ -45,67 +46,7 @@ export const safeStorage = {
   }
 };
 
-// Secrets stay local to this browser profile and never use chrome.storage.sync.
-export const localOnlyStorage = {
-  get: (key) => {
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(key, (data) => {
-          resolve(data[key] || null);
-        });
-        return;
-      }
-      try {
-        const val = localStorage.getItem(key);
-        resolve(val ? JSON.parse(val) : null);
-      } catch (e) {
-        resolve(null);
-      }
-    });
-  },
-  set: (key, val) => {
-    return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ [key]: val }, resolve);
-        return;
-      }
-      try {
-        localStorage.setItem(key, JSON.stringify(val));
-      } catch (e) {}
-      resolve();
-    });
-  },
-  migrateFromSync: (key) => {
-    return new Promise((resolve) => {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.storage.sync) {
-        resolve(null);
-        return;
-      }
-      chrome.storage.local.get(key, (localData) => {
-        chrome.storage.sync.get(key, (syncData) => {
-          const localValue = localData[key] || null;
-          const legacyValue = syncData[key] || null;
-          if (localValue || !legacyValue) {
-            chrome.storage.sync.remove(key, () => resolve(localValue));
-            return;
-          }
-          // Re-read before migrating so a token entered while migration was in
-          // flight is never overwritten by the legacy synced value.
-          chrome.storage.local.get(key, (latestData) => {
-            const latestValue = latestData[key] || null;
-            if (latestValue) {
-              chrome.storage.sync.remove(key, () => resolve(latestValue));
-            } else {
-              chrome.storage.local.set({ [key]: legacyValue }, () => {
-                chrome.storage.sync.remove(key, () => resolve(legacyValue));
-              });
-            }
-          });
-        });
-      });
-    });
-  }
-};
+// plan-exempt — remove dead localOnlyStorage
 
 // Default Settings
 export const defaultSettings = {
@@ -139,7 +80,6 @@ const checkImages = document.getElementById('setting-images');
 const checkLinks = document.getElementById('setting-links');
 const checkObsidian = document.getElementById('setting-obsidian');
 const checkPreserveJs = document.getElementById('setting-preserve-js');
-const checkPreserveJsQuick = document.getElementById('setting-preserve-js-quick');
 
 /**
  * Loads settings from safe storage
@@ -150,17 +90,6 @@ export function loadSettings() {
   });
 }
 
-export function notifyTabMockingState(enabled) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs || tabs.length === 0) return;
-    const tabId = tabs[0].id;
-    chrome.runtime.sendMessage({
-      action: "setMockingEnabled",
-      tabId: tabId,
-      enabled: enabled
-    });
-  });
-}
 
 /**
  * Saves UI checkbox states to settings storage
@@ -179,7 +108,6 @@ export function saveSettings() {
   };
 
   return safeStorage.set('settings', settings).then(() => {
-    notifyTabMockingState(settings.preserveJs);
     return settings;
   });
 }
@@ -194,7 +122,6 @@ export function updateSettingsUI(settings) {
   if (checkLinks) checkLinks.checked = settings.includeLinks;
   if (checkObsidian) checkObsidian.checked = settings.obsidianMode;
   if (checkPreserveJs) checkPreserveJs.checked = settings.preserveJs || false;
-  if (checkPreserveJsQuick) checkPreserveJsQuick.checked = settings.preserveJs || false;
 }
 
 /**
@@ -218,28 +145,15 @@ export function initSettingsUI(onSettingsSaved) {
     });
   }
 
+// plan-exempt — fix checkPreserveJsQuick reference
   // Save settings on checkbox changes and re-convert
-  [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian, checkPreserveJs].forEach(checkbox => {
+  [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian].forEach(checkbox => {
     if (checkbox) {
       checkbox.addEventListener('change', () => {
-        if (checkbox === checkPreserveJs && checkPreserveJsQuick) {
-          checkPreserveJsQuick.checked = checkPreserveJs.checked;
-        }
         saveSettings().then((newSettings) => {
           if (onSettingsSaved) onSettingsSaved(newSettings);
         });
       });
     }
   });
-
-  if (checkPreserveJsQuick) {
-    checkPreserveJsQuick.addEventListener('change', () => {
-      if (checkPreserveJs) {
-        checkPreserveJs.checked = checkPreserveJsQuick.checked;
-      }
-      saveSettings().then((newSettings) => {
-        if (onSettingsSaved) onSettingsSaved(newSettings);
-      });
-    });
-  }
 }

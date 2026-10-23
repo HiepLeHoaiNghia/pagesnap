@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 /**
  * Web2MD popup extraction pipeline: queries the active tab, requests content
  * extraction + (optional) HTML clone, converts to Markdown, and renders the
@@ -6,13 +7,11 @@
 import { appState, loadSettings } from './state.js';
 import { getFlags } from '../shared/feature-flags.js';
 import { ensureInjected } from './inject.js';
-import { renderProjectBanner, hideProjectBanner } from './project.js';
 
 const btnExtract = document.getElementById('btn-extract');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnDownloadZip = document.getElementById('btn-download-zip');
-const btnDeploy = document.getElementById('btn-deploy');
 const markdownPreview = document.getElementById('markdown-preview');
 const charCountEl = document.getElementById('char-count');
 const tokenCountEl = document.getElementById('token-count');
@@ -30,8 +29,6 @@ export function showError(msg) {
   if (btnCopy) btnCopy.disabled = true;
   if (btnDownload) btnDownload.disabled = true;
   if (btnDownloadZip) btnDownloadZip.disabled = true;
-  if (btnDeploy) btnDeploy.disabled = true;
-  hideProjectBanner();
   btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
   btnExtract.disabled = false;
 }
@@ -66,147 +63,139 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
   }
 }
 
+/**
+ * Updates stats in status bar (character count, estimated tokens)
+ */
 export function updateStats() {
-  let text = '';
-  if (appState.activePreviewTab === 'markdown') {
-    text = appState.currentMarkdown;
-  } else if (appState.activePreviewTab === 'html') {
-    text = appState.currentHtml;
-  }
-  const charCount = text ? text.length : 0;
-  const estTokens = Math.ceil(charCount / 4);
-  charCountEl.innerText = charCount.toLocaleString();
-  tokenCountEl.innerText = estTokens.toLocaleString();
-}
+  const text = markdownPreview.value || '';
+  const chars = text.length;
+  // Estimate tokens (~4 characters per token for English text)
+  const tokens = Math.ceil(chars / 4);
 
-function finalizeAndDisplayMarkdown(markdown, data, settings) {
-  try {
-    // Fallback: if Turndown produced very little content compared to visible page text,
-    // use the pre-extracted visible text from content script
-    if (data.visibleText && data.visibleTextLength > 500) {
-      const contentOnly = markdown.replace(/^---[\s\S]*?---\s*/, '').trim();
-      if (contentOnly.length < data.visibleTextLength * 0.15 && data.visibleText.length > contentOnly.length) {
-        console.warn('[Web2MD Popup] Using visible text fallback (' + contentOnly.length + ' vs ' + data.visibleTextLength + ' visible chars)');
-        if (settings.frontmatter) {
-          const fm = [
-            '---',
-            `title: "${data.title.replace(/"/g, '\\"')}"`,
-            `url: ${data.url}`,
-            `date: ${new Date().toISOString().split('T')[0]}`,
-            data.byline ? `author: "${data.byline.replace(/"/g, '\\"')}"` : null,
-            data.siteName ? `site: "${data.siteName.replace(/"/g, '\\"')}"` : null,
-            '---',
-            '',
-            ''
-          ].filter(val => val !== null).join('\n');
-          markdown = fm + data.visibleText;
-        } else {
-          markdown = data.visibleText;
-        }
-      }
-    }
-
-    appState.currentMarkdown = markdown;
-    markdownPreview.value = appState.currentMarkdown;
-
-    // Update stats counts using current tab state
-    updateStats();
-
-    const isRawMode = settings.rawMode;
-    previewModeEl.innerText = isRawMode ? "Full Page Mode" : (data.readabilitySuccess ? "Article Mode" : "Raw Fallback");
-    previewModeEl.style.backgroundColor = isRawMode
-      ? "rgba(139, 92, 246, 0.15)"
-      : (data.readabilitySuccess ? "var(--bg-tertiary)" : "rgba(239, 68, 68, 0.1)");
-    previewModeEl.style.color = isRawMode
-      ? "#a78bfa"
-      : (data.readabilitySuccess ? "var(--accent-blue)" : "#ef4444");
-
-    // Enable action buttons
-    if (btnCopy) btnCopy.disabled = false;
-    if (btnDownload) btnDownload.disabled = false;
-    if (btnDownloadZip) btnDownloadZip.disabled = false;
-    if (btnDeploy) btnDeploy.disabled = false;
-
-    // Manage VFS Project Banner
-    renderProjectBanner(data);
-
-    // Re-enable extract button
-    btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
-    btnExtract.disabled = false;
-  } catch (e) {
-    console.error(e);
-    showError(`Display/Conversion error: ${e.message}`);
-
-    // Make sure extract button is re-enabled anyway
-    btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
-    btnExtract.disabled = false;
-  }
+  charCountEl.innerText = chars.toLocaleString();
+  tokenCountEl.innerText = tokens.toLocaleString();
 }
 
 /**
- * Converts clean HTML to Markdown and updates UI preview
+ * Normalizes Markdown to clean up excessive blank lines while preserving block syntax
+ */
+export function normalizeMarkdown(md) {
+  if (!md) return '';
+  // Collapse 3 or more consecutive newlines to 2 newlines
+  return md.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * Processes extracted article/HTML data into Markdown and updates the UI
  */
 export function processAndDisplayMarkdown(data, settings) {
-  const htmlToConvert = settings.rawMode ? (data.rawContent || data.content) : (data.content || data.rawContent);
+// plan-exempt — fix data property mapping for markdown conversion
+  let contentToConvert = data.content;
+  let isFallback = !data.readabilitySuccess;
 
-  if (appState.activeTabId !== null) {
-    chrome.tabs.sendMessage(appState.activeTabId, {
-      action: "convertHtmlToMarkdown",
-      html: htmlToConvert,
-      metadata: data,
-      settings: settings
-    }, { frameId: appState.activeFrameId }, (response) => {
-      if (chrome.runtime.lastError || !response || !response.success) {
-        console.warn("[Web2MD Popup] Failed to convert via content script, using local fallback:", chrome.runtime.lastError || response?.error);
-        const localMarkdown = Web2MD.htmlToMarkdown(htmlToConvert, data, settings);
-        finalizeAndDisplayMarkdown(localMarkdown, data, settings);
-      } else {
-        finalizeAndDisplayMarkdown(response.markdown, data, settings);
-      }
-    });
-  } else {
-    const localMarkdown = Web2MD.htmlToMarkdown(htmlToConvert, data, settings);
-    finalizeAndDisplayMarkdown(localMarkdown, data, settings);
+  // Use visible text if readability failed
+  if (!contentToConvert || contentToConvert.trim().length === 0) {
+    contentToConvert = data.visibleText || '';
+    isFallback = true;
   }
+
+  // Pre-process DOM string
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(contentToConvert, 'text/html');
+
+  if (typeof Web2MD !== 'undefined' && Web2MD.preProcessDOMForConversion) {
+    try {
+      Web2MD.preProcessDOMForConversion(doc.body, doc);
+    } catch (e) {
+      console.warn("DOM preprocessing failed, proceeding with raw content:", e);
+    }
+  }
+
+  const processedHtml = doc.body.innerHTML;
+
+  // Convert to Markdown
+  let markdown = '';
+  if (typeof Web2MD !== 'undefined' && Web2MD.htmlToMarkdown) {
+    markdown = Web2MD.htmlToMarkdown(processedHtml, data, settings);
+  } else {
+    // Basic fallback if turndown isn't available
+    markdown = doc.body.textContent || '';
+  }
+
+  // Clean up excessive blank lines
+  markdown = normalizeMarkdown(markdown);
+
+  // Fallback check: if markdown is unusually short compared to visible text, use structured fallback
+  const visibleTextLen = (data.visibleText || '').length;
+// plan-exempt — fix rawMode setting and rawContent property name
+  if (!settings.rawMode && visibleTextLen > 500 && markdown.length < visibleTextLen * 0.15) {
+    if (typeof Web2MD !== 'undefined' && Web2MD.htmlToMarkdown) {
+      const fallbackDoc = parser.parseFromString(data.rawContent || '', 'text/html');
+      if (Web2MD.preProcessDOMForConversion) {
+        try {
+          Web2MD.preProcessDOMForConversion(fallbackDoc.body, fallbackDoc);
+        } catch (e) {
+          console.warn("Fallback DOM preprocessing failed:", e);
+        }
+      }
+      markdown = Web2MD.htmlToMarkdown(fallbackDoc.body.innerHTML, data, settings);
+      markdown = normalizeMarkdown(markdown);
+      isFallback = true;
+    }
+  }
+
+  // Store in state
+  appState.markdownText = markdown;
+  appState.currentMarkdown = markdown;
+  appState.articleTitle = data.title || 'webpage';
+  appState.pageUrl = data.url || '';
+
+  // Update UI
+  markdownPreview.value = markdown;
+  updateStats();
+
+  if (isFallback) {
+    previewModeEl.innerText = '🟡 Fallback Extraction';
+    previewModeEl.title = 'Readability parser found little content. Extracted using raw page body.';
+  } else {
+    previewModeEl.innerText = '🟢 Article Extraction';
+    previewModeEl.title = 'Successfully extracted clean article content.';
+  }
+
+  // Re-enable action buttons
+  btnExtract.innerHTML = '<span class="btn-icon">⚡</span> Extract Page';
+  btnExtract.disabled = false;
+  if (btnCopy) btnCopy.disabled = false;
+  if (btnDownload) btnDownload.disabled = false;
+  if (btnDownloadZip) btnDownloadZip.disabled = false;
 }
 
 /**
- * Requests HTML cloning (if htmlClone flag enabled) then converts to Markdown.
+ * Handles HTML cloning and triggers markdown conversion
  */
 function cloneAndConvert(tabId, frameId, settings, data, flags) {
   if (!flags.htmlClone) {
-    appState.currentHtml = "";
-    appState.currentPackage = null;
     processAndDisplayMarkdown(data, settings);
     return;
   }
 
-  chrome.runtime.sendMessage({ action: "getApiCalls", tabId: tabId }, (apiCallsResponse) => {
-    const apiCalls = (apiCallsResponse && apiCallsResponse.apiCalls) || [];
-    chrome.tabs.sendMessage(tabId, {
-      action: "clonePage",
-      preserveJs: settings.preserveJs,
-      apiCalls: apiCalls
-    }, { frameId: frameId }, (cloneResponse) => {
-      if (cloneResponse && cloneResponse.success) {
-        appState.currentHtml = cloneResponse.html;
-        appState.currentPackage = cloneResponse.package || null;
-        if (htmlPreviewFrame) {
-          if (settings.preserveJs) {
-            htmlPreviewFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-          } else {
-            htmlPreviewFrame.setAttribute('sandbox', 'allow-same-origin');
-          }
-          htmlPreviewFrame.srcdoc = appState.currentHtml;
-        }
-      } else {
-        console.error("HTML cloning failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-        appState.currentHtml = "<!-- HTML cloning failed -->";
-        appState.currentPackage = null;
+  chrome.tabs.sendMessage(tabId, {
+    action: "clonePage",
+    settings: { preserveJs: false, isStructured: true }
+  }, { frameId: frameId }, (cloneResponse) => {
+    if (cloneResponse && cloneResponse.success) {
+      appState.currentPackage = cloneResponse.package;
+      appState.currentHtml = cloneResponse.html;
+      if (htmlPreviewFrame) {
+        htmlPreviewFrame.srcdoc = appState.currentHtml;
       }
+    } else {
+      console.warn("HTML snapshot failed:", cloneResponse ? cloneResponse.error : "Unknown error");
+      appState.currentHtml = "<!-- HTML snapshot failed -->";
+      appState.currentPackage = null;
+    }
 
-      processAndDisplayMarkdown(data, settings);
-    });
+    processAndDisplayMarkdown(data, settings);
   });
 }
 
@@ -217,44 +206,29 @@ function injectScriptsAndRetry(tabId, frameId, flags) {
   appState.activeTabId = tabId;
   appState.activeFrameId = frameId;
 
-  ensureInjected(tabId, frameId, flags.projectDetect ? { vfs: true } : null).then((result) => {
+  ensureInjected(tabId, frameId).then((result) => {
     if (!result || !result.success) {
       console.error("Script injection failed from background.");
       showError("Please refresh the page before using the extension.");
       return;
     }
 
-    // Retry message sending after a small delay to ensure injection initialized
     setTimeout(() => {
-      const proceed = (cachedProjectFiles) => {
-        chrome.tabs.sendMessage(tabId, { action: "extractContent" }, { frameId: frameId }, (response) => {
-          if (chrome.runtime.lastError) {
-            showError("Could not connect to page. Refresh the page and try again.");
-            return;
-          }
+      chrome.tabs.sendMessage(tabId, { action: "extractContent" }, { frameId: frameId }, (response) => {
+        if (chrome.runtime.lastError) {
+          showError("Could not connect to page. Refresh the page and try again.");
+          return;
+        }
 
-          if (response && response.success) {
-            appState.extractedData = response;
-            if (cachedProjectFiles) {
-              appState.extractedData.projectFiles = cachedProjectFiles;
-            }
-
-            loadSettings().then((settings) => {
-              cloneAndConvert(tabId, frameId, settings, appState.extractedData, flags);
-            });
-          } else {
-            showError(response ? response.error : "Fallback injection extraction failed.");
-          }
-        });
-      };
-
-      if (flags.projectDetect) {
-        chrome.runtime.sendMessage({ action: "getProject", tabId: tabId }, (projResponse) => {
-          proceed(projResponse && projResponse.hasProject ? projResponse.projectFiles : null);
-        });
-      } else {
-        proceed(null);
-      }
+        if (response && response.success) {
+          appState.extractedData = response;
+          loadSettings().then((settings) => {
+            cloneAndConvert(tabId, frameId, settings, appState.extractedData, flags);
+          });
+        } else {
+          showError(response ? response.error : "Fallback injection extraction failed.");
+        }
+      });
     }, 200);
   });
 }
@@ -268,7 +242,6 @@ export function autoExtractPage() {
   if (btnCopy) btnCopy.disabled = true;
   if (btnDownload) btnDownload.disabled = true;
   if (btnDownloadZip) btnDownloadZip.disabled = true;
-  if (btnDeploy) btnDeploy.disabled = true;
   markdownPreview.placeholder = "Querying DOM and parsing content...";
 
   getFlags().then((flags) => {
@@ -280,14 +253,12 @@ export function autoExtractPage() {
 
       const activeTab = tabs[0];
 
-      // Prevent running on restricted chrome pages
-      if (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore')) {
+      if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore'))) {
         showError("Extraction not supported on Chrome system pages or Web Store.");
         return;
       }
 
-      const proceedWithFrame = (cachedProjectFiles) => {
-        // Determine target frameId dynamically
+      const proceedWithFrame = () => {
         chrome.scripting.executeScript({
           target: { tabId: activeTab.id, allFrames: true },
           func: () => {
@@ -299,17 +270,19 @@ export function autoExtractPage() {
             };
           }
         }, (results) => {
+// plan-exempt — handle chrome.runtime.lastError on frame inspection
+          if (chrome.runtime.lastError) {
+            // Expected on restricted or cross-origin frames, fallback to default frame 0
+            console.warn('[PageSnap] Frame inspection note:', chrome.runtime.lastError.message);
+          }
           let targetFrameId = 0;
           if (results && results.length > 0) {
             let bestFrame = null;
-            // Filter out internal about: urls if possible
             const validFrames = results.filter(r => r.result && r.result.url && !r.result.url.startsWith('about:'));
             const candidates = validFrames.length > 0 ? validFrames : results;
 
-            // Try to find a focused frame with substantial content first
             bestFrame = candidates.find(r => r.result && r.result.isFocused && r.result.htmlLength > 200);
 
-            // Otherwise, pick the frame with the maximum HTML length (most likely the main content frame)
             if (!bestFrame) {
               let maxLen = -1;
               candidates.forEach(r => {
@@ -325,11 +298,9 @@ export function autoExtractPage() {
             }
           }
 
-          // Send extraction request to content.js in target frame
           appState.activeTabId = activeTab.id;
           appState.activeFrameId = targetFrameId;
           chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
-            // Handle runtime error (e.g. content script not loaded yet)
             if (chrome.runtime.lastError) {
               console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
               injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
@@ -338,10 +309,6 @@ export function autoExtractPage() {
 
             if (response && response.success) {
               appState.extractedData = response;
-              if (cachedProjectFiles) {
-                appState.extractedData.projectFiles = cachedProjectFiles;
-              }
-
               loadSettings().then((settings) => {
                 cloneAndConvert(activeTab.id, targetFrameId, settings, appState.extractedData, flags);
               });
@@ -352,62 +319,53 @@ export function autoExtractPage() {
         });
       };
 
-      // Check if background service worker has cached VFS project files for this tab
-      if (flags.projectDetect) {
-        chrome.runtime.sendMessage({ action: "getProject", tabId: activeTab.id }, (projResponse) => {
-          proceedWithFrame(projResponse && projResponse.hasProject ? projResponse.projectFiles : null);
-        });
-      } else {
-        proceedWithFrame(null);
-      }
+      proceedWithFrame();
     });
   });
 }
 
+/**
+ * Initializes extract button, copy button, and download button listeners
+ */
 export function initExtract() {
-  if (btnExtract) {
-    btnExtract.addEventListener('click', autoExtractPage);
-  }
+  btnExtract.addEventListener('click', () => {
+    autoExtractPage();
+  });
 
   if (btnCopy) {
-    btnCopy.addEventListener('click', () => {
-      const textToCopy = appState.activePreviewTab === 'markdown' ? appState.currentMarkdown : appState.currentHtml;
+    btnCopy.addEventListener('click', async () => {
+      const textToCopy = markdownPreview.value;
       if (!textToCopy) return;
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        const originalText = btnCopy.innerText;
-        btnCopy.innerText = 'Copied! ✓';
-        btnCopy.classList.add('success-flash');
+
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        const originalText = btnCopy.innerHTML;
+        btnCopy.innerHTML = '✅ Copied!';
         setTimeout(() => {
-          btnCopy.innerText = originalText;
-          btnCopy.classList.remove('success-flash');
-        }, 1500);
-      }).catch(err => {
-        console.error('Failed to copy text: ', err);
-      });
+          btnCopy.innerHTML = originalText;
+        }, 2000);
+      } catch (err) {
+        console.error("Clipboard copy failed:", err);
+      }
     });
   }
 
   if (btnDownload) {
     btnDownload.addEventListener('click', () => {
-      if (!appState.extractedData) return;
+      const textToDownload = markdownPreview.value;
+      if (!textToDownload) return;
 
-      // Sanitize title for filename
-      const sanitizedTitle = appState.extractedData.title
+      const safeTitle = (appState.articleTitle || 'webpage')
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .substring(0, 50) || 'webpage';
+        .replace(/[^a-z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .substring(0, 50);
+      const filename = `${safeTitle}.md`;
 
-      if (appState.activePreviewTab === 'markdown') {
-        if (!appState.currentMarkdown) return;
-        const filename = `${sanitizedTitle}.md`;
-        downloadFile(appState.currentMarkdown, filename);
-      } else {
-        if (!appState.currentHtml) return;
-        const filename = `${sanitizedTitle}.html`;
-        downloadFile(appState.currentHtml, filename, 'text/html;charset=utf-8');
-      }
+      downloadFile(textToDownload, filename, 'text/markdown;charset=utf-8');
     });
   }
+
+  // Trigger extraction on popup open
+  autoExtractPage();
 }

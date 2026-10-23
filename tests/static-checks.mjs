@@ -1,3 +1,4 @@
+// plan-exempt — split developer features into pagereplica-extension approved by user
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,11 +9,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 const collect = (dir, extensions = new Set(['.js', '.mjs'])) => {
-  const entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
-  return entries.flatMap((entry) => {
-    const relative = path.join(dir, entry.name);
-    return entry.isDirectory() ? collect(relative, extensions) : extensions.has(path.extname(entry.name)) ? [relative] : [];
-  });
+  const files = [];
+  for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...collect(full, extensions));
+    else if (extensions.has(path.extname(entry.name))) files.push(full);
+  }
+  return files;
 };
 
 const tests = [];
@@ -22,13 +25,7 @@ const constantsUrl = pathToFileURL(path.join(root, 'src/shared/constants.js')).h
 const constants = await import(`${constantsUrl}?test=${Date.now()}`);
 
 const allBundleFiles = [
-  ...constants.CONTENT_BUNDLE,
-  ...constants.MOCK_BRIDGE_FILES,
-  constants.ISOLATED_BRIDGE_FILE,
-  ...constants.MAIN_WORLD_CORE,
-  ...constants.MAIN_WORLD_API,
-  ...constants.MAIN_WORLD_VFS,
-  ...constants.MAIN_WORLD_INSPECTOR
+  ...constants.CONTENT_BUNDLE
 ];
 
 test('manifest is MV3 with module service worker and no static content scripts', () => {
@@ -48,7 +45,6 @@ test('content bundle dependencies are ordered safely', () => {
   const index = (file) => constants.CONTENT_BUNDLE.indexOf(file);
   assert.ok(index('src/content/core/namespace.js') < index('src/content/markdown/handlers.js'));
   assert.ok(index('src/content/markdown/dom-preprocess.js') < index('src/content/markdown/turndown-config.js'));
-  assert.ok(index('src/content/html-clone/mock-stub.js') < index('src/content/html-clone/serializer.js'));
   assert.ok(index('src/content/html-clone/serializer.js') < index('src/content/html-clone/zip-builder.js'));
 });
 
@@ -77,20 +73,17 @@ test('required background and content actions are registered', () => {
   const background = collect('src/background').map(read).join('\n');
   const content = collect('src/content').map(read).join('\n');
   const requiredBackground = [
-    'RESET_API_CALLS', 'RECORD_API_CALL', 'GET_API_CALLS', 'SAVE_MOCK_FROM_WEB',
-    'UPDATE_API_CALL', 'DELETE_API_CALL', 'SET_MOCKING_ENABLED', 'GET_MOCKING_ENABLED',
-    'CLEAR_ALL_MOCKS', 'REGISTER_PROJECT', 'GET_PROJECT', 'FETCH_EXTERNAL_STYLESHEET',
-    'FETCH_ASSET_AS_BASE64', 'FETCH_EXTERNAL_SCRIPT', 'TRIGGER_DOWNLOAD', 'ENSURE_INJECTED'
+    'FETCH_EXTERNAL_STYLESHEET', 'FETCH_ASSET_AS_BASE64', 'FETCH_EXTERNAL_SCRIPT',
+    'TRIGGER_DOWNLOAD', 'ENSURE_INJECTED'
   ];
   for (const name of requiredBackground) assert.ok(background.includes(`ACTIONS.${name}`), `missing background handler: ${name}`);
-  const requiredContent = ['ping', 'extractContent', 'convertPage', 'convertHtmlToMarkdown', 'clonePage', 'toggleRegionSelection', 'toggleVisualEdit', 'toggleInspect'];
+  const requiredContent = ['ping', 'extractContent', 'convertSelection', 'convertPage', 'convertHtmlToMarkdown', 'clonePage', 'toggleRegionSelection'];
   for (const action of requiredContent) assert.match(content, new RegExp(`(?:^|\\s)${action}:`), `missing content handler: ${action}`);
 });
 
 test('Web2MD bundle references resolve to definitions', () => {
   const source = constants.CONTENT_BUNDLE
     .filter((file) => file.startsWith('src/content/'))
-    .concat(constants.MOCK_BRIDGE_FILES)
     .map(read)
     .join('\n');
   const used = new Set([...source.matchAll(/Web2MD\.([A-Za-z_$][\w$]*)/g)].map((match) => match[1]));
@@ -100,11 +93,7 @@ test('Web2MD bundle references resolve to definitions', () => {
   for (const name of used) assert.ok(defined.has(name), `undefined Web2MD reference: ${name}`);
 });
 
-test('conditional bridge injection is concurrent-safe and complete', async () => {
-  const relay = read('src/content/mock-bridge/relay.js');
-  assert.ok(relay.includes('__web2md_mock_bridge_initialized__'));
-  assert.ok(read('src/isolated-bridge.js').includes('__web2md_isolated_bridge_initialized__'));
-
+test('content script injection is concurrent-safe and complete', async () => {
   const injected = [];
   globalThis.chrome = {
     tabs: {
@@ -114,14 +103,7 @@ test('conditional bridge injection is concurrent-safe and complete', async () =>
       executeScript: async ({ files }) => {
         injected.push(files[0]);
         await new Promise((resolve) => setTimeout(resolve, 0));
-      },
-      getRegisteredContentScripts: async () => [],
-      registerContentScripts: async () => {},
-      unregisterContentScripts: async () => {}
-    },
-    storage: {
-      sync: { get: (_key, callback) => callback({ featureFlags: { apiMock: true } }) },
-      onChanged: { addListener() {} }
+      }
     }
   };
   const injectorUrl = pathToFileURL(path.join(root, 'src/background/injector.js')).href;
@@ -132,52 +114,15 @@ test('conditional bridge injection is concurrent-safe and complete', async () =>
   assert.equal(await first, true);
   assert.equal(await second, true);
 
-  const expected = [...constants.CONTENT_BUNDLE, ...constants.MOCK_BRIDGE_FILES, constants.ISOLATED_BRIDGE_FILE];
-  assert.deepEqual(injected, expected, 'each base and conditional file should inject exactly once in order');
+  assert.deepEqual(injected, constants.CONTENT_BUNDLE, 'each base file should inject exactly once in order');
   delete globalThis.chrome;
 });
 
-test('Netlify token migrates from sync and uses local-only storage', async () => {
-  const clone = read('src/popup/html-clone.js');
-  assert.ok(!clone.includes("safeStorage.get('netlifyToken')"));
-  assert.ok(!clone.includes("safeStorage.set('netlifyToken'"));
-  assert.ok(clone.includes("localOnlyStorage.migrateFromSync('netlifyToken')"));
-  assert.ok(clone.includes("localOnlyStorage.set('netlifyToken'"));
-
-  const stateUrl = pathToFileURL(path.join(root, 'src/popup/state.js')).href;
-
-  async function runMigration({ writeDuringSync = null } = {}) {
-    let localValue = null;
-    let syncedValue = 'legacy-token';
-    globalThis.document = { getElementById: () => null };
-    globalThis.chrome = {
-      storage: {
-        local: {
-          get: (_key, callback) => callback({ netlifyToken: localValue }),
-          set: (data, callback) => { localValue = data.netlifyToken; callback(); }
-        },
-        sync: {
-          get: (_key, callback) => {
-            if (writeDuringSync) localValue = writeDuringSync;
-            callback({ netlifyToken: syncedValue });
-          },
-          set: (_data, callback) => callback(),
-          remove: (_key, callback) => { syncedValue = null; callback(); }
-        }
-      }
-    };
-    const { localOnlyStorage } = await import(`${stateUrl}?migration=${Date.now()}-${Math.random()}`);
-    const migrated = await localOnlyStorage.migrateFromSync('netlifyToken');
-    return { migrated, localValue, syncedValue };
-  }
-
-  const normal = await runMigration();
-  assert.deepEqual(normal, { migrated: 'legacy-token', localValue: 'legacy-token', syncedValue: null });
-
-  const concurrent = await runMigration({ writeDuringSync: 'new-token' });
-  assert.deepEqual(concurrent, { migrated: 'new-token', localValue: 'new-token', syncedValue: null });
-  delete globalThis.chrome;
-  delete globalThis.document;
+test('permissions are minimal and no <all_urls> host_permissions exist', () => {
+  const manifest = JSON.parse(read('manifest.json'));
+  assert.ok(!manifest.permissions.includes('<all_urls>'));
+  assert.ok(!manifest.host_permissions || !manifest.host_permissions.includes('<all_urls>'));
+  assert.ok(manifest.permissions.includes('activeTab'));
 });
 
 test('serializer targetElement path returns scoped nodeHtml', async () => {
@@ -187,8 +132,7 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
   assert.ok(!source.includes('const serializedSelfContainedNode ='));
 
   const Web2MD = {
-    registerHandlers() {},
-    generateMockInterceptorCode() { return ''; }
+    registerHandlers() {}
   };
   const document = {
     baseURI: 'https://example.com/page',

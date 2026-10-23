@@ -6,11 +6,11 @@
 
 <p>
   <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/MVP-0.3.0-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/Feature-Markdown%20Extraction-purple?style=flat-square" />
 </p>
 
-Related: [README](../../../README.md) · [Region Selection](../region-selection/feature.md) · [HTML Clone ZIP Netlify](../html-clone-zip-netlify/feature.md) · [React VFS Project Detection](../react-vfs-project-detection/feature.md)
+Related: [README](../../../README.md) · [Region Selection](../region-selection/feature.md) · [HTML Clone Snapshot](../html-clone-zip-netlify/feature.md)
 
 ---
 
@@ -21,7 +21,7 @@ Related: [README](../../../README.md) · [Region Selection](../region-selection/
 | **Scope**           | Extract page content, selected text, Markdown preview, copy, and `.md` download from the Chrome extension popup/content scripts.                                    |
 | **Default state**   | 🟢 `markdown: true` in `src/shared/feature-flags.js`; this feature is the always-on core path.                                                                      |
 | **Source of truth** | 🟢 A cloned DOM is preprocessed before Readability/Turndown conversion; the live page is not mutated by extraction.                                                 |
-| **Main limits**     | 🟡 Browser live smoke is manual-pending; static checks committed pass 10/10. Restricted `chrome://`, `chrome-extension://`, and Chrome Web Store pages are blocked. |
+| **Main limits**     | 🟢 Automated Playwright E2E tests pass 4/4 (`tests/e2e/e2e-smoke.mjs`); static checks pass 10/10. Restricted `chrome://`, `chrome-extension://`, and Chrome Web Store pages are blocked. |
 
 ```mermaid
 flowchart TD
@@ -84,7 +84,6 @@ flowchart TD
 | ------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Run on Chrome system page | 🟢 Popup shows unsupported-page error; no injection continues.                                           |
 | Content script not loaded | 🟢 Background injection retries through `ensureInjected`; user sees refresh guidance if injection fails. |
-| MAIN VFS scanner absent   | 🟢 Extraction falls back after 500 ms and still returns normal page Markdown.                            |
 
 ### ⚠️ Input/output validation
 
@@ -100,7 +99,6 @@ flowchart TD
 | Scenario               | Expected                                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | HTML Clone feature off | 🟢 Markdown extraction still works; `currentHtml` and `currentPackage` remain empty/null.                          |
-| Project detection on   | 🟢 VFS scan is requested first; project files attach to extraction result when found.                              |
 | Raw mode on            | 🟢 Conversion uses raw content when available, otherwise extracted content; `preview-mode` shows `Full Page Mode`. |
 
 ### 🧾 Sensitive data/storage
@@ -110,7 +108,7 @@ flowchart TD
 | Form values     | 🟡 Non-password inputs are represented as visible values because extraction is user-triggered.                     |
 | Password fields | 🟢 Masked as `[ •••••• ]` before Markdown output.                                                                  |
 | Settings        | 🟢 Stored under `settings` in `chrome.storage.sync` through `src/popup/state.js` / `src/content/core/settings.js`. |
-| Browser smoke   | 🟡 Manual-pending; committed static checks pass 10/10.                                                             |
+| Browser smoke   | 🟢 Automated Playwright E2E tests pass 4/4 (`tests/e2e/e2e-smoke.mjs`); static checks pass 10/10.                   |
 
 ---
 
@@ -121,7 +119,7 @@ flowchart TD
 | Path                                            | Role                                                                              |
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
 | `src/popup/extract.js`                          | Active tab/frame selection, extraction orchestration, preview, copy, download.    |
-| `src/content/markdown/extractor.js`             | Readability parse, raw fallback, visible form fallback, VFS request bridge.       |
+| `src/content/markdown/extractor.js`             | Readability parse, raw fallback, visible form fallback.                           |
 | `src/content/markdown/dom-preprocess.js`        | Form value sync, password masking, layout table flattening, data table detection. |
 | `src/content/markdown/turndown-config.js`       | Turndown/GFM setup, link/image/table/code rules, frontmatter.                     |
 | `src/content/markdown/handlers.js`              | `extractContent`, `convertSelection`, `convertPage`, `convertHtmlToMarkdown`.     |
@@ -137,7 +135,6 @@ flowchart TD
 | `includeImages` | Keep Images                  | 🟢 true  | Keeps non-spacer images as Markdown image syntax.               |
 | `includeLinks`  | Keep Links                   | 🟢 true  | Keeps links as Markdown links.                                  |
 | `obsidianMode`  | Obsidian-friendly Wikilinks  | 🔴 false | Converts relative/anchor links into wikilinks.                  |
-| `preserveJs`    | Preserve JS & Mock APIs      | 🔴 false | Affects HTML clone/API mocking, not Markdown conversion itself. |
 
 ### User-facing messages
 
@@ -174,3 +171,4 @@ Layout tables with form controls are flattened into aligned text, while data-lik
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Refactored in v0.3.0: removed VFS scan delay from extraction path; stripped `<all_urls>` permission; verified with live Chromium E2E tests (4/4 pass) and static checks (10/10 pass). |

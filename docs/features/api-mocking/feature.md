@@ -5,14 +5,17 @@
 > Captures page `fetch`/XHR calls in the MAIN world and lets users edit mocked responses for live or reloaded page behavior.
 
 <p>
-  <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/Feature-API%20Mocking-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Spun%20Off%20to%20PageReplica-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/Version-Migrated%20in%200.3.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Repository-pagereplica--extension-purple?style=flat-square" />
 </p>
 
 Related: [README](../../../README.md) · [HTML Clone ZIP Netlify](../html-clone-zip-netlify/feature.md) · [Component Inspector](../component-inspector/feature.md)
 
 ---
+> [!IMPORTANT]
+> **Migration Notice (v0.3.0):** This feature has been removed from `web2md-extension` and spun off into the dedicated repository **`pagereplica-extension`** (`/Users/hiepleh.n/p-source/pagereplica-extension`). Web2MD no longer registers any `document_start` scripts, patches native `fetch`/XHR, or requests `<all_urls>` permission.
+
 
 ## 🔍 1. Overview
 
@@ -156,3 +159,4 @@ This makes common REST mocks easy to reuse but can overmatch endpoints that vary
 | Date       | Entry                                                                                         |
 | ---------- | --------------------------------------------------------------------------------------------- |
 | 2026-07-30 | Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10. |
+| 2026-10-23 | Spun off from Web2MD into dedicated repository `pagereplica-extension`; removed all MAIN-world interceptors, persistent scripting registrations, and `<all_urls>` host permissions from Web2MD. |

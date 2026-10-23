@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web2MD Preview</title>
+  <title>PageSnap Preview</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -14,8 +14,8 @@
     <!-- Header -->
     <header class="app-header">
       <div class="logo-area">
-        <span class="logo-icon">⚡</span>
-        <h1 class="logo-text">Web2<span class="highlight">MD</span></h1>
+        <span class="logo-icon">📸</span>
+        <h1 class="logo-text">Page<span class="highlight">Snap</span></h1>
       </div>
       <div class="header-actions">
         <button id="btn-settings" class="icon-btn" title="Settings">⚙️</button>
@@ -26,16 +26,6 @@
     <main class="app-main">
       <!-- Toolbar controls -->
       <div class="app-toolbar">
-        <label class="toggle-switch compact-toggle" title="Modify the page text and elements directly" data-feature="visualEdit">
-          <input type="checkbox" id="btn-toggle-edit">
-          <span class="slider"></span>
-          <span class="label-text">🎨 Visual Edit</span>
-        </label>
-        <label class="toggle-switch compact-toggle" title="Inspect page styles and layout" data-feature="inspect">
-          <input type="checkbox" id="btn-toggle-inspect">
-          <span class="slider"></span>
-          <span class="label-text">🔍 Inspect</span>
-        </label>
         <label class="toggle-switch compact-toggle" title="Select a custom region on the page to copy/download" data-feature="regionSelect">
           <input type="checkbox" id="btn-toggle-select-region">
           <span class="slider"></span>
@@ -43,91 +33,18 @@
         </label>
       </div>
 
-      <!-- Project Banner (Visible only when full project source is detected) -->
-      <div id="project-banner" class="project-banner hidden" data-feature="projectDetect">
-        <span class="banner-icon">📦</span>
-        <span id="project-banner-text" class="banner-text">VFS Project Detected</span>
-        <button id="btn-download-project" class="banner-action-btn">Download Project</button>
-      </div>
-
       <!-- Preview Box -->
       <div class="preview-container">
         <div class="preview-header">
           <div class="tabs-header">
             <button id="tab-md" class="tab-btn active">Markdown</button>
-            <button id="tab-html" class="tab-btn" data-feature="htmlClone">HTML Clone</button>
-            <button id="tab-api" class="tab-btn" data-feature="apiMock">API Mocks</button>
+            <button id="tab-html" class="tab-btn" data-feature="htmlClone">HTML Snapshot</button>
           </div>
         </div>
         <div class="preview-viewport">
           <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
           <div id="html-preview-wrapper" class="hidden" data-feature="htmlClone">
             <iframe id="html-preview-frame" sandbox="allow-same-origin"></iframe>
-          </div>
-          <div id="api-preview-wrapper" class="hidden" data-feature="apiMock">
-            <!-- API List View (Main) -->
-            <div id="api-list-view" style="display: flex; flex-direction: column; height: 100%;">
-              <div class="api-config-banner" data-feature="htmlClone">
-                <label class="toggle-switch compact-toggle">
-                  <input type="checkbox" id="setting-preserve-js-quick">
-                  <span class="slider"></span>
-                  <span class="label-text">Preserve JS & Mock APIs</span>
-                </label>
-              </div>
-              <div class="api-manager-header">
-                <input type="text" id="api-search" placeholder="Search API endpoints...">
-                <button id="btn-refresh-api" class="icon-btn-refresh" title="Refresh API list">🔄</button>
-                <button id="btn-clear-all-mocks" class="icon-btn-refresh" title="Clear all mocks and restore live APIs" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #f43f5e; font-size: 11px;" data-feature="apiMock">🗑️</button>
-              </div>
-              <div id="api-list-container">
-                <div class="api-empty-state">No API calls recorded. Please verify "Preserve JS" is checked in configuration and click Extract.</div>
-              </div>
-            </div>
-
-            <!-- Dedicated Large Editor View (Sub-panel) -->
-            <div id="api-editor-view" class="hidden">
-              <div class="api-editor-header">
-                <button id="btn-editor-back" class="editor-back-btn">← Back</button>
-                <span class="editor-header-title">Edit Mock API</span>
-              </div>
-              <div class="api-editor-fields">
-                <div class="api-detail-field">
-                  <label>Full Request URL</label>
-                  <div id="editor-url" class="api-url-full"></div>
-                </div>
-                <div class="api-detail-row">
-                  <div class="api-detail-field">
-                    <label>HTTP Method</label>
-                    <select id="editor-method">
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                      <option value="PUT">PUT</option>
-                      <option value="DELETE">DELETE</option>
-                      <option value="PATCH">PATCH</option>
-                      <option value="OPTIONS">OPTIONS</option>
-                    </select>
-                  </div>
-                  <div class="api-detail-field">
-                    <label>HTTP Status</label>
-                    <input type="number" id="editor-status" min="100" max="599">
-                  </div>
-                </div>
-                <div class="api-detail-field textarea-field">
-                  <label>Response Body (JSON/Text)</label>
-                  <textarea id="editor-body" placeholder="Empty response body..."></textarea>
-                </div>
-              </div>
-              <div class="api-editor-actions">
-                <div class="api-editor-left-actions" style="display: flex; gap: 8px;">
-                  <button id="btn-editor-format" class="editor-btn">✨ Format JSON</button>
-                  <button id="btn-editor-reset" class="editor-btn">🔄 Reset</button>
-                </div>
-                <div class="api-editor-right-actions">
-                  <button id="btn-editor-delete" class="editor-btn delete-btn">🗑️ Delete</button>
-                  <button id="btn-editor-save" class="editor-btn save-btn">💾 Save Changes</button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
         <!-- Status Bar -->
@@ -146,9 +63,8 @@
         </button>
         <div class="actions-grid">
           <button id="btn-copy" class="secondary-btn" disabled>📋 Copy</button>
-          <button id="btn-download" class="secondary-btn" disabled>💾 Download</button>
-          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 ZIP Package</button>
-          <button id="btn-deploy" class="secondary-btn accent-btn" disabled data-feature="htmlClone">🚀 Deploy Netlify</button>
+          <button id="btn-download" class="secondary-btn" disabled>💾 Download .MD</button>
+          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 Download HTML</button>
         </div>
       </div>
     </main>
@@ -195,24 +111,11 @@
             <span class="label-text">Obsidian-friendly Wikilinks</span>
           </label>
         </div>
-        <div class="setting-group">
-          <label class="toggle-switch">
-            <input type="checkbox" id="setting-preserve-js">
-            <span class="slider"></span>
-            <span class="label-text">Preserve JS & Mock APIs</span>
-          </label>
-        </div>
-        <div class="setting-section-title" style="margin-top: 14px; font-size: 10px; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px;">Deploy Integrations</div>
-        <div class="setting-group-vertical" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;" data-feature="htmlClone">
-          <label for="setting-netlify-token" style="font-size: 11px; color: var(--text-secondary);">Netlify Personal Access Token</label>
-          <input type="password" id="setting-netlify-token" placeholder="npe_..." style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 10px; color: var(--text-primary); font-size: 11px; outline: none; transition: border-color 0.2s;">
-        </div>
         <div class="setting-section-title" style="margin-top: 14px; font-size: 10px; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px;">Features</div>
         <div id="features-section" class="features-section"></div>
       </div>
     </section>
   </div>
-
 
   <div id="resize-handle" class="resize-handle"></div>
 
