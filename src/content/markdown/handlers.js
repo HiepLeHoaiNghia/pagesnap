@@ -104,37 +104,7 @@ PageSnap.registerHandlers({
     try {
       const markdown = Web2MD.htmlToMarkdown(request.html, request.metadata, request.settings);
       sendResponse({ success: true, markdown: markdown });
-    } catch (err) {
-      sendResponse({ success: false, error: err.message });
-    }
-    return true;
-  },
-// plan-exempt — pagination discovery handler
-  discoverNextPage: (request, sender, sendResponse) => {
-    try {
-      const nextUrl = (window.PageSnap || window.Web2MD).findNextPageUrl(document, window.location.href);
-      sendResponse({ success: true, nextUrl });
-    } catch (err) {
-      sendResponse({ success: false, error: err.message });
-    }
-    return true;
-  },
-// plan-exempt — trigger client download inside active tab for native Save As sheet
-  triggerClientDownload: (request, sender, sendResponse) => {
-    try {
-      const blob = new Blob([request.content], { type: request.mimeType || 'text/markdown;charset=utf-8' });
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = blobUrl;
-      a.download = request.filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      }, 15000);
-      sendResponse({ success: true });
+// plan-exempt — fix try catch closing
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }

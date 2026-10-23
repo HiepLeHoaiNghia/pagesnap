@@ -31,12 +31,7 @@ export const ACTIONS = {
   FETCH_EXTERNAL_SCRIPT: 'fetchExternalScript',
   FETCH_ASSET_AS_BASE64: 'fetchAssetAsBase64',
   TRIGGER_DOWNLOAD: 'triggerDownload',
-  // F4 pagination crawling
-  FETCH_PAGE_HTML: 'fetchPageHtml',
-// plan-exempt — register triggerClientDownload action
-  DISCOVER_NEXT_PAGE: 'discoverNextPage',
-// plan-exempt — restore ENSURE_INJECTED in ACTIONS
-  TRIGGER_CLIENT_DOWNLOAD: 'triggerClientDownload',
+// plan-exempt — prune pagination actions and bundles
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };
@@ -54,9 +49,7 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/dom-preprocess.js',
   'src/content/markdown/turndown-config.js',
   'src/content/markdown/extractor.js',
-// plan-exempt — register multi-page-crawler in CONTENT_BUNDLE
-  'src/content/markdown/pagination-detector.js',
-  'src/content/markdown/multi-page-crawler.js',
+
   'src/content/markdown/handlers.js',
   'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js'
