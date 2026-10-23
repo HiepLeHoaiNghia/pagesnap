@@ -59,7 +59,10 @@ const server = http.createServer((req, res) => {
   <meta charset="UTF-8">
   <title>Understanding Modern AI Architectures</title>
   <link rel="stylesheet" href="/article.css">
-  <style>.article-heading { font-weight: bold; }</style>
+  <style>
+    @keyframes pulseGlow { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .article-heading { font-weight: bold; }
+  </style>
 </head>
 <body>
   <header>
@@ -84,9 +87,9 @@ const server = http.createServer((req, res) => {
       <div id="target-region" style="border: 1px solid green; padding: 10px;">
         <h3>Specific Architecture Section</h3>
         <p>This is a focused region that a user might want to extract separately from the main article.</p>
+        <button id="animated-demo-button" style="animation: pulseGlow 2s infinite; background: #8b5cf6; color: #ffffff; border-radius: 8px;">Explore More</button>
       </div>
       <pre><code>function evaluate(context) {\n  return context.length > 0;\n}</code></pre>
-    </article>
   </main>
   <footer>
     <p>© 2026 Tech Publishing Inc. All rights reserved.</p>
@@ -355,6 +358,7 @@ async function runE2E() {
       'src/content/markdown/dom-preprocess.js',
       'src/content/markdown/turndown-config.js',
       'src/content/markdown/extractor.js',
+      'src/content/style-extractor/style-extractor.js',
       'src/content/html-clone/serializer.js'
     ];
 
@@ -454,9 +458,42 @@ async function runE2E() {
 // plan-exempt — fix duplicate assertion lines
     console.log('  ✓ Backlog Smart Adapter verified: ticket key, properties table, description, and comments extracted cleanly');
 
-// plan-exempt — prune Test 6 and restore core E2E suite
+// plan-exempt — E2E test for style, motion, and AI prompt extraction
+    // ==========================================
+    // TEST 6: Component Style, Motion & AI Design Prompt Extraction
+    // ==========================================
+    console.log('\n▶ TEST 6: Component Style, Motion & AI Design Prompt Extraction');
+    await page.goto(`http://localhost:${PORT}/article.html`);
+
+    for (const file of scriptsToInject) {
+      await page.addScriptTag({ path: path.join(extensionPath, file) });
+    }
+
+    const styleResult = await page.evaluate(() => {
+      const btn = document.getElementById('animated-demo-button');
+      const data = window.PageSnap.extractComponentStyleAndMotion(btn);
+      return {
+        hasSelfContainedHtml: !!data.selfContainedHtml,
+        hasKeyframesInHtml: data.selfContainedHtml.includes('@keyframes pulseGlow') || data.selfContainedHtml.includes('pulseGlow'),
+        hasScopedClass: data.selfContainedHtml.includes('ps-el-0'),
+        hasColorToken: data.colorTokens.some(c => c.includes('139, 92, 246') || c.includes('#8b5cf6')),
+        hasAiPrompt: data.promptMarkdown.includes('UI Component Design Specification'),
+        hasMotionSpec: data.promptMarkdown.includes('pulseGlow'),
+        hasFramerInstruction: data.promptMarkdown.includes('Framer Motion')
+      };
+    });
+
+    assert.equal(styleResult.hasSelfContainedHtml, true, 'Extractor must produce standalone HTML component');
+    assert.equal(styleResult.hasKeyframesInHtml, true, 'Extractor must capture real CSS @keyframes from stylesheets');
+    assert.equal(styleResult.hasScopedClass, true, 'Extractor must scope element classes for isolated rendering');
+    assert.equal(styleResult.hasColorToken, true, 'Extractor must collect accurate component color tokens');
+    assert.equal(styleResult.hasAiPrompt, true, 'Extractor must generate structured AI Reverse-Engineering prompt');
+    assert.equal(styleResult.hasMotionSpec, true, 'AI prompt must contain exact animation motion specs');
+    assert.equal(styleResult.hasFramerInstruction, true, 'AI prompt must include Tailwind + Framer Motion instructions');
+    console.log('  ✓ Style & Motion extraction verified: CSS @keyframes captured, design tokens collected, AI prompt generated');
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 5 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 6 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

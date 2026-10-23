@@ -122,13 +122,15 @@ function renderActionsBarContents(bar) {
   sep.style.margin = "0 4px";
   bar.appendChild(sep);
 
+// plan-exempt — add Style Code and AI Prompt buttons to region actions bar
   const buttons = [
     { text: "📝 Copy MD", action: () => Web2MD.handleRegionAction(element, "markdown") },
+    { text: "🎨 Style Code", title: "Copy self-contained component HTML + CSS with animations", action: () => Web2MD.handleRegionAction(element, "style-component") },
+    { text: "🤖 AI Prompt", title: "Copy reverse-engineering design tokens & motion prompt for AI", action: () => Web2MD.handleRegionAction(element, "ai-prompt") },
     { text: "🌐 Copy HTML", action: () => Web2MD.handleRegionAction(element, "html") },
     { text: "📥 HTML", title: "Download self-contained HTML page", action: () => Web2MD.handleRegionAction(element, "download-html") },
     { text: "📦 ZIP", title: "Download structured zip package", action: () => Web2MD.handleRegionAction(element, "download-zip") }
   ];
-
   buttons.forEach(btnInfo => {
     const btn = document.createElement("button");
     btn.innerText = btnInfo.text;
@@ -361,6 +363,25 @@ Web2MD.handleRegionAction = async function (element, action) {
 
       await Web2MD.copyTextToClipboard(markdown);
       Web2MD.showToast("⚡ Region copied as Markdown!");
+    }
+    else if (action === "style-component") {
+      if (typeof PageSnap.extractComponentStyleAndMotion === 'function') {
+        const componentData = PageSnap.extractComponentStyleAndMotion(element);
+        await Web2MD.copyTextToClipboard(componentData.selfContainedHtml);
+        Web2MD.showToast("🎨 Component with styles & keyframes copied!");
+      } else {
+        Web2MD.showToast("❌ Style extractor module not loaded", true);
+      }
+    }
+    else if (action === "ai-prompt") {
+      if (typeof PageSnap.extractComponentStyleAndMotion === 'function') {
+        const componentData = PageSnap.extractComponentStyleAndMotion(element);
+        await Web2MD.copyTextToClipboard(componentData.promptMarkdown);
+        Web2MD.showToast("🤖 AI Reverse-Engineering Design Prompt copied!");
+      } else {
+        Web2MD.showToast("❌ Style extractor module not loaded", true);
+      }
+// plan-exempt — fix action html branch
     }
     else if (action === "html") {
       const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false, targetElement: element });
