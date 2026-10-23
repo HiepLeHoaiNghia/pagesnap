@@ -38,20 +38,44 @@ export function showError(msg) {
  */
 // plan-exempt — resilient download with instant feedback and automatic fallback
 // plan-exempt — bulletproof instant anchor download with blob URL
+// plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
   try {
     const blob = new Blob([content], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      if (a.parentNode) a.parentNode.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    }, 5000);
+
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      chrome.downloads.download({
+        url: blobUrl,
+        filename: filename,
+        saveAs: true
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          console.warn("[PageSnap] chrome.downloads note, using anchor fallback:", chrome.runtime.lastError);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (a.parentNode) a.parentNode.removeChild(a);
+          }, 2000);
+        }
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+      });
+    } else {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 5000);
+    }
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
   }
@@ -437,11 +461,12 @@ export function initExtract() {
         btnDownload.innerHTML = origHtml;
       }, 2000);
 
-      const safeTitle = (appState.articleTitle || 'webpage')
+      let safeTitle = (appState.articleTitle || 'webpage')
         .toLowerCase()
-        .replace(/[^a-z0-9_-]/g, '_')
-        .replace(/_+/g, '_')
-        .substring(0, 50);
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 50) || 'pagesnap-export';
 
       if (isHtmlTab) {
         downloadFile(textToDownload, `${safeTitle}-snapshot.html`, 'text/html;charset=utf-8');
