@@ -37,47 +37,24 @@ export function showError(msg) {
  * Helper to download file using chrome.downloads if available, falling back to <a> link
  */
 // plan-exempt — resilient download with instant feedback and automatic fallback
-// plan-exempt — support Save As destination folder picker via background triggerDownload
+// plan-exempt — bulletproof instant anchor download with blob URL
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
-  const blob = new Blob([content], { type: mimeType });
-
-  function fallbackDownload() {
-    try {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 10000);
-    } catch (e) {
-      console.error("[PageSnap] Fallback download failed:", e);
-    }
+  try {
+    const blob = new Blob([content], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 5000);
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
   }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const dataUrl = e.target.result;
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({
-        action: "triggerDownload",
-        url: dataUrl,
-        filename: filename
-      }, (response) => {
-        if (chrome.runtime.lastError || !response || !response.success) {
-          console.warn("[PageSnap] Background triggerDownload note:", chrome.runtime.lastError);
-          fallbackDownload();
-        }
-      });
-    } else {
-      fallbackDownload();
-    }
-  };
-  reader.onerror = fallbackDownload;
-  reader.readAsDataURL(blob);
 }
 
 /**
@@ -455,10 +432,10 @@ export function initExtract() {
       if (!textToDownload) return;
 
       const origHtml = btnDownload.innerHTML;
-      btnDownload.innerHTML = '📂 Chọn nơi lưu...';
+      btnDownload.innerHTML = '✅ Saved!';
       setTimeout(() => {
         btnDownload.innerHTML = origHtml;
-      }, 3000);
+      }, 2000);
 
       const safeTitle = (appState.articleTitle || 'webpage')
         .toLowerCase()
