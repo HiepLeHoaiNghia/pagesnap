@@ -40,12 +40,14 @@ export function showError(msg) {
 // plan-exempt — bulletproof instant anchor download with blob URL
 // plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
 // plan-exempt — true interactive Save As file dialog with accurate state handling
+// plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
-  try {
-    const blob = new Blob([content], { type: mimeType });
-    const blobUrl = URL.createObjectURL(blob);
+  onStateChange('prompting');
 
-    function fallbackAnchorDownload() {
+  function popupDirectDownload() {
+    try {
+      const blob = new Blob([content], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = blobUrl;
@@ -55,40 +57,31 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
       setTimeout(() => {
         if (a.parentNode) a.parentNode.removeChild(a);
         URL.revokeObjectURL(blobUrl);
-      }, 10000);
+      }, 15000);
       onStateChange('saved');
+    } catch (e) {
+      console.error("[PageSnap] Popup direct download error:", e);
+      onStateChange('error');
     }
-
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      onStateChange('prompting');
-      chrome.downloads.download({
-        url: blobUrl,
-        filename: filename,
-        saveAs: true
-      }, (downloadId) => {
-        if (chrome.runtime.lastError) {
-          const errMsg = chrome.runtime.lastError.message || '';
-          if (errMsg.toLowerCase().includes('cancel')) {
-            // User explicitly canceled file dialog in Finder/Explorer
-            onStateChange('canceled');
-          } else {
-            console.warn("[PageSnap] chrome.downloads error, fallback:", errMsg);
-            fallbackAnchorDownload();
-          }
-        } else if (downloadId) {
-          onStateChange('saved');
-        } else {
-          onStateChange('canceled');
-        }
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-      });
-    } else {
-      fallbackAnchorDownload();
-    }
-  } catch (err) {
-    console.error("[PageSnap] Download error:", err);
-    onStateChange('error');
   }
+
+  if (appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.sendMessage) {
+    chrome.tabs.sendMessage(appState.activeTabId, {
+      action: 'triggerClientDownload',
+      content: content,
+      filename: filename,
+      mimeType: mimeType
+    }, { frameId: appState.activeFrameId || 0 }, (response) => {
+      if (chrome.runtime.lastError || !response || !response.success) {
+        popupDirectDownload();
+      } else {
+        onStateChange('saved');
+      }
+    });
+  } else {
+    popupDirectDownload();
+  }
+// plan-exempt — clean downloadFile closing
 }
 
 /**

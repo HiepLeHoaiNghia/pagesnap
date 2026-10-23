@@ -33,7 +33,10 @@ export const ACTIONS = {
   TRIGGER_DOWNLOAD: 'triggerDownload',
   // F4 pagination crawling
   FETCH_PAGE_HTML: 'fetchPageHtml',
+// plan-exempt — register triggerClientDownload action
   DISCOVER_NEXT_PAGE: 'discoverNextPage',
+// plan-exempt — restore ENSURE_INJECTED in ACTIONS
+  TRIGGER_CLIENT_DOWNLOAD: 'triggerClientDownload',
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };

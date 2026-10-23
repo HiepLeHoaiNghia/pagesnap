@@ -118,5 +118,26 @@ PageSnap.registerHandlers({
       sendResponse({ success: false, error: err.message });
     }
     return true;
+  },
+// plan-exempt — trigger client download inside active tab for native Save As sheet
+  triggerClientDownload: (request, sender, sendResponse) => {
+    try {
+      const blob = new Blob([request.content], { type: request.mimeType || 'text/markdown;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = blobUrl;
+      a.download = request.filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 15000);
+      sendResponse({ success: true });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
   }
 });
