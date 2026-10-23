@@ -1,0 +1,51 @@
+name: PR Title & Breaking Change Lint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [develop]
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - '.release-please-manifest.json'
+      - 'package.json'
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint-title:
+    if: ${{ !startsWith(github.head_ref, 'chore/backmerge-') && !startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PR title must be a Conventional Commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?: .+'
+          if ! printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "::error::PR title is not a Conventional Commit: '$TITLE'"
+            echo "Expected format: <type>(<scope>)?: <description>   e.g. feat(popup): add smart pagination"
+            echo "Allowed types: feat fix docs refactor perf test chore ci build revert"
+            exit 1
+          fi
+          echo "OK: $TITLE"
+
+      - name: Verify Major Bump Syntax
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          bash scripts/check-major-bump-syntax.sh "$TITLE" "$BODY"
+
+      - name: Detect Undeclared Breaking Changes
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          bash scripts/detect-breaking-changes.sh --base=origin/develop --head=HEAD --title="$TITLE" --body="$BODY"
