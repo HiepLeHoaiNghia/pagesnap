@@ -14,7 +14,10 @@ PageSnap.getSettings = Web2MD.getSettings = function () {
         rawMode: false,
         includeImages: true,
         includeLinks: true,
+// plan-exempt — add downloadSubfolder to content settings defaults
         obsidianMode: false,
+        downloadSubfolder: 'PageSnap',
+// plan-exempt — fix closing brace of settings defaults
         headingStyle: 'atx',
         bulletStyle: '-',
         codeBlockStyle: 'fenced'

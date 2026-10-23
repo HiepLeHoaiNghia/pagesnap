@@ -180,6 +180,45 @@ body {
   border-color: var(--accent-purple);
 }
 
+.subfolder-setting-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+  margin-top: 6px;
+}
+
+.subfolder-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subfolder-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.subfolder-input:focus {
+  border-color: var(--accent-purple);
+}
+
+.subfolder-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
 /* Preview */
 .preview-container {
   flex: 1;

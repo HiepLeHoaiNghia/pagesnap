@@ -462,6 +462,7 @@ export function initExtract() {
       const textToDownload = isHtmlTab ? (appState.currentHtml || '') : markdownPreview.value;
       if (!textToDownload) return;
 
+// plan-exempt — subfolder path and download feedback
       const origHtml = btnDownload.innerHTML;
 
       let safeTitle = (appState.articleTitle || 'webpage')
@@ -471,21 +472,25 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-      const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
+      const subfolder = (appState.currentSettings && appState.currentSettings.downloadSubfolder)
+        ? appState.currentSettings.downloadSubfolder.replace(/^\/+|\/+$/g, '')
+        : 'PageSnap';
+
+      const baseFilename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
+      const filename = subfolder ? `${subfolder}/${baseFilename}` : baseFilename;
       const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
 
       downloadFile(textToDownload, filename, mime, (status) => {
         if (status === 'prompting') {
-          btnDownload.innerHTML = '📂 Chọn nơi lưu...';
+          btnDownload.innerHTML = '⏳ Saving...';
         } else if (status === 'saved') {
-          btnDownload.innerHTML = '✅ Saved!';
+          btnDownload.innerHTML = subfolder ? `✅ Saved (${subfolder})` : '✅ Saved!';
           setTimeout(() => {
             btnDownload.innerHTML = origHtml;
-          }, 2000);
+          }, 2500);
         } else {
           btnDownload.innerHTML = origHtml;
         }
-// plan-exempt — close download listener
       });
     });
   }

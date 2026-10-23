@@ -49,13 +49,14 @@ export const safeStorage = {
 // plan-exempt — remove dead localOnlyStorage
 
 // Default Settings
+// plan-exempt — clean up dead preserveJs setting and add downloadSubfolder
 export const defaultSettings = {
   frontmatter: false,
   rawMode: false,
   includeImages: true,
   includeLinks: true,
   obsidianMode: false,
-  preserveJs: false,
+  downloadSubfolder: 'PageSnap',
   headingStyle: 'atx',
   bulletStyle: '-',
   codeBlockStyle: 'fenced'
@@ -73,23 +74,23 @@ export const appState = {
   activeFrameId: 0
 };
 
-// Setting Checkboxes
+// Setting Inputs
 const checkFrontmatter = document.getElementById('setting-frontmatter');
-const checkRaw = document.getElementById('setting-raw');
 const checkImages = document.getElementById('setting-images');
 const checkLinks = document.getElementById('setting-links');
 const checkObsidian = document.getElementById('setting-obsidian');
-const checkPreserveJs = document.getElementById('setting-preserve-js');
-
+const inputSubfolder = document.getElementById('setting-subfolder');
 /**
  * Loads settings from safe storage
  */
+// plan-exempt — store currentSettings in appState
 export function loadSettings() {
   return safeStorage.get('settings').then((settings) => {
-    return settings ? { ...defaultSettings, ...settings } : defaultSettings;
+    const resolved = settings ? { ...defaultSettings, ...settings } : defaultSettings;
+    appState.currentSettings = resolved;
+    return resolved;
   });
 }
-
 
 /**
  * Saves UI checkbox states to settings storage
@@ -101,17 +102,17 @@ export function saveSettings() {
     includeImages: checkImages ? checkImages.checked : true,
     includeLinks: checkLinks ? checkLinks.checked : true,
     obsidianMode: checkObsidian ? checkObsidian.checked : false,
-    preserveJs: checkPreserveJs ? checkPreserveJs.checked : false,
+    downloadSubfolder: inputSubfolder ? inputSubfolder.value.trim() : 'PageSnap',
     headingStyle: 'atx',
     bulletStyle: '-',
     codeBlockStyle: 'fenced'
   };
 
   return safeStorage.set('settings', settings).then(() => {
+    appState.currentSettings = settings;
     return settings;
   });
 }
-
 /**
  * Syncs UI checkbox states with settings object
  */
@@ -121,7 +122,7 @@ export function updateSettingsUI(settings) {
   if (checkImages) checkImages.checked = settings.includeImages;
   if (checkLinks) checkLinks.checked = settings.includeLinks;
   if (checkObsidian) checkObsidian.checked = settings.obsidianMode;
-  if (checkPreserveJs) checkPreserveJs.checked = settings.preserveJs || false;
+  if (inputSubfolder) inputSubfolder.value = settings.downloadSubfolder !== undefined ? settings.downloadSubfolder : 'PageSnap';
 }
 
 /**
@@ -145,9 +146,8 @@ export function initSettingsUI(onSettingsSaved) {
     });
   }
 
-// plan-exempt — fix checkPreserveJsQuick reference
-  // Save settings on checkbox changes and re-convert
-  [checkFrontmatter, checkRaw, checkImages, checkLinks, checkObsidian].forEach(checkbox => {
+// plan-exempt — save settings on checkbox and subfolder changes
+  [checkFrontmatter, checkImages, checkLinks, checkObsidian].forEach(checkbox => {
     if (checkbox) {
       checkbox.addEventListener('change', () => {
         saveSettings().then((newSettings) => {
@@ -156,4 +156,12 @@ export function initSettingsUI(onSettingsSaved) {
       });
     }
   });
+
+  if (inputSubfolder) {
+    inputSubfolder.addEventListener('change', () => {
+      saveSettings().then((newSettings) => {
+        if (onSettingsSaved) onSettingsSaved(newSettings);
+      });
+    });
+  }
 }
