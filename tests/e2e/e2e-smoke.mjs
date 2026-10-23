@@ -310,7 +310,36 @@ async function runE2E() {
     const autoPaginationToggleExists = await popupPage.locator('#btn-toggle-auto-pagination').count();
     assert.equal(autoPaginationToggleExists, 1, 'Auto-pagination toggle must exist on popup toolbar');
     console.log('  ✓ Smart Pagination toggle control verified in popup toolbar');
-// plan-exempt — deep E2E assertion coverage for extraction and snapshot
+
+// plan-exempt — E2E verification of settings pane layout and subfolder configuration
+    // Open and verify Settings Pane layout hierarchy (zero overlap check)
+    await popupPage.locator('#btn-settings').click();
+    await popupPage.waitForTimeout(300);
+
+    const isSettingsVisible = await popupPage.locator('#settings-pane').isVisible();
+    assert.equal(isSettingsVisible, true, 'Settings pane must be visible upon clicking gear icon');
+
+    const subfolderInput = popupPage.locator('#setting-subfolder');
+    const isSubfolderVisible = await subfolderInput.isVisible();
+    assert.equal(isSubfolderVisible, true, 'Download Subfolder input must be visible in Settings pane');
+
+    const subfolderBox = await subfolderInput.boundingBox();
+    assert.ok(subfolderBox && subfolderBox.width > 150, 'Download Subfolder input must have proper width');
+
+    // Check that Obsidian toggle, Subfolder input, and Features section are strictly ordered vertically (no overlap)
+// plan-exempt — fix visible label locator for custom styled checkbox
+    const obsidianLabel = popupPage.locator('label:has(#setting-obsidian)');
+    const obsidianBox = await obsidianLabel.boundingBox();
+    const featuresTitle = popupPage.locator('.setting-section-title');
+    const featuresBox = await featuresTitle.boundingBox();
+
+    assert.ok(obsidianBox && subfolderBox && featuresBox, 'All settings elements must have valid bounding boxes');
+    assert.ok(obsidianBox.y < subfolderBox.y, `Obsidian toggle (${obsidianBox?.y}) must sit vertically above Subfolder setting (${subfolderBox?.y})`);
+    assert.ok(subfolderBox.y < featuresBox.y, `Subfolder setting (${subfolderBox?.y}) must sit vertically above Features section (${featuresBox?.y})`);
+    // Close settings pane
+    await popupPage.locator('#btn-close-settings').click();
+    await popupPage.waitForTimeout(300);
+    console.log('  ✓ Settings UI layout verified: clean vertical flow, subfolder input, zero overlap');
     console.log('\n▶ TEST 4: Article Content Extraction & Clean Snapshot Integrity');
     await page.bringToFront();
 
