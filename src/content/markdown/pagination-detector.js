@@ -47,10 +47,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     }
 
     // ─── 2. Standard Pagination Container Active + Next Sibling ────────────
+// plan-exempt — support pager-list and nav pager containers
     const paginationContainers = doc.querySelectorAll(
-      '.pagination, .pager, .paginate, [class*="pagination" i], [class*="pager" i], nav[aria-label*="pagination" i], [data-testid*="pagination" i]'
+      '.pagination, .pager, .paginate, [class*="pagination" i], [class*="pager" i], nav[aria-label*="pagination" i], nav[aria-label*="pager" i], [data-testid*="pagination" i], .pager-list, .result-set__controller-pager'
     );
-
     for (const container of paginationContainers) {
       // Find active page indicator
       const activeEl = container.querySelector(
@@ -121,6 +121,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         }
       }
 
+      // Offset / Limit pagination pattern: e.g. Backlog, Jira, APIs
+      if (searchParams.has('offset')) {
+        const currentOffset = parseInt(searchParams.get('offset'), 10) || 0;
+        const limit = parseInt(searchParams.get('limit'), 10) || 20;
+        searchParams.set('offset', String(currentOffset + limit));
+        return parsedUrl.href;
+      }
       // Path pattern match: /page/1 or /p/1
       const pathMatch = parsedUrl.pathname.match(/(\/(?:page|p)\/)(\d+)(\/?.*)$/i);
       if (pathMatch) {

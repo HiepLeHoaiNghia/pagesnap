@@ -167,12 +167,15 @@ function preProcessFormControls(rootNode, originalDoc) {
   });
 }
 
+// plan-exempt — strip noise elements and filter search condition forms
 function stripNoiseElements(rootNode) {
   const noiseSelectors = [
     'dialog', '.modal', '[role="dialog"]', '[aria-modal="true"]',
     '#delete-issue-dialog', '#duplicate-issue-dialog',
     '.comment-form', '#comment-form', '.comment-editor', '.dropzone',
-    'a[href^="#skip"]', '.skip-link', '.search-results-link'
+    'a[href^="#skip"]', '.skip-link', '.search-results-link',
+    '.result-settings', '.simple-search-condition', '.search-condition-box',
+    '#searchConditionsForm', '#conditionsBox', '.condition-list'
   ];
   try {
     const noiseEls = rootNode.querySelectorAll(noiseSelectors.join(', '));
@@ -180,6 +183,62 @@ function stripNoiseElements(rootNode) {
       if (el.parentNode) el.parentNode.removeChild(el);
     });
   } catch (e) {}
+}
+
+/**
+ * Removes leading empty columns (e.g. checkboxes, icons) and escapes pipe characters in table cells
+ */
+function cleanDataTables(rootNode) {
+  try {
+    const tables = Array.from(rootNode.querySelectorAll('table'));
+    tables.forEach(table => {
+      if (table.getAttribute('data-pagesnap-layout-table') === 'true') return;
+
+      const rows = Array.from(table.querySelectorAll('tr'));
+      if (rows.length === 0) return;
+
+      function isColumnEmpty(colIdx) {
+        for (const row of rows) {
+          const cells = Array.from(row.children);
+          if (cells.length > colIdx) {
+            const cell = cells[colIdx];
+            const text = cell.textContent ? cell.textContent.trim() : '';
+            if (text.length > 0) return false;
+          }
+        }
+        return true;
+      }
+
+      // Prune up to 3 leading empty columns (checkbox, star, radio)
+      let pruneCount = 0;
+      while (pruneCount < 3 && isColumnEmpty(0)) {
+        let removedAny = false;
+        for (const row of rows) {
+          if (row.children.length > 0) {
+            row.removeChild(row.children[0]);
+            removedAny = true;
+          }
+        }
+        if (!removedAny) break;
+        pruneCount++;
+      }
+
+      // Escape unescaped pipe characters inside all table cells
+      const allCells = table.querySelectorAll('th, td');
+      allCells.forEach(cell => {
+        const doc = cell.ownerDocument || document;
+        const walker = doc.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null, false);
+        let textNode;
+        while ((textNode = walker.nextNode())) {
+          if (textNode.nodeValue && textNode.nodeValue.includes('|')) {
+            textNode.nodeValue = textNode.nodeValue.replace(/\|/g, '\\|');
+          }
+        }
+      });
+    });
+  } catch (e) {
+    console.warn("[PageSnap] cleanDataTables error:", e);
+  }
 }
 
 /**
@@ -219,6 +278,12 @@ Web2MD.preProcessDOMForConversion = function (clonedNode, originalDoc) {
     preProcessLayoutTables(clonedNode);
   } catch (e) {
     console.error("preProcessLayoutTables failed:", e);
+  }
+  try {
+    // Step 4: Clean data tables: prune empty columns and escape pipe characters
+    cleanDataTables(clonedNode);
+  } catch (e) {
+    console.error("cleanDataTables failed:", e);
   }
 };
 

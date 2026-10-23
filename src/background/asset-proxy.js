@@ -106,8 +106,9 @@ export const handlers = {
     return true; // Keep channel open for async response
   },
 // plan-exempt — fetch page html handler for multi-page pagination
+// plan-exempt — include credentials for authenticated pages like Backlog
   [ACTIONS.FETCH_PAGE_HTML](message, sender, sendResponse) {
-    fetch(message.url)
+    fetch(message.url, { credentials: 'include' })
       .then(response => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.text().then(html => ({ html, finalUrl: response.url || message.url, status: response.status }));
