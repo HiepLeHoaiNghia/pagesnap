@@ -1,6 +1,6 @@
 {
   "name": "pagesnap-extension",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Convert web pages to clean, AI-ready Markdown and standalone offline HTML snapshots with one click.",
   "type": "module",
   "scripts": {
