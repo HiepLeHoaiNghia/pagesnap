@@ -472,23 +472,17 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-      const subfolder = (appState.currentSettings && appState.currentSettings.downloadSubfolder)
-        ? appState.currentSettings.downloadSubfolder.replace(/^\/+|\/+$/g, '')
-        : 'PageSnap';
-
-      const baseFilename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
-      const filename = subfolder ? `${subfolder}/${baseFilename}` : baseFilename;
+// plan-exempt — standard clean filename save
+      const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
       const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
 
       downloadFile(textToDownload, filename, mime, (status) => {
-        if (status === 'prompting') {
-          btnDownload.innerHTML = '⏳ Saving...';
-        } else if (status === 'saved') {
-          btnDownload.innerHTML = subfolder ? `✅ Saved (${subfolder})` : '✅ Saved!';
+        if (status === 'saved') {
+          btnDownload.innerHTML = '✅ Saved!';
           setTimeout(() => {
             btnDownload.innerHTML = origHtml;
-          }, 2500);
-        } else {
+          }, 2000);
+        } else if (status === 'error') {
           btnDownload.innerHTML = origHtml;
         }
       });

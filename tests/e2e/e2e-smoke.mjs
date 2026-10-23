@@ -319,27 +319,29 @@ async function runE2E() {
     const isSettingsVisible = await popupPage.locator('#settings-pane').isVisible();
     assert.equal(isSettingsVisible, true, 'Settings pane must be visible upon clicking gear icon');
 
-    const subfolderInput = popupPage.locator('#setting-subfolder');
-    const isSubfolderVisible = await subfolderInput.isVisible();
-    assert.equal(isSubfolderVisible, true, 'Download Subfolder input must be visible in Settings pane');
-
-    const subfolderBox = await subfolderInput.boundingBox();
-    assert.ok(subfolderBox && subfolderBox.width > 150, 'Download Subfolder input must have proper width');
-
-    // Check that Obsidian toggle, Subfolder input, and Features section are strictly ordered vertically (no overlap)
-// plan-exempt — fix visible label locator for custom styled checkbox
+// plan-exempt — verify clean vertical hierarchy of core settings without redundant inputs
+    const fmLabel = popupPage.locator('label:has(#setting-frontmatter)');
+    const imgLabel = popupPage.locator('label:has(#setting-images)');
+    const linksLabel = popupPage.locator('label:has(#setting-links)');
     const obsidianLabel = popupPage.locator('label:has(#setting-obsidian)');
-    const obsidianBox = await obsidianLabel.boundingBox();
     const featuresTitle = popupPage.locator('.setting-section-title');
+
+    const fmBox = await fmLabel.boundingBox();
+    const imgBox = await imgLabel.boundingBox();
+    const linksBox = await linksLabel.boundingBox();
+    const obsidianBox = await obsidianLabel.boundingBox();
     const featuresBox = await featuresTitle.boundingBox();
 
-    assert.ok(obsidianBox && subfolderBox && featuresBox, 'All settings elements must have valid bounding boxes');
-    assert.ok(obsidianBox.y < subfolderBox.y, `Obsidian toggle (${obsidianBox?.y}) must sit vertically above Subfolder setting (${subfolderBox?.y})`);
-    assert.ok(subfolderBox.y < featuresBox.y, `Subfolder setting (${subfolderBox?.y}) must sit vertically above Features section (${featuresBox?.y})`);
+    assert.ok(fmBox && imgBox && linksBox && obsidianBox && featuresBox, 'All setting rows must have valid bounding boxes');
+    assert.ok(fmBox.y < imgBox.y, 'Frontmatter toggle must sit above Images toggle');
+    assert.ok(imgBox.y < linksBox.y, 'Images toggle must sit above Links toggle');
+    assert.ok(linksBox.y < obsidianBox.y, 'Links toggle must sit above Obsidian toggle');
+    assert.ok(obsidianBox.y < featuresBox.y, 'Obsidian toggle must sit above Features section');
+
     // Close settings pane
     await popupPage.locator('#btn-close-settings').click();
     await popupPage.waitForTimeout(300);
-    console.log('  ✓ Settings UI layout verified: clean vertical flow, subfolder input, zero overlap');
+    console.log('  ✓ Settings UI layout verified: clean minimal settings, perfect vertical flow, zero overlap');
     console.log('\n▶ TEST 4: Article Content Extraction & Clean Snapshot Integrity');
     await page.bringToFront();
 

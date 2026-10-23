@@ -49,14 +49,13 @@ export const safeStorage = {
 // plan-exempt — remove dead localOnlyStorage
 
 // Default Settings
-// plan-exempt — clean up dead preserveJs setting and add downloadSubfolder
+// plan-exempt — clean minimal default settings
 export const defaultSettings = {
   frontmatter: false,
   rawMode: false,
   includeImages: true,
   includeLinks: true,
   obsidianMode: false,
-  downloadSubfolder: 'PageSnap',
   headingStyle: 'atx',
   bulletStyle: '-',
   codeBlockStyle: 'fenced'
@@ -79,7 +78,6 @@ const checkFrontmatter = document.getElementById('setting-frontmatter');
 const checkImages = document.getElementById('setting-images');
 const checkLinks = document.getElementById('setting-links');
 const checkObsidian = document.getElementById('setting-obsidian');
-const inputSubfolder = document.getElementById('setting-subfolder');
 /**
  * Loads settings from safe storage
  */
@@ -102,7 +100,6 @@ export function saveSettings() {
     includeImages: checkImages ? checkImages.checked : true,
     includeLinks: checkLinks ? checkLinks.checked : true,
     obsidianMode: checkObsidian ? checkObsidian.checked : false,
-    downloadSubfolder: inputSubfolder ? inputSubfolder.value.trim() : 'PageSnap',
     headingStyle: 'atx',
     bulletStyle: '-',
     codeBlockStyle: 'fenced'
@@ -122,7 +119,6 @@ export function updateSettingsUI(settings) {
   if (checkImages) checkImages.checked = settings.includeImages;
   if (checkLinks) checkLinks.checked = settings.includeLinks;
   if (checkObsidian) checkObsidian.checked = settings.obsidianMode;
-  if (inputSubfolder) inputSubfolder.value = settings.downloadSubfolder !== undefined ? settings.downloadSubfolder : 'PageSnap';
 }
 
 /**
@@ -157,11 +153,5 @@ export function initSettingsUI(onSettingsSaved) {
     }
   });
 
-  if (inputSubfolder) {
-    inputSubfolder.addEventListener('change', () => {
-      saveSettings().then((newSettings) => {
-        if (onSettingsSaved) onSettingsSaved(newSettings);
-      });
-    });
-  }
+
 }
