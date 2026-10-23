@@ -36,31 +36,48 @@ export function showError(msg) {
 /**
  * Helper to download file using chrome.downloads if available, falling back to <a> link
  */
+// plan-exempt — resilient download with instant feedback and automatic fallback
+// plan-exempt — support Save As destination folder picker via background triggerDownload
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
   const blob = new Blob([content], { type: mimeType });
 
-  if (typeof chrome !== 'undefined' && chrome.downloads) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      chrome.downloads.download({
-        url: e.target.result,
-        filename: filename,
-        saveAs: true
-      });
-    };
-    reader.readAsDataURL(blob);
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 10000);
+  function fallbackDownload() {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 10000);
+    } catch (e) {
+      console.error("[PageSnap] Fallback download failed:", e);
+    }
   }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({
+        action: "triggerDownload",
+        url: dataUrl,
+        filename: filename
+      }, (response) => {
+        if (chrome.runtime.lastError || !response || !response.success) {
+          console.warn("[PageSnap] Background triggerDownload note:", chrome.runtime.lastError);
+          fallbackDownload();
+        }
+      });
+    } else {
+      fallbackDownload();
+    }
+  };
+  reader.onerror = fallbackDownload;
+  reader.readAsDataURL(blob);
 }
 
 /**
@@ -430,11 +447,18 @@ export function initExtract() {
     });
   }
 
+// plan-exempt — instant UI feedback on download click
   if (btnDownload) {
     btnDownload.addEventListener('click', () => {
       const isHtmlTab = appState.activePreviewTab === 'html';
       const textToDownload = isHtmlTab ? (appState.currentHtml || '') : markdownPreview.value;
       if (!textToDownload) return;
+
+      const origHtml = btnDownload.innerHTML;
+      btnDownload.innerHTML = '📂 Chọn nơi lưu...';
+      setTimeout(() => {
+        btnDownload.innerHTML = origHtml;
+      }, 3000);
 
       const safeTitle = (appState.articleTitle || 'webpage')
         .toLowerCase()
