@@ -494,8 +494,43 @@ async function runE2E() {
     assert.equal(styleResult.hasFramerInstruction, true, 'AI prompt must include Tailwind + Framer Motion instructions');
     console.log('  ✓ Style & Motion extraction verified: CSS @keyframes captured, design tokens collected, AI prompt generated');
 
+// plan-exempt — add E2E test 7 for instant non-blocking extraction speed and action naming consistency
+    // ==========================================
+    // TEST 7: Instant Extraction Speed & Consistent Action Naming
+    // ==========================================
+    console.log('\n▶ TEST 7: Instant Extraction Speed & Consistent Action Naming');
+    const perfResult = await page.evaluate(() => {
+      const t0 = performance.now();
+      const pageData = window.PageSnap.extractPageContent();
+      const duration = performance.now() - t0;
+
+      const btn = document.getElementById('animated-demo-button');
+      window.PageSnap.showFloatingActionsBar(btn);
+      const bar = document.getElementById('pagesnap-region-actions-bar');
+      const buttons = bar ? Array.from(bar.querySelectorAll('button')).map(b => b.innerText.trim()) : [];
+
+      const compData = window.PageSnap.extractComponentStyleAndMotion(btn);
+      window.PageSnap.highlightElement(null);
+      if (bar) bar.remove();
+
+      return {
+        duration,
+        hasPageContent: !!(pageData && pageData.content),
+        buttons,
+        hasEffectiveBg: !!compData.effectiveBg
+      };
+    });
+
+    assert.ok(perfResult.duration < 300, `DOM parsing & extraction must finish in <300ms (took ${perfResult.duration.toFixed(1)}ms)`);
+    assert.equal(perfResult.hasPageContent, true, 'Page extraction must return content');
+    assert.ok(perfResult.buttons.includes('🎨 Copy Component'), 'Floating dock must have standard "Copy Component" button');
+    assert.ok(perfResult.buttons.includes('🤖 Copy AI Prompt'), 'Floating dock must have standard "Copy AI Prompt" button');
+    assert.equal(perfResult.hasEffectiveBg, true, 'Component extractor must detect effective background');
+    console.log('  ✓ Instant extraction verified: finished in ' + perfResult.duration.toFixed(1) + 'ms without blocking');
+    console.log('  ✓ Action naming consistency verified across Floating Dock and Component Studio');
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 6 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 7 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

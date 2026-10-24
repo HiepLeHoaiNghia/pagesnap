@@ -345,9 +345,25 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     bar.appendChild(studioBtn);
 
-    // 🤖 AI Prompt Button
+// plan-exempt — clean unified action names: Copy Component & Copy AI Prompt
+    // 🎨 Copy Component Button (Quick 1-click)
+    const codeBtn = document.createElement("button");
+    codeBtn.innerText = "🎨 Copy Component";
+    codeBtn.title = "Copy self-contained HTML + Scoped CSS";
+    styleBtn(codeBtn);
+    codeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
+      await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
+      Web2MD.showToast("🎨 Component copied to clipboard!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(codeBtn);
+
+    // 🤖 Copy AI Prompt Button (Quick 1-click)
     const aiBtn = document.createElement("button");
-    aiBtn.innerText = "🤖 AI Prompt";
+    aiBtn.innerText = "🤖 Copy AI Prompt";
     aiBtn.title = "Copy AI Design Specs & Motion Tokens for Claude Code / Cursor";
     styleBtn(aiBtn);
     aiBtn.addEventListener('click', async (e) => {
@@ -359,45 +375,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       PageSnap.highlightElement(null);
     });
     bar.appendChild(aiBtn);
-
-    // 🎨 Copy Code Button
-    const codeBtn = document.createElement("button");
-    codeBtn.innerText = "🎨 Copy Code";
-    codeBtn.title = "Copy self-contained HTML + Scoped CSS";
-    styleBtn(codeBtn);
-    codeBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
-      await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
-      Web2MD.showToast("🎨 Component Code copied to clipboard!");
-      bar.remove();
-      PageSnap.highlightElement(null);
-    });
-    bar.appendChild(codeBtn);
-
-    // 📝 Copy MD Button
-    const mdBtn = document.createElement("button");
-    mdBtn.innerText = "📝 Copy MD";
-    styleBtn(mdBtn);
-    mdBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const clone = currentSelectedElement.cloneNode(true);
-      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
-        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (err) {}
-      }
-      let md = '';
-      if (typeof Web2MD.htmlToMarkdown === 'function') {
-        const settings = await Web2MD.getSettings();
-        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
-      } else {
-        md = clone.textContent || '';
-      }
-      await Web2MD.copyTextToClipboard(md);
-      Web2MD.showToast("📝 Markdown copied to clipboard!");
-      bar.remove();
-      PageSnap.highlightElement(null);
-    });
-    bar.appendChild(mdBtn);
     // ✕ Close Button
     const closeBtn = document.createElement("button");
     closeBtn.innerText = "✕";

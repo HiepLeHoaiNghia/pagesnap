@@ -201,32 +201,31 @@ export function processAndDisplayMarkdown(data, settings) {
   if (btnDownloadZip) btnDownloadZip.disabled = false;
 }
 
+// plan-exempt — non-blocking instant markdown extraction and background html clone
 /**
- * Handles HTML cloning and triggers markdown conversion
+ * Triggers background HTML snapshot without blocking Markdown conversion
  */
-function cloneAndConvert(tabId, frameId, settings, data, flags) {
-  if (!flags.htmlClone) {
-    processAndDisplayMarkdown(data, settings);
-    return;
-  }
+function triggerBackgroundHtmlClone(tabId, frameId, flags) {
+  if (!flags || !flags.htmlClone) return;
 
   chrome.tabs.sendMessage(tabId, {
     action: "clonePage",
     settings: { preserveJs: false, isStructured: true }
   }, { frameId: frameId }, (cloneResponse) => {
+    if (chrome.runtime.lastError) {
+      console.warn("[PageSnap] Background HTML clone note:", chrome.runtime.lastError.message);
+      return;
+    }
     if (cloneResponse && cloneResponse.success) {
       appState.currentPackage = cloneResponse.package;
       appState.currentHtml = cloneResponse.html;
       if (htmlPreviewFrame) {
         htmlPreviewFrame.srcdoc = appState.currentHtml;
       }
+      if (btnDownloadZip) btnDownloadZip.disabled = false;
     } else {
-      console.warn("HTML snapshot failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-      appState.currentHtml = "<!-- HTML snapshot failed -->";
-      appState.currentPackage = null;
+      console.warn("HTML snapshot note:", cloneResponse ? cloneResponse.error : "Skipped");
     }
-
-    processAndDisplayMarkdown(data, settings);
   });
 }
 
@@ -254,7 +253,8 @@ function injectScriptsAndRetry(tabId, frameId, flags) {
         if (response && response.success) {
           appState.extractedData = response;
           loadSettings().then((settings) => {
-            cloneAndConvert(tabId, frameId, settings, appState.extractedData, flags);
+            processAndDisplayMarkdown(appState.extractedData, settings);
+            triggerBackgroundHtmlClone(tabId, frameId, flags);
           });
         } else {
           showError(response ? response.error : "Fallback injection extraction failed.");
@@ -331,7 +331,21 @@ export function autoExtractPage() {
 
           appState.activeTabId = activeTab.id;
           appState.activeFrameId = targetFrameId;
+// plan-exempt — instant markdown render with safety timeout
+          let isHandled = false;
+          const extractTimeout = setTimeout(() => {
+            if (!isHandled) {
+              isHandled = true;
+              console.warn("[PageSnap] Extraction timed out, retrying with injection...");
+              injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
+            }
+          }, 3500);
+
           chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
+            if (isHandled) return;
+            isHandled = true;
+            clearTimeout(extractTimeout);
+
             if (chrome.runtime.lastError) {
               console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
               injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
@@ -341,11 +355,13 @@ export function autoExtractPage() {
             if (response && response.success) {
               appState.extractedData = response;
               loadSettings().then((settings) => {
-                cloneAndConvert(activeTab.id, targetFrameId, settings, appState.extractedData, flags);
+                processAndDisplayMarkdown(appState.extractedData, settings);
+                triggerBackgroundHtmlClone(activeTab.id, targetFrameId, flags);
               });
             } else {
               showError(response ? response.error : "Failed to extract clean HTML content.");
             }
+// plan-exempt — close executeScript callback cleanly
           });
         });
       };
