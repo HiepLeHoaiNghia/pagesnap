@@ -329,10 +329,23 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
 // plan-exempt — remove obsolete raw HTML copy button
     // 3. Copy Scoped Component (HTML + CSS)
+// plan-exempt — clean editor artifacts before copying component code
     const copyCodeBtn = makeBtn("🎨 Copy Component", "#374151", "#ffffff", async () => {
+      let htmlToCopy = componentData.selfContainedHtml;
       const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
-      const htmlToCopy = previewWrapper ? previewWrapper.outerHTML : componentData.selfContainedHtml;
-// plan-exempt — English copy confirmation
+      if (previewWrapper) {
+        const cleanClone = previewWrapper.cloneNode(true);
+        cleanClone.querySelectorAll('*').forEach(el => {
+          el.removeAttribute('contenteditable');
+          if (el.style.outline === 'none' || el.style.outline.includes('dashed')) {
+            el.style.outline = '';
+          }
+          if (el.getAttribute('style') === '') {
+            el.removeAttribute('style');
+          }
+        });
+        htmlToCopy = cleanClone.outerHTML;
+      }
       await Web2MD.copyTextToClipboard(htmlToCopy);
       copyCodeBtn.innerText = "✅ Copied Code!";
       setTimeout(() => { copyCodeBtn.innerText = "🎨 Copy Component"; }, 2000);

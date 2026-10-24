@@ -11,23 +11,29 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 (function (PageSnap) {
   'use strict';
 
-  // Properties relevant for visual design and layout
+// plan-exempt — comprehensive CSS grid, position, and SVG motion extraction
+  // Properties relevant for visual design, layout, grid/flex positioning, and SVG motion
   const RELEVANT_STYLE_PROPS = [
-    'display', 'flex-direction', 'align-items', 'justify-content', 'gap',
-    'grid-template-columns', 'grid-template-rows',
-    'width', 'height', 'max-width', 'min-width',
+    'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
+    'flex-direction', 'flex-wrap', 'align-items', 'justify-content', 'gap',
+    'flex-grow', 'flex-shrink', 'flex-basis',
+    'grid-template-columns', 'grid-template-rows', 'grid-template-areas',
+    'grid-column', 'grid-column-start', 'grid-column-end',
+    'grid-row', 'grid-row-start', 'grid-row-end', 'grid-area',
+    'box-sizing',
+    'width', 'height', 'max-width', 'min-width', 'max-height', 'min-height',
     'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
     'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
     'background-color', 'background-image', 'background',
     'color', 'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-align',
     'border-top', 'border-right', 'border-bottom', 'border-left',
     'border-radius', 'box-shadow', 'outline',
-    'opacity', 'visibility', 'overflow', 'z-index',
+    'opacity', 'visibility', 'overflow',
     'backdrop-filter', '-webkit-backdrop-filter',
-    'transform', 'transition',
-    'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay', 'animation-iteration-count'
+    'transform', 'transform-origin', 'transition',
+    'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay', 'animation-iteration-count',
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin'
   ];
-
   /**
    * Scans document stylesheets for keyframe animation rules matching given animation names
    * @param {Set<string>} animationNames
@@ -133,17 +139,50 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       el.classList.add(`ps-el-${index}`);
     });
 
+// plan-exempt — detect effective background and wrap component cleanly
+    function getEffectiveBackground(node) {
+      let curr = node;
+      while (curr && curr !== document && curr.nodeType === 1) {
+        const bg = window.getComputedStyle(curr).backgroundColor;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+          return bg;
+        }
+        curr = curr.parentElement;
+      }
+      const bodyBg = document.body ? window.getComputedStyle(document.body).backgroundColor : null;
+      if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent') {
+        return bodyBg;
+      }
+      const textColor = window.getComputedStyle(node).color;
+      if (textColor && (textColor.includes('247') || textColor.includes('255') || textColor.includes('248') || textColor.includes('208'))) {
+        return '#08090a';
+      }
+      return '#ffffff';
+    }
+
+    const effectiveBg = getEffectiveBackground(element);
+    const rootComputed = window.getComputedStyle(element);
+    const wrapperCss = `.pagesnap-component-wrapper {
+  background-color: ${effectiveBg};
+  color: ${rootComputed.color || 'inherit'};
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+}`;
+
     const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->
 <div class="pagesnap-component-wrapper">
 <style>
+${wrapperCss}
+
 ${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */
 ${scopedCss}
 </style>
 ${clone.outerHTML}
 </div>`;
 
+// plan-exempt — remove duplicate declaration
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
-    const rootComputed = window.getComputedStyle(element);
     const tagName = element.tagName.toLowerCase();
     const rect = element.getBoundingClientRect();
 
