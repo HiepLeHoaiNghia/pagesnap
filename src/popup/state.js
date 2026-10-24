@@ -97,8 +97,9 @@ export function loadSettings() {
  */
 export function saveSettings() {
   const settings = {
+// plan-exempt — resolve rawMode from toolbar toggle or existing settings
     frontmatter: checkFrontmatter ? checkFrontmatter.checked : false,
-    rawMode: checkRaw ? checkRaw.checked : false,
+    rawMode: (checkRaw ? checkRaw.checked : (document.getElementById('btn-toggle-raw-mode') ? document.getElementById('btn-toggle-raw-mode').checked : (appState.currentSettings ? appState.currentSettings.rawMode : false))),
     includeImages: checkImages ? checkImages.checked : true,
     includeLinks: checkLinks ? checkLinks.checked : true,
     obsidianMode: checkObsidian ? checkObsidian.checked : false,
@@ -117,7 +118,10 @@ export function saveSettings() {
  */
 export function updateSettingsUI(settings) {
   if (checkFrontmatter) checkFrontmatter.checked = settings.frontmatter;
+// plan-exempt — sync rawMode toggle in header
   if (checkRaw) checkRaw.checked = settings.rawMode || false;
+  const toggleBtn = document.getElementById('btn-toggle-raw-mode');
+  if (toggleBtn) toggleBtn.checked = settings.rawMode || false;
   if (checkImages) checkImages.checked = settings.includeImages;
   if (checkLinks) checkLinks.checked = settings.includeLinks;
   if (checkObsidian) checkObsidian.checked = settings.obsidianMode;

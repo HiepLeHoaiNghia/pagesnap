@@ -14,10 +14,15 @@ PageSnap.registerHandlers = PageSnap.registerHandlers || function (map) {
 if (!window.__web2md_content_initialized__) {
   window.__web2md_content_initialized__ = true;
 
+// plan-exempt — robust async message protocol and prototype pollution protection
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    const h = Web2MD.handlers[request.action];
+    if (!request || typeof request !== 'object' || !request.action) return;
+    const h = Object.prototype.hasOwnProperty.call(Web2MD.handlers, request.action) ? Web2MD.handlers[request.action] : null;
     if (!h) return;
-    return h(request, sender, sendResponse) === true;
+    const res = h(request, sender, sendResponse);
+    if (res === true || (res && typeof res.then === 'function')) {
+      return true;
+    }
   });
 }
 

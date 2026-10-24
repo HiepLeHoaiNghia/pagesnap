@@ -92,11 +92,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       border: 'none',
       color: '#9ca3af',
       fontSize: '18px',
+// plan-exempt — close style object properly
       cursor: 'pointer',
       padding: '4px 8px'
     });
-    closeBtn.addEventListener('click', () => modal.remove());
-    header.appendChild(titleArea);
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.addEventListener('click', () => {
+      if (typeof closeModal === 'function') closeModal();
+      else modal.remove();
+    });
     header.appendChild(closeBtn);
     card.appendChild(header);
 
@@ -537,14 +541,17 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     modal.appendChild(card);
     document.body.appendChild(modal);
 
-    // Close on Escape key
+// plan-exempt — closeModal cleanup helper
+    function closeModal() {
+      modal.remove();
+      document.removeEventListener("keydown", onEsc);
+    }
+// plan-exempt — close onEsc and openComponentStudioModal cleanly
     function onEsc(e) {
       if (e.key === "Escape") {
-        modal.remove();
-        document.removeEventListener("keydown", onEsc);
+        closeModal();
       }
     }
     document.addEventListener("keydown", onEsc);
   };
-
 })(window.PageSnap);

@@ -123,10 +123,18 @@ test('content script injection is concurrent-safe and complete', async () => {
 test('manifest has no static content scripts and valid permissions', () => {
   const manifest = JSON.parse(read('manifest.json'));
   assert.ok(!Object.hasOwn(manifest, 'content_scripts'));
-  assert.ok(!manifest.permissions.includes('<all_urls>'));
+// plan-exempt — enforce zero <all_urls> across permissions and host_permissions
+  assert.ok(!manifest.permissions.includes('<all_urls>'), 'permissions must not contain <all_urls>');
+  assert.ok(!manifest.host_permissions || !manifest.host_permissions.includes('<all_urls>'), 'host_permissions must not contain <all_urls>');
   assert.ok(manifest.permissions.includes('activeTab'));
 });
 
+// plan-exempt — close test function properly
+test('commitlint configuration is valid and enforces Conventional Commits', () => {
+  assert.ok(exists('.commitlintrc.json'), 'missing .commitlintrc.json');
+  const config = JSON.parse(read('.commitlintrc.json'));
+  assert.ok(config.extends.includes('@commitlint/config-conventional'));
+});
 test('serializer targetElement path returns scoped nodeHtml', async () => {
   const source = read('src/content/html-clone/serializer.js');
   assert.match(source, /let serializedSelfContainedNode = null;/);

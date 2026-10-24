@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "./scripts/launch.sh",
-    "test": "node tests/static-checks.mjs",
+    "test": "node tests/static-checks.mjs && node tests/breaking-change-gate.test.mjs",
+    "test:breaking": "node tests/breaking-change-gate.test.mjs",
     "test:e2e": "node tests/e2e/e2e-smoke.mjs",
     "package": "node scripts/package.mjs",
     "release": "./scripts/release/full-release.sh"

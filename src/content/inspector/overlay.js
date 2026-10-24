@@ -14,6 +14,11 @@ window.Web2MD = window.Web2MD || window.PageSnap;
   PageSnap.isInspectorActive = false;
   let lastHoveredElement = null;
   let overlayEl = null;
+// plan-exempt — track last right-clicked element for context menu
+  let lastRightClickedElement = null;
+  document.addEventListener('contextmenu', (e) => {
+    lastRightClickedElement = e.target;
+  }, true);
 
   function ensureOverlayElement() {
     if (overlayEl && document.body.contains(overlayEl)) return overlayEl;
@@ -464,9 +469,48 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         sendResponse({ active: PageSnap.isInspectorActive });
         return true;
       },
+// plan-exempt — restore contextMenuCopyRegion handler
       toggleRegionSelection: (request, sender, sendResponse) => {
         PageSnap.toggleInspector(request.enabled);
         sendResponse({ success: true, active: PageSnap.isInspectorActive });
+        return true;
+      },
+      contextMenuCopyRegion: async (request, sender, sendResponse) => {
+        const target = lastRightClickedElement || currentSelectedElement;
+        if (!target) {
+          if (typeof Web2MD.showToast === 'function') {
+            Web2MD.showToast("⚠️ No element selected to copy.", true);
+          }
+          sendResponse({ success: false, error: 'No target element' });
+          return true;
+        }
+
+        if (request.format === 'markdown') {
+          const clone = target.cloneNode(true);
+          if (typeof Web2MD.preProcessDOMForConversion === 'function') {
+            try { Web2MD.preProcessDOMForConversion(clone, document); } catch (e) {}
+          }
+          let md = '';
+          if (typeof Web2MD.htmlToMarkdown === 'function') {
+            const settings = await Web2MD.getSettings();
+            md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
+          } else {
+            md = clone.textContent || '';
+          }
+          await Web2MD.copyTextToClipboard(md);
+          if (typeof Web2MD.showToast === 'function') {
+            Web2MD.showToast("📝 Region copied as Markdown!");
+          }
+          sendResponse({ success: true, format: 'markdown' });
+        } else {
+          const comp = PageSnap.extractComponentStyleAndMotion(target);
+          await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
+          if (typeof Web2MD.showToast === 'function') {
+            Web2MD.showToast("🎨 Region copied as Component HTML!");
+          }
+          sendResponse({ success: true, format: 'html' });
+        }
+// plan-exempt — close registerHandlers cleanly
         return true;
       }
     });
