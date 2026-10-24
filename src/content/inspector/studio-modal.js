@@ -100,6 +100,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     card.appendChild(header);
 
     // ─── Studio Toolbar (Live Toggles) ──────────────────────────────────────
+// plan-exempt — add hierarchy navigation controls to Studio toolbar
+    let currentModalElement = element;
+    let modalHistory = [];
+
     const toolbar = document.createElement("div");
     Object.assign(toolbar.style, {
       padding: '10px 20px',
@@ -112,6 +116,80 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       fontSize: '12px'
     });
 
+    // Navigation Hierarchy Buttons: 🔼 Ra ngoài (Parent) & 🔽 Vào trong (Child)
+    const navGroup = document.createElement("div");
+    navGroup.style.display = "flex";
+    navGroup.style.gap = "6px";
+
+    const expandBtn = document.createElement("button");
+    expandBtn.innerText = "🔼 Ra ngoài";
+    expandBtn.title = "Mở rộng ra thẻ cha bao quanh (Parent)";
+    Object.assign(expandBtn.style, {
+      background: '#1f2937',
+      border: '1px solid #374151',
+      color: '#e5e7eb',
+      borderRadius: '6px',
+      padding: '5px 10px',
+      cursor: 'pointer',
+      fontSize: '12px',
+      fontWeight: '500'
+    });
+
+    const shrinkBtn = document.createElement("button");
+    shrinkBtn.innerText = "🔽 Vào trong";
+    shrinkBtn.title = "Thu hẹp vào thẻ con (Child)";
+    Object.assign(shrinkBtn.style, {
+      background: '#1f2937',
+      border: '1px solid #374151',
+      color: '#e5e7eb',
+      borderRadius: '6px',
+      padding: '5px 10px',
+      cursor: 'pointer',
+      fontSize: '12px',
+      fontWeight: '500'
+    });
+
+    function updateStudioContent(newEl) {
+      currentModalElement = newEl;
+      const newCompData = PageSnap.extractComponentStyleAndMotion(newEl);
+      if (!newCompData) return;
+      componentData = newCompData;
+
+      titleArea.innerHTML = `
+        <strong style="color: #ffffff; font-size: 14px;">🎯 PageSnap Component Studio</strong>
+        <span style="color: #9ca3af; font-size: 12px; margin-left: 10px;">&lt;${componentData.tagName}&gt; • ${componentData.width}×${componentData.height}px</span>
+      `;
+      canvas.innerHTML = componentData.selfContainedHtml;
+      if (isEditing) {
+        const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
+        if (previewWrapper) {
+          previewWrapper.querySelectorAll('*').forEach(el => {
+            el.contentEditable = 'true';
+            el.style.outline = '1px dashed #8b5cf6';
+          });
+        }
+      }
+    }
+
+    expandBtn.addEventListener('click', () => {
+      const p = currentModalElement.parentElement;
+      if (p && p !== document.body && p !== document.documentElement) {
+        modalHistory.push(currentModalElement);
+        updateStudioContent(p);
+      }
+    });
+
+    shrinkBtn.addEventListener('click', () => {
+      if (modalHistory.length > 0) {
+        updateStudioContent(modalHistory.pop());
+      } else if (currentModalElement.firstElementChild) {
+        updateStudioContent(currentModalElement.firstElementChild);
+      }
+    });
+
+    navGroup.appendChild(expandBtn);
+    navGroup.appendChild(shrinkBtn);
+    toolbar.appendChild(navGroup);
     // 1. Live Text Edit Toggle
     const editToggleBtn = document.createElement("button");
     editToggleBtn.innerText = "✏️ Sửa trực tiếp chữ (Off)";

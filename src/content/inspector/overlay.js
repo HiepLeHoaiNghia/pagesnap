@@ -141,6 +141,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     }
   }
 
+// plan-exempt — show floating actions dock with hierarchy navigation on click
   function onClick(e) {
     if (!PageSnap.isInspectorActive) return;
     if (isExtensionUi(e.target)) return;
@@ -150,11 +151,243 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
     const target = lastHoveredElement || e.target;
     PageSnap.toggleInspector(false);
+    selectionHistory = [];
 
-    // Open unified Component Studio immediately
-    if (typeof PageSnap.openComponentStudioModal === 'function') {
-      PageSnap.openComponentStudioModal(target);
+    PageSnap.highlightElement(target);
+    PageSnap.showFloatingActionsBar(target);
+  }
+
+  let currentSelectedElement = null;
+  let selectionHistory = [];
+
+  PageSnap.highlightElement = function (element) {
+    document.querySelectorAll(".pagesnap-region-highlighted").forEach(el => {
+      el.classList.remove("pagesnap-region-highlighted");
+      el.style.outline = '';
+    });
+    if (element) {
+      element.classList.add("pagesnap-region-highlighted");
+      element.style.outline = '2px dashed #8b5cf6';
     }
+  };
+
+  PageSnap.showFloatingActionsBar = function (element) {
+    currentSelectedElement = element;
+
+    let bar = document.getElementById("pagesnap-region-actions-bar");
+    if (bar) bar.remove();
+
+    bar = document.createElement("div");
+    bar.id = "pagesnap-region-actions-bar";
+    Object.assign(bar.style, {
+      position: 'absolute',
+      background: 'rgba(17, 24, 39, 0.95)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      border: '1px solid #374151',
+      borderRadius: '12px',
+      padding: '8px 14px',
+      display: 'flex',
+      gap: '8px',
+      alignItems: 'center',
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+      zIndex: '2147483647',
+      fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      fontSize: '12px',
+      color: '#f3f4f6',
+      transition: 'top 0.15s ease, left 0.15s ease'
+    });
+
+    document.body.appendChild(bar);
+    renderFloatingBar(bar);
+  };
+
+  function styleBtn(b, isPrimary = false) {
+    Object.assign(b.style, {
+      background: isPrimary ? 'linear-gradient(135deg, #8b5cf6, #3b82f6)' : 'transparent',
+      border: isPrimary ? 'none' : '1px solid #374151',
+      borderRadius: '6px',
+      color: '#ffffff',
+      padding: '5px 9px',
+      cursor: 'pointer',
+      fontSize: '11px',
+      fontWeight: '600',
+      transition: 'all 0.15s ease'
+    });
+    if (!isPrimary) {
+      b.addEventListener('mouseover', () => { b.style.background = '#8b5cf6'; b.style.borderColor = '#8b5cf6'; });
+      b.addEventListener('mouseout', () => { b.style.background = 'transparent'; b.style.borderColor = '#374151'; });
+    }
+  }
+
+  function renderFloatingBar(bar) {
+    bar.innerHTML = "";
+    const element = currentSelectedElement;
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+
+    let top = rect.top + scrollTop - 52;
+    if (top < scrollTop) {
+      top = rect.bottom + scrollTop + 10;
+    }
+    let left = rect.left + scrollLeft;
+    if (left + 580 > window.innerWidth + scrollLeft) {
+      left = Math.max(10, window.innerWidth + scrollLeft - 600);
+    }
+    if (left < scrollLeft) left = scrollLeft + 10;
+
+    bar.style.top = `${top}px`;
+    bar.style.left = `${left}px`;
+
+    // Tag Label
+    const label = document.createElement("span");
+    label.innerText = `[${getElementLabel(element)}]`;
+    label.style.color = '#8b5cf6';
+    label.style.fontWeight = 'bold';
+    label.style.marginRight = '2px';
+    bar.appendChild(label);
+
+    // Navigation Hierarchy Buttons: 🔼 Ra ngoài (Parent) & 🔽 Vào trong (Child)
+    const navGroup = document.createElement("div");
+    navGroup.style.display = "flex";
+    navGroup.style.gap = "4px";
+
+    const expandBtn = document.createElement("button");
+    expandBtn.innerText = "🔼 Ra ngoài";
+    expandBtn.title = "Mở rộng ra thẻ cha bao quanh (Parent)";
+    styleBtn(expandBtn);
+
+    const parent = element.parentElement;
+    if (parent && parent !== document.body && parent !== document.documentElement) {
+      expandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectionHistory.push(element);
+        currentSelectedElement = parent;
+        PageSnap.highlightElement(parent);
+        renderFloatingBar(bar);
+      });
+    } else {
+      expandBtn.disabled = true;
+      expandBtn.style.opacity = "0.4";
+      expandBtn.style.cursor = "not-allowed";
+    }
+    navGroup.appendChild(expandBtn);
+
+    const shrinkBtn = document.createElement("button");
+    shrinkBtn.innerText = "🔽 Vào trong";
+    shrinkBtn.title = "Thu hẹp vào thẻ con (Child)";
+    styleBtn(shrinkBtn);
+
+    const hasChild = (selectionHistory.length > 0) || (element.firstElementChild !== null);
+    if (hasChild) {
+      shrinkBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        let targetChild = null;
+        if (selectionHistory.length > 0) {
+          targetChild = selectionHistory.pop();
+        } else if (element.firstElementChild) {
+          targetChild = element.firstElementChild;
+        }
+        if (targetChild) {
+          currentSelectedElement = targetChild;
+          PageSnap.highlightElement(targetChild);
+          renderFloatingBar(bar);
+        }
+      });
+    } else {
+      shrinkBtn.disabled = true;
+      shrinkBtn.style.opacity = "0.4";
+      shrinkBtn.style.cursor = "not-allowed";
+    }
+    navGroup.appendChild(shrinkBtn);
+    bar.appendChild(navGroup);
+
+    // Separator
+    const sep = document.createElement("span");
+    sep.style.cssText = "width: 1px; height: 16px; background: #374151; margin: 0 4px;";
+    bar.appendChild(sep);
+
+    // ✨ Live Studio Button
+    const studioBtn = document.createElement("button");
+    studioBtn.innerText = "✨ Live Studio";
+    studioBtn.title = "Mở phòng thí nghiệm để xem thử, sửa chữ, và tuỳ biến component";
+    styleBtn(studioBtn, true);
+    studioBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bar.remove();
+      PageSnap.highlightElement(null);
+      PageSnap.openComponentStudioModal(currentSelectedElement);
+    });
+    bar.appendChild(studioBtn);
+
+    // 🤖 AI Prompt Button
+    const aiBtn = document.createElement("button");
+    aiBtn.innerText = "🤖 AI Prompt";
+    aiBtn.title = "Copy Design Specs & Motion Tokens cho Claude Code / Cursor";
+    styleBtn(aiBtn);
+    aiBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
+      await Web2MD.copyTextToClipboard(comp.promptMarkdown);
+      Web2MD.showToast("🤖 AI Design Prompt đã được copy!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(aiBtn);
+
+    // 🎨 Copy Code Button
+    const codeBtn = document.createElement("button");
+    codeBtn.innerText = "🎨 Copy Code";
+    codeBtn.title = "Copy HTML + Scoped CSS tự chạy";
+    styleBtn(codeBtn);
+    codeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
+      await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
+      Web2MD.showToast("🎨 Component Code đã được copy!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(codeBtn);
+
+    // 📝 Copy MD Button
+    const mdBtn = document.createElement("button");
+    mdBtn.innerText = "📝 Copy MD";
+    styleBtn(mdBtn);
+    mdBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const clone = currentSelectedElement.cloneNode(true);
+      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
+        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (err) {}
+      }
+      let md = '';
+      if (typeof Web2MD.htmlToMarkdown === 'function') {
+        const settings = await Web2MD.getSettings();
+        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
+      } else {
+        md = clone.textContent || '';
+      }
+      await Web2MD.copyTextToClipboard(md);
+      Web2MD.showToast("📝 Markdown đã được copy!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(mdBtn);
+
+    // ✕ Close Button
+    const closeBtn = document.createElement("button");
+    closeBtn.innerText = "✕";
+    styleBtn(closeBtn);
+    closeBtn.style.padding = '4px 6px';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(closeBtn);
   }
 
   /**
