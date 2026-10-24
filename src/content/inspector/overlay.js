@@ -360,6 +360,21 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       PageSnap.highlightElement(null);
     });
     bar.appendChild(codeBtn);
+// plan-exempt — add modular Component ZIP button to floating dock
+    // 📦 Download Modular Component ZIP Button
+    const zipBtn = document.createElement("button");
+    zipBtn.innerText = "📦 Download ZIP";
+    zipBtn.title = "Download modular ZIP package (index.html, styles.css, Component.jsx, tokens.json, AI-PROMPT.md)";
+    styleBtn(zipBtn);
+    zipBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
+      await PageSnap.downloadComponentZip(comp);
+      Web2MD.showToast("📦 Modular Component ZIP downloaded!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(zipBtn);
 
     // 🤖 Copy AI Prompt Button (Quick 1-click)
     const aiBtn = document.createElement("button");

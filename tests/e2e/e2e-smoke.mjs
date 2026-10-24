@@ -348,10 +348,13 @@ async function runE2E() {
 
 // plan-exempt — deep Markdown and HTML output quality verification
     // Inject PageSnap runtime scripts into article page
+// plan-exempt — include jszip in scriptsToInject for modular ZIP test
     const scriptsToInject = [
       'lib/readability.js',
       'lib/turndown.js',
       'lib/turndown-plugin-gfm.js',
+      'lib/jszip.min.js',
+// plan-exempt — keep utils.js in scriptsToInject
       'src/content/core/namespace.js',
       'src/content/core/utils.js',
       'src/content/core/settings.js',
@@ -529,8 +532,43 @@ async function runE2E() {
     console.log('  ✓ Instant extraction verified: finished in ' + perfResult.duration.toFixed(1) + 'ms without blocking');
     console.log('  ✓ Action naming consistency verified across Floating Dock and Component Studio');
 
+// plan-exempt — E2E test 8 for modular code separation, multi-tab studio inspector, and ZIP packaging
+    // ==========================================
+    // TEST 8: Modular Code Separation & Component ZIP Package
+    // ==========================================
+    console.log('\n▶ TEST 8: Modular Code Separation & Component ZIP Package');
+    const modularResult = await page.evaluate(async () => {
+      const btn = document.getElementById('animated-demo-button');
+      const comp = window.PageSnap.extractComponentStyleAndMotion(btn);
+      const zipRes = await window.PageSnap.downloadComponentZip(comp, 'test-component.zip');
+
+      window.PageSnap.openComponentStudioModal(btn);
+      const modal = document.getElementById('pagesnap-component-studio-modal');
+      const studioTabs = modal ? Array.from(modal.querySelectorAll('[data-studio-tab]')).map(el => el.dataset.studioTab) : [];
+      if (modal) modal.remove();
+
+      return {
+        hasHtmlOnly: !!(comp.htmlOnly && !comp.htmlOnly.includes('<style>')),
+        hasCssOnly: !!(comp.cssOnly && comp.cssOnly.includes('.pagesnap-component-wrapper') && comp.cssOnly.includes('@keyframes')),
+        hasReactJsx: !!(comp.reactJsx && comp.reactJsx.includes('export default function ExtractedComponent') && comp.reactJsx.includes('className=')),
+        hasTokensJson: !!(comp.tokensJson && JSON.parse(comp.tokensJson).element.tagName === 'button'),
+        zipFilename: zipRes.filename,
+        zipSize: zipRes.size,
+        studioTabs
+      };
+    });
+
+    assert.equal(modularResult.hasHtmlOnly, true, 'htmlOnly must contain pure HTML markup without <style> block');
+    assert.equal(modularResult.hasCssOnly, true, 'cssOnly must contain separated CSS rules and @keyframes');
+    assert.equal(modularResult.hasReactJsx, true, 'reactJsx must generate valid React Component.jsx with className');
+    assert.equal(modularResult.hasTokensJson, true, 'tokensJson must be valid structured JSON');
+    assert.ok(modularResult.zipSize > 500, `Component ZIP archive must be non-empty (${modularResult.zipSize} bytes)`);
+    assert.deepEqual(modularResult.studioTabs, ['preview', 'html', 'css', 'jsx', 'tokens', 'ai'], 'Studio modal must provide all 6 modular inspector tabs');
+    console.log(`  ✓ Modular separation verified: HTML, CSS, React JSX, and Tokens cleanly separated`);
+    console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes) & 6 Studio tabs verified`);
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 7 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 8 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

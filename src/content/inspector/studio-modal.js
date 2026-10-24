@@ -151,13 +151,59 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       fontWeight: '500'
     });
 
+// plan-exempt — modular multi-tab code inspector (Preview, HTML, CSS, React JSX, Tokens, AI Specs) and ZIP export
+    let activeStudioTab = 'preview';
+    let isEditing = false;
+
+    const viewTabs = [
+      { id: 'preview', label: '👁️ Live Preview', file: 'Live Sandbox' },
+      { id: 'html', label: '📄 HTML', file: 'index.html (Markup Only)' },
+      { id: 'css', label: '🎨 CSS', file: 'styles.css (Styles + @keyframes)' },
+      { id: 'jsx', label: '⚛️ React JSX', file: 'Component.jsx (React + CSS import)' },
+      { id: 'tokens', label: '🎛️ Tokens', file: 'tokens.json (Design Tokens)' },
+      { id: 'ai', label: '🤖 AI Specs', file: 'AI-PROMPT.md (Reverse-Engineering Brief)' }
+    ];
+
+    const tabButtonsMap = new Map();
+
+    function getActiveTabCode() {
+      if (activeStudioTab === 'html') return componentData.htmlOnly || '';
+      if (activeStudioTab === 'css') return componentData.cssOnly || '';
+      if (activeStudioTab === 'jsx') return componentData.reactJsx || '';
+      if (activeStudioTab === 'tokens') return componentData.tokensJson || '';
+      if (activeStudioTab === 'ai') return componentData.promptMarkdown || '';
+      return '';
+    }
+
+    function syncActiveView() {
+      viewTabs.forEach(t => {
+        const b = tabButtonsMap.get(t.id);
+        if (b) {
+          const active = t.id === activeStudioTab;
+          b.style.background = active ? '#8b5cf6' : '#1f2937';
+          b.style.borderColor = active ? '#8b5cf6' : '#374151';
+          b.style.color = '#ffffff';
+        }
+      });
+
+      if (activeStudioTab === 'preview') {
+        canvas.style.display = 'flex';
+        codeViewerWrap.style.display = 'none';
+      } else {
+        canvas.style.display = 'none';
+        codeViewerWrap.style.display = 'flex';
+        const tabMeta = viewTabs.find(t => t.id === activeStudioTab);
+        codeFileLabel.innerText = tabMeta ? tabMeta.file : '';
+        codeTextarea.value = getActiveTabCode();
+      }
+    }
+
     function updateStudioContent(newEl) {
       currentModalElement = newEl;
       const newCompData = PageSnap.extractComponentStyleAndMotion(newEl);
       if (!newCompData) return;
       componentData = newCompData;
 
-// plan-exempt — fix template string and adapt background
       titleArea.innerHTML = `
         <strong style="color: #ffffff; font-size: 14px;">🎯 PageSnap Component Studio</strong>
         <span style="color: #9ca3af; font-size: 12px; margin-left: 10px;">&lt;${componentData.tagName}&gt; • ${componentData.width}×${componentData.height}px</span>
@@ -173,6 +219,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           });
         }
       }
+      syncActiveView();
     }
 
     expandBtn.addEventListener('click', () => {
@@ -194,8 +241,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     navGroup.appendChild(expandBtn);
     navGroup.appendChild(shrinkBtn);
     toolbar.appendChild(navGroup);
-    // 1. Live Text Edit Toggle
-// plan-exempt — English UI controls
+
     // 1. Live Text Edit Toggle
     const editToggleBtn = document.createElement("button");
     editToggleBtn.innerText = "✏️ Direct Text Edit (Off)";
@@ -210,34 +256,139 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       fontWeight: '500',
       transition: 'all 0.15s ease'
     });
-
-// plan-exempt — remove superficial background switcher
     toolbar.appendChild(editToggleBtn);
+
+    // 2. Modular View Tabs Group (Right-aligned in sub-toolbar)
+    const tabsGroup = document.createElement("div");
+    Object.assign(tabsGroup.style, {
+      display: 'flex',
+      gap: '6px',
+      marginLeft: 'auto',
+      flexWrap: 'wrap'
+    });
+
+    viewTabs.forEach(tab => {
+      const tBtn = document.createElement("button");
+      tBtn.innerText = tab.label;
+      tBtn.dataset.studioTab = tab.id;
+      const isInitial = tab.id === 'preview';
+      Object.assign(tBtn.style, {
+        background: isInitial ? '#8b5cf6' : '#1f2937',
+        border: `1px solid ${isInitial ? '#8b5cf6' : '#374151'}`,
+        color: '#ffffff',
+        borderRadius: '6px',
+        padding: '5px 10px',
+        cursor: 'pointer',
+        fontSize: '11px',
+        fontWeight: '600',
+        transition: 'all 0.15s ease'
+      });
+      tBtn.addEventListener('click', () => {
+        activeStudioTab = tab.id;
+        syncActiveView();
+      });
+      tabButtonsMap.set(tab.id, tBtn);
+      tabsGroup.appendChild(tBtn);
+    });
+
+    toolbar.appendChild(tabsGroup);
     card.appendChild(toolbar);
 
     // ─── Preview Canvas ─────────────────────────────────────────────────────
-// plan-exempt — wide flexible canvas for high-resolution responsive preview
     const canvas = document.createElement("div");
     Object.assign(canvas.style, {
       flex: '1',
       minHeight: '360px',
-      maxHeight: '75vh',
+      maxHeight: '72vh',
       overflow: 'auto',
       padding: '24px',
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'center',
-// plan-exempt — set initial canvas content and background
       background: componentData.effectiveBg || '#090d16',
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
     card.appendChild(canvas);
+
+    // ─── Modular Code Viewer Panel ──────────────────────────────────────────
+    const codeViewerWrap = document.createElement("div");
+    Object.assign(codeViewerWrap.style, {
+      flex: '1',
+      minHeight: '360px',
+      maxHeight: '72vh',
+      display: 'none',
+      flexDirection: 'column',
+      background: '#0b0f19'
+    });
+
+    const codeHeader = document.createElement("div");
+    Object.assign(codeHeader.style, {
+      padding: '8px 20px',
+      background: '#111827',
+      borderBottom: '1px solid #1f2937',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      fontSize: '12px',
+      color: '#9ca3af'
+    });
+
+    const codeFileLabel = document.createElement("span");
+    codeFileLabel.style.fontFamily = "monospace";
+    codeFileLabel.style.color = "#38bdf8";
+
+    const copyActiveTabBtn = document.createElement("button");
+    copyActiveTabBtn.innerText = "📋 Copy This File";
+    Object.assign(copyActiveTabBtn.style, {
+      background: '#1f2937',
+      border: '1px solid #374151',
+      color: '#ffffff',
+      borderRadius: '6px',
+      padding: '4px 10px',
+      fontSize: '11px',
+      fontWeight: '600',
+      cursor: 'pointer'
+    });
+    copyActiveTabBtn.addEventListener('click', async () => {
+      const code = getActiveTabCode();
+      await Web2MD.copyTextToClipboard(code);
+      copyActiveTabBtn.innerText = "✅ Copied!";
+      setTimeout(() => { copyActiveTabBtn.innerText = "📋 Copy This File"; }, 2000);
+    });
+
+    codeHeader.appendChild(codeFileLabel);
+    codeHeader.appendChild(copyActiveTabBtn);
+
+    const codeTextarea = document.createElement("textarea");
+    codeTextarea.readOnly = true;
+    Object.assign(codeTextarea.style, {
+      flex: '1',
+      width: '100%',
+      minHeight: '320px',
+      background: '#0b0f19',
+      color: '#e2e8f0',
+      border: 'none',
+      padding: '16px 20px',
+      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+      fontSize: '12px',
+      lineHeight: '1.5',
+      resize: 'none',
+      outline: 'none',
+      boxSizing: 'border-box'
+    });
+
+    codeViewerWrap.appendChild(codeHeader);
+    codeViewerWrap.appendChild(codeTextarea);
+    card.appendChild(codeViewerWrap);
+
     // Wire live text edit toggle
-    let isEditing = false;
     editToggleBtn.addEventListener('click', () => {
-// plan-exempt — English toggle text
       isEditing = !isEditing;
+      if (isEditing && activeStudioTab !== 'preview') {
+        activeStudioTab = 'preview';
+        syncActiveView();
+      }
       editToggleBtn.innerText = isEditing ? "✏️ Direct Text Edit (ON)" : "✏️ Direct Text Edit (Off)";
       editToggleBtn.style.background = isEditing ? '#8b5cf6' : '#1f2937';
       editToggleBtn.style.color = '#ffffff';
@@ -305,8 +456,48 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       setTimeout(() => { copyMdBtn.innerText = "📝 Copy Selection MD"; }, 2000);
     });
     leftGroup.appendChild(copyMdBtn);
-    // 3. Copy Scoped Component (HTML + CSS)
-// plan-exempt — clean editor artifacts before copying component code
+
+// plan-exempt — modular copy buttons for HTML, CSS, React JSX, and Component ZIP package
+    // 2. Copy HTML Only
+    const copyHtmlOnlyBtn = makeBtn("📄 Copy HTML", "#1f2937", "#e5e7eb", async () => {
+      await Web2MD.copyTextToClipboard(componentData.htmlOnly || '');
+      copyHtmlOnlyBtn.innerText = "✅ Copied HTML!";
+      setTimeout(() => { copyHtmlOnlyBtn.innerText = "📄 Copy HTML"; }, 2000);
+    });
+    leftGroup.appendChild(copyHtmlOnlyBtn);
+
+    // 3. Copy CSS Only
+    const copyCssOnlyBtn = makeBtn("🎨 Copy CSS", "#1f2937", "#e5e7eb", async () => {
+      await Web2MD.copyTextToClipboard(componentData.cssOnly || '');
+      copyCssOnlyBtn.innerText = "✅ Copied CSS!";
+      setTimeout(() => { copyCssOnlyBtn.innerText = "🎨 Copy CSS"; }, 2000);
+    });
+    leftGroup.appendChild(copyCssOnlyBtn);
+
+    // 4. Copy React JSX
+    const copyJsxBtn = makeBtn("⚛️ Copy JSX", "#1f2937", "#e5e7eb", async () => {
+      await Web2MD.copyTextToClipboard(componentData.reactJsx || '');
+      copyJsxBtn.innerText = "✅ Copied JSX!";
+      setTimeout(() => { copyJsxBtn.innerText = "⚛️ Copy JSX"; }, 2000);
+    });
+    leftGroup.appendChild(copyJsxBtn);
+
+    // 5. Download Modular Component ZIP Package
+    const downloadZipBtn = makeBtn("📦 Download ZIP", "#1e293b", "#38bdf8", async () => {
+      downloadZipBtn.innerText = "⏳ Packaging...";
+      try {
+        await PageSnap.downloadComponentZip(componentData);
+        downloadZipBtn.innerText = "✅ ZIP Downloaded!";
+      } catch (err) {
+        console.error("[PageSnap] Component ZIP failed:", err);
+        downloadZipBtn.innerText = "❌ ZIP Failed";
+      }
+      setTimeout(() => { downloadZipBtn.innerText = "📦 Download ZIP"; }, 2000);
+    });
+    downloadZipBtn.style.borderColor = '#38bdf8';
+    rightGroup.appendChild(downloadZipBtn);
+
+    // 6. Copy All-in-One Component (HTML + CSS)
     const copyCodeBtn = makeBtn("🎨 Copy Component", "#374151", "#ffffff", async () => {
       let htmlToCopy = componentData.selfContainedHtml;
       const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
@@ -328,7 +519,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       setTimeout(() => { copyCodeBtn.innerText = "🎨 Copy Component"; }, 2000);
     });
     rightGroup.appendChild(copyCodeBtn);
-
     // 4. Copy AI Reverse-Engineering Prompt (Hero Action)
     const copyPromptBtn = makeBtn("🤖 Copy AI Prompt", "linear-gradient(135deg, #8b5cf6, #3b82f6)", "#ffffff", async () => {
 // plan-exempt — English copy confirmation
