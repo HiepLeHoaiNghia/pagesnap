@@ -123,13 +123,15 @@ function renderActionsBarContents(bar) {
   bar.appendChild(sep);
 
 // plan-exempt — add Style Code and AI Prompt buttons to region actions bar
+// plan-exempt — add Live Studio to region action bar buttons
   const buttons = [
-    { text: "📝 Copy MD", action: () => Web2MD.handleRegionAction(element, "markdown") },
+    { text: "✨ Live Studio", title: "Open interactive Component Studio to edit text, preview, and export", action: () => openComponentStudioModal(element) },
     { text: "🎨 Style Code", title: "Copy self-contained component HTML + CSS with animations", action: () => Web2MD.handleRegionAction(element, "style-component") },
     { text: "🤖 AI Prompt", title: "Copy reverse-engineering design tokens & motion prompt for AI", action: () => Web2MD.handleRegionAction(element, "ai-prompt") },
+    { text: "📝 Copy MD", action: () => Web2MD.handleRegionAction(element, "markdown") },
     { text: "🌐 Copy HTML", action: () => Web2MD.handleRegionAction(element, "html") },
-    { text: "📥 HTML", title: "Download self-contained HTML page", action: () => Web2MD.handleRegionAction(element, "download-html") },
-    { text: "📦 ZIP", title: "Download structured zip package", action: () => Web2MD.handleRegionAction(element, "download-zip") }
+    { text: "📥 HTML", title: "Download self-contained HTML page", action: () => Web2MD.handleRegionAction(element, "download-html") }
+// plan-exempt — fix forEach loop opener
   ];
   buttons.forEach(btnInfo => {
     const btn = document.createElement("button");
@@ -424,3 +426,213 @@ Web2MD.handleRegionAction = async function (element, action) {
     });
   }
 };
+
+// plan-exempt — interactive Component Studio modal implementation
+function openComponentStudioModal(element) {
+  const existingModal = document.getElementById("pagesnap-component-studio-modal");
+  if (existingModal) existingModal.remove();
+
+  if (typeof PageSnap.extractComponentStyleAndMotion !== 'function') {
+    Web2MD.showToast("❌ Style extractor module not loaded", true);
+    return;
+  }
+
+  const componentData = PageSnap.extractComponentStyleAndMotion(element);
+  if (!componentData) {
+    Web2MD.showToast("❌ Failed to extract component data", true);
+    return;
+  }
+
+  const modal = document.createElement("div");
+  modal.id = "pagesnap-component-studio-modal";
+  Object.assign(modal.style, {
+    position: 'fixed',
+    inset: '0',
+    background: 'rgba(0, 0, 0, 0.8)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    zIndex: '2147483647',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
+    color: '#f3f4f6'
+  });
+
+  const card = document.createElement("div");
+  Object.assign(card.style, {
+    background: '#111827',
+    border: '1px solid #374151',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '850px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+    overflow: 'hidden'
+  });
+
+  // Header
+  const header = document.createElement("div");
+  Object.assign(header.style, {
+    padding: '14px 20px',
+    borderBottom: '1px solid #1f2937',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: '#182234'
+  });
+
+  const title = document.createElement("div");
+  title.innerHTML = `<strong>✨ PageSnap Component Studio</strong> <span style="color: #9ca3af; font-size: 12px; margin-left: 8px;">&lt;${componentData.tagName}&gt; • ${componentData.width}×${componentData.height}px</span>`;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.innerText = "✕";
+  Object.assign(closeBtn.style, {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '4px 8px'
+  });
+  closeBtn.addEventListener('click', () => modal.remove());
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  card.appendChild(header);
+
+  // Toolbar
+  const toolbar = document.createElement("div");
+  Object.assign(toolbar.style, {
+    padding: '10px 20px',
+    borderBottom: '1px solid #1f2937',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    background: '#131b2a',
+    fontSize: '12px'
+  });
+
+  const editToggleBtn = document.createElement("button");
+  editToggleBtn.innerText = "✏️ Sửa trực tiếp chữ (Off)";
+  Object.assign(editToggleBtn.style, {
+    background: '#1f2937',
+    border: '1px solid #374151',
+    color: '#e5e7eb',
+    borderRadius: '6px',
+    padding: '5px 10px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  });
+
+  const canvas = document.createElement("div");
+  Object.assign(canvas.style, {
+    flex: '1',
+    minHeight: '260px',
+    maxHeight: '450px',
+    overflow: 'auto',
+    padding: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#090d16',
+    transition: 'background 0.2s ease'
+  });
+
+  let isEditing = false;
+  editToggleBtn.addEventListener('click', () => {
+    isEditing = !isEditing;
+    editToggleBtn.innerText = isEditing ? "✏️ Sửa trực tiếp chữ (ĐANG BẬT)" : "✏️ Sửa trực tiếp chữ (Off)";
+    editToggleBtn.style.background = isEditing ? '#8b5cf6' : '#1f2937';
+    editToggleBtn.style.color = '#ffffff';
+
+    const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
+    if (previewWrapper) {
+      previewWrapper.querySelectorAll('*').forEach(el => {
+        el.contentEditable = isEditing ? 'true' : 'false';
+        el.style.outline = isEditing ? '1px dashed #8b5cf6' : 'none';
+      });
+    }
+  });
+  toolbar.appendChild(editToggleBtn);
+
+  const bgSwitchBtn = document.createElement("button");
+  bgSwitchBtn.innerText = "🌓 Đổi nền Canvas";
+  Object.assign(bgSwitchBtn.style, {
+    background: '#1f2937',
+    border: '1px solid #374151',
+    color: '#e5e7eb',
+    borderRadius: '6px',
+    padding: '5px 10px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  });
+  let isLight = false;
+  bgSwitchBtn.addEventListener('click', () => {
+    isLight = !isLight;
+    canvas.style.background = isLight ? '#f8fafc' : '#090d16';
+  });
+  toolbar.appendChild(bgSwitchBtn);
+  card.appendChild(toolbar);
+
+  canvas.innerHTML = componentData.selfContainedHtml;
+  card.appendChild(canvas);
+
+  // Footer
+  const footer = document.createElement("div");
+  Object.assign(footer.style, {
+    padding: '12px 20px',
+    borderTop: '1px solid #1f2937',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    background: '#182234'
+  });
+
+  const copyCodeBtn = document.createElement("button");
+  copyCodeBtn.innerText = "🎨 Copy Scoped HTML & CSS";
+  Object.assign(copyCodeBtn.style, {
+    background: '#374151',
+    border: 'none',
+    color: '#ffffff',
+    borderRadius: '6px',
+    padding: '7px 14px',
+    fontWeight: '600',
+    fontSize: '12px',
+    cursor: 'pointer'
+  });
+  copyCodeBtn.addEventListener('click', async () => {
+    const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
+    const htmlToCopy = previewWrapper ? previewWrapper.outerHTML : componentData.selfContainedHtml;
+    await Web2MD.copyTextToClipboard(htmlToCopy);
+    copyCodeBtn.innerText = "✅ Đã Copy Code!";
+    setTimeout(() => { copyCodeBtn.innerText = "🎨 Copy Scoped HTML & CSS"; }, 2000);
+  });
+  footer.appendChild(copyCodeBtn);
+
+  const copyPromptBtn = document.createElement("button");
+  copyPromptBtn.innerText = "🤖 Copy Prompt cho AI";
+  Object.assign(copyPromptBtn.style, {
+    background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+    border: 'none',
+    color: '#ffffff',
+    borderRadius: '6px',
+    padding: '7px 16px',
+    fontWeight: '600',
+    fontSize: '12px',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.4)'
+  });
+  copyPromptBtn.addEventListener('click', async () => {
+    await Web2MD.copyTextToClipboard(componentData.promptMarkdown);
+    copyPromptBtn.innerText = "✅ Đã Copy AI Prompt!";
+    setTimeout(() => { copyPromptBtn.innerText = "🤖 Copy Prompt cho AI"; }, 2000);
+  });
+  footer.appendChild(copyPromptBtn);
+
+  card.appendChild(footer);
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}

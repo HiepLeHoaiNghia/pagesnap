@@ -48,66 +48,163 @@ Web2MD.toggleRegionSelectionMode = function (forceValue) {
     document.removeEventListener("click", handleRegionClick, true);
     document.removeEventListener("keydown", handleRegionKeyDown, true);
 
+    hideInspectorOverlay();
     if (lastHoveredElement) {
-      lastHoveredElement.classList.remove("web2md-region-highlighted");
+      lastHoveredElement.classList.remove("pagesnap-region-highlighted", "web2md-region-highlighted");
       lastHoveredElement = null;
     }
   }
 };
 
+// plan-exempt — DevTools-grade inspector overlay for modern dynamic sites like Linear
+let inspectorOverlay = null;
+
+function ensureInspectorOverlay() {
+  if (inspectorOverlay && document.body.contains(inspectorOverlay)) return inspectorOverlay;
+  inspectorOverlay = document.getElementById('pagesnap-inspector-overlay');
+  if (inspectorOverlay) return inspectorOverlay;
+
+  inspectorOverlay = document.createElement('div');
+  inspectorOverlay.id = 'pagesnap-inspector-overlay';
+  Object.assign(inspectorOverlay.style, {
+    position: 'absolute',
+    pointerEvents: 'none',
+    border: '2px solid #8b5cf6',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    boxShadow: '0 0 16px rgba(139, 92, 246, 0.5)',
+    borderRadius: '4px',
+    zIndex: '2147483646',
+    display: 'none',
+    transition: 'top 0.08s ease-out, left 0.08s ease-out, width 0.08s ease-out, height 0.08s ease-out'
+  });
+
+  const badge = document.createElement('div');
+  badge.id = 'pagesnap-inspector-badge';
+  Object.assign(badge.style, {
+    position: 'absolute',
+    top: '-24px',
+    left: '0',
+    background: '#8b5cf6',
+    color: '#ffffff',
+    padding: '2px 8px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    borderRadius: '4px',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+    zIndex: '2147483647'
+  });
+  inspectorOverlay.appendChild(badge);
+  document.body.appendChild(inspectorOverlay);
+  return inspectorOverlay;
+}
+
+function updateInspectorOverlay(el) {
+  if (!el || el === document.body || el === document.documentElement) {
+    hideInspectorOverlay();
+    return;
+  }
+  const overlay = ensureInspectorOverlay();
+  const rect = el.getBoundingClientRect();
+  const scrollX = window.scrollX || document.documentElement.scrollLeft;
+  const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+  overlay.style.top = `${rect.top + scrollY}px`;
+  overlay.style.left = `${rect.left + scrollX}px`;
+  overlay.style.width = `${rect.width}px`;
+  overlay.style.height = `${rect.height}px`;
+  overlay.style.display = 'block';
+
+  const badge = overlay.querySelector('#pagesnap-inspector-badge');
+  if (badge) {
+    const desc = Web2MD.getElementDescription(el);
+    badge.innerText = `${desc} • ${Math.round(rect.width)}×${Math.round(rect.height)}px [↑ Parent]`;
+    if (rect.top < 28) {
+      badge.style.top = `${rect.height + 4}px`;
+    } else {
+      badge.style.top = '-24px';
+    }
+  }
+}
+
+// plan-exempt — clean hideInspectorOverlay
+function hideInspectorOverlay() {
+  if (inspectorOverlay) {
+    inspectorOverlay.style.display = 'none';
+  }
+}
 function handleRegionKeyDown(e) {
   if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
     Web2MD.toggleRegionSelectionMode(false);
     Web2MD.showToast("🎯 Selection mode cancelled.");
+  } else if (e.key === "ArrowUp") {
+    // Expand to parent element via keyboard
+    if (lastHoveredElement && lastHoveredElement.parentElement && lastHoveredElement.parentElement !== document.body) {
+      e.preventDefault();
+      lastHoveredElement = lastHoveredElement.parentElement;
+      updateInspectorOverlay(lastHoveredElement);
+    }
+  } else if (e.key === "ArrowDown") {
+    // Shrink to first child element via keyboard
+    if (lastHoveredElement && lastHoveredElement.firstElementChild) {
+      e.preventDefault();
+      lastHoveredElement = lastHoveredElement.firstElementChild;
+      updateInspectorOverlay(lastHoveredElement);
+    }
   }
+}
+
+function isPageSnapUiElement(target) {
+  if (!target) return false;
+  return !!(
+    target.closest("#pagesnap-region-actions-bar") ||
+    target.closest("#web2md-region-actions-bar") ||
+    target.closest("#pagesnap-toast") ||
+    target.closest("#web2md-toast") ||
+    target.closest("#pagesnap-component-studio-modal") ||
+    target.closest("#pagesnap-inspector-overlay")
+  );
 }
 
 function handleRegionMouseOver(e) {
   if (!Web2MD.isRegionSelectionActive) return;
-  if (e.target.closest("#web2md-region-actions-bar") || e.target.closest("#web2md-toast")) {
-    return;
-  }
-  if (lastHoveredElement && lastHoveredElement !== e.target) {
-    lastHoveredElement.classList.remove("web2md-region-highlighted");
-  }
+  if (isPageSnapUiElement(e.target)) return;
+
   lastHoveredElement = e.target;
-  lastHoveredElement.classList.add("web2md-region-highlighted");
+  updateInspectorOverlay(lastHoveredElement);
 }
 
 function handleRegionMouseOut(e) {
   if (!Web2MD.isRegionSelectionActive) return;
-  if (lastHoveredElement === e.target) {
-    lastHoveredElement.classList.remove("web2md-region-highlighted");
-    lastHoveredElement = null;
-  }
+  if (isPageSnapUiElement(e.target)) return;
 }
 
 function handleRegionClick(e) {
   if (!Web2MD.isRegionSelectionActive) return;
-  if (e.target.closest("#web2md-region-actions-bar") || e.target.closest("#web2md-toast")) {
-    return;
-  }
+  if (isPageSnapUiElement(e.target)) return;
 
   e.preventDefault();
   e.stopPropagation();
 
-  const target = e.target;
+  const target = lastHoveredElement || e.target;
   Web2MD.toggleRegionSelectionMode(false);
+  hideInspectorOverlay();
   Web2MD.highlightElement(target);
   Web2MD.showRegionActionsBar(target);
 }
 
 Web2MD.highlightElement = function (element) {
-  document.querySelectorAll(".web2md-region-highlighted").forEach(el => {
-    el.classList.remove("web2md-region-highlighted");
+  document.querySelectorAll(".pagesnap-region-highlighted, .web2md-region-highlighted").forEach(el => {
+    el.classList.remove("pagesnap-region-highlighted", "web2md-region-highlighted");
   });
   if (element) {
-    element.classList.add("web2md-region-highlighted");
+    element.classList.add("pagesnap-region-highlighted");
   }
 };
-
+// plan-exempt — remove duplicate highlightElement definition
 Web2MD.getElementDescription = function (el) {
   if (!el) return '';
   let desc = el.tagName.toLowerCase();
