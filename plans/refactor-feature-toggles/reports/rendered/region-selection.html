@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>feature</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Newsreader:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --font:'Newsreader',Georgia,serif;--display:'Instrument Serif',Georgia,serif;--mono:'JetBrains Mono',monospace;
+ --bg:#faf8f2;--surface:#fff;--surface2:#f5f0e6;--border:rgba(30,40,60,.1);--border2:rgba(30,40,60,.2);
+ --text:#1a2130;--dim:#6a7284;--accent:#1e3a5f;--accent-dim:rgba(30,58,95,.07);--gold:#b8860b;--gold-dim:rgba(184,134,11,.1);
+ --green:#4d7c0f;--green-dim:rgba(77,124,15,.12);--red:#b3123c;--red-dim:rgba(179,18,60,.1);
+ --amber:#b45309;--amber-dim:rgba(180,83,9,.12);--teal:#0f766e;--teal-dim:rgba(15,118,110,.12);
+}
+[data-theme=dark]{
+ --bg:#0f1420;--surface:#161d2c;--surface2:#1d2740;--border:rgba(200,210,230,.1);--border2:rgba(200,210,230,.2);
+ --text:#e6e9f0;--dim:#94a0b5;--accent:#6ba3e0;--accent-dim:rgba(107,163,224,.12);--gold:#e0b84a;--gold-dim:rgba(224,184,74,.14);
+ --green:#a3e635;--green-dim:rgba(163,230,53,.12);--red:#fca5a5;--red-dim:rgba(252,165,165,.12);
+ --amber:#fbbf24;--amber-dim:rgba(251,191,36,.12);--teal:#5eead4;--teal-dim:rgba(94,234,212,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:56px 24px 96px;font-family:var(--font);font-size:17px;line-height:1.7;color:var(--text);
+ background:var(--bg);background-image:radial-gradient(ellipse at 50% -8%,var(--accent-dim),transparent 55%)}
+.wrap{max-width:960px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.15;color:var(--text);letter-spacing:.2px}
+h1{font-size:46px;margin:0 0 8px}
+h2{font-size:31px;margin:48px 0 4px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:23px;margin:34px 0 4px;color:var(--accent)}
+p{margin:12px 0}
+a{color:var(--accent);text-decoration-color:var(--border2)}
+hr{border:none;border-top:1px solid var(--border);margin:36px 0}
+code{font-family:var(--mono);font-size:.83em;background:var(--gold-dim);color:var(--gold);padding:1.5px 6px;border-radius:4px}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;overflow-x:auto;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+pre code{background:none;color:var(--text);padding:0;font-size:13.5px}
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15px;background:var(--surface);
+ border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,.05)}
+thead th{background:var(--surface2);font-family:var(--mono);font-size:11.5px;font-weight:600;text-transform:uppercase;
+ letter-spacing:1px;color:var(--dim);text-align:left;padding:12px 15px;border-bottom:2px solid var(--border2)}
+td{padding:13px 15px;border-bottom:1px solid var(--border);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--accent-dim)}
+td:first-child{font-family:var(--mono);font-weight:600;color:var(--accent);white-space:nowrap}
+blockquote{margin:20px 0;padding:4px 20px;border-left:4px solid var(--gold);background:var(--accent-dim);border-radius:0 8px 8px 0;color:var(--dim)}
+img{max-width:100%;vertical-align:middle}
+ul,ol{padding-left:1.4em}
+li{margin:5px 0}
+/* GFM callouts */
+.callout{margin:22px 0;padding:14px 20px;border-radius:10px;border-left:4px solid var(--accent);background:var(--accent-dim)}
+.callout p:first-of-type{margin-top:4px}
+.callout p:last-child{margin-bottom:4px}
+.callout-title{font-family:var(--mono);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+.callout-important{border-left-color:var(--gold);background:var(--gold-dim)}.callout-important .callout-title{color:var(--gold)}
+.callout-warning,.callout-caution{border-left-color:var(--red);background:var(--red-dim)}.callout-warning .callout-title,.callout-caution .callout-title{color:var(--red)}
+.callout-tip{border-left-color:var(--green);background:var(--green-dim)}.callout-tip .callout-title{color:var(--green)}
+/* status badges */
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11.5px;font-weight:500;padding:3px 10px;border-radius:6px;white-space:nowrap}
+.badge-amber{background:var(--amber-dim);color:var(--amber)}
+.badge-teal{background:var(--teal-dim);color:var(--teal)}
+.badge-green{background:var(--green-dim);color:var(--green)}
+/* mermaid */
+.mermaid{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;margin:22px 0}
+/* theme toggle (always fixed, top-right) */
+.theme-toggle{position:fixed;top:16px;right:16px;width:36px;height:36px;border-radius:8px;border:1px solid var(--border);
+ background:var(--surface);color:var(--dim);cursor:pointer;font-size:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);z-index:500}
+/* round-trip answer boxes */
+.answer-box{margin:14px 0 26px;padding:14px 16px;border:1px dashed var(--border2);border-radius:10px;background:var(--surface2)}
+.answer-key{display:block;font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:8px}
+.answer-input{width:100%;font-family:var(--font);font-size:15px;line-height:1.6;color:var(--text);background:var(--surface);
+ border:1px solid var(--border);border-radius:8px;padding:10px 12px;resize:vertical}
+.answer-input:focus{outline:none;border-color:var(--accent)}
+.form-bar{position:fixed;left:0;right:0;bottom:0;z-index:200;display:flex;align-items:center;gap:14px;
+ padding:12px 20px;background:var(--surface);border-top:1px solid var(--border2);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
+.form-btn{font-family:var(--mono);font-size:13px;font-weight:600;color:#fff;background:var(--accent);
+ border:none;border-radius:8px;padding:9px 16px;cursor:pointer}
+.form-btn:hover{opacity:.9}
+.form-btn-alt{background:transparent;color:var(--accent);border:1px solid var(--border2)}
+#formHint{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+/* ── Sidebar layout ── */
+#sidebar{
+ display:none; /* hidden until JS adds has-sidebar to body */
+ flex-direction:column;
+ width:260px;height:100vh;position:sticky;top:0;flex-shrink:0;
+ background:var(--surface2);border-right:1px solid var(--border);
+ overflow:hidden;
+}
+#sidebar-header{
+ display:flex;align-items:center;gap:8px;
+ padding:14px 14px 12px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#sidebar-title{
+ font-family:var(--mono);font-size:10.5px;font-weight:600;text-transform:uppercase;
+ letter-spacing:1.1px;color:var(--dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#sidebar-search{
+ margin:10px 12px 6px;width:calc(100% - 24px);flex-shrink:0;
+ font-family:var(--mono);font-size:12.5px;padding:6px 10px;
+ border:1px solid var(--border);border-radius:7px;
+ background:var(--surface);color:var(--text);
+}
+#sidebar-search:focus{outline:none;border-color:var(--accent)}
+#sidebar-nav{overflow-y:auto;flex:1;padding:4px 6px 20px}
+#sidebar-nav a{
+ display:block;text-decoration:none;color:var(--dim);
+ border-radius:6px;padding:5px 8px;font-size:13px;line-height:1.4;
+ transition:background .1s,color .1s;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#sidebar-nav a:hover{background:var(--accent-dim);color:var(--text)}
+#sidebar-nav a.nav-h3{padding-left:20px;font-size:12px;color:var(--dim)}
+#sidebar-nav a.nav-active{color:var(--accent);background:var(--accent-dim);font-weight:600}
+#sidebar-nav a.nav-match{background:var(--gold-dim);color:var(--gold)}
+/* hamburger (mobile only) */
+#hamburger{
+ display:none;
+ position:fixed;top:12px;left:12px;z-index:400;
+ width:36px;height:36px;border-radius:8px;
+ border:1px solid var(--border);background:var(--surface);
+ color:var(--dim);cursor:pointer;font-size:18px;
+ align-items:center;justify-content:center;
+ box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+/* sidebar-mode body overrides */
+body.has-sidebar{
+ display:flex;flex-direction:row;
+ padding:0;height:100vh;overflow:hidden;
+}
+body.has-sidebar #sidebar{display:flex}
+body.has-sidebar #content-wrap{
+ flex:1;overflow-y:auto;height:100vh;
+ padding:56px 40px 96px;
+}
+body.has-sidebar .wrap{padding:0}
+/* non-sidebar: content-wrap is transparent */
+body:not(.has-sidebar) #content-wrap{display:contents}
+body:not(.has-sidebar) #sidebar{display:none}
+/* mobile */
+@media(max-width:768px){
+ body.has-sidebar{display:block;height:auto;overflow:visible}
+ body.has-sidebar #sidebar{
+  position:fixed;left:-280px;top:0;height:100vh;
+  transition:left .25s ease;z-index:300;
+  box-shadow:2px 0 16px rgba(0,0,0,.15);
+ }
+ body.has-sidebar #sidebar.mobile-open{left:0}
+ body.has-sidebar #content-wrap{height:auto;overflow:visible;padding:56px 14px 96px}
+ body.has-sidebar #hamburger{display:flex}
+ body{padding:32px 14px 96px}
+ h1{font-size:34px}
+ #formHint{display:none}
+}
+/* print */
+@media print{
+ #sidebar,#hamburger{display:none!important}
+ body.has-sidebar{display:block;overflow:visible;height:auto;padding:32px 24px}
+ body.has-sidebar #content-wrap{overflow:visible;height:auto;padding:0}
+}
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="tt" aria-label="Toggle theme"></button>
+<div id="sidebar">
+  <div id="sidebar-header">
+    <span id="sidebar-title">feature</span>
+  </div>
+  <input id="sidebar-search" type="search" placeholder="Search headings…" autocomplete="off" spellcheck="false">
+  <nav id="sidebar-nav" aria-label="Table of contents"></nav>
+</div>
+<div id="content-wrap">
+  <button id="hamburger" aria-label="Toggle sidebar">☰</button>
+  <div class="wrap">
+<!-- markdownlint-disable MD013 MD033 MD045 --><h1>Region Selection</h1>
+<blockquote>
+<p>Lets a user pick a page element and export only that scoped region as Markdown, HTML, or ZIP.</p>
+</blockquote>
+<p>
+  <img src="https://img.shields.io/badge/Status-Implemented-success?style=flat-square" />
+  <img src="https://img.shields.io/badge/MVP-0.2.0-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Feature-Region%20Selection-purple?style=flat-square" />
+</p><p>Related: <a href="../../../README.md">README</a> · <a href="../markdown-html-extraction/feature.md">Markdown &amp; HTML Extraction</a> · <a href="../html-clone-zip-netlify/feature.md">HTML Clone ZIP Netlify</a> · <a href="../visual-edit/feature.md">Visual Edit</a> · <a href="../component-inspector/feature.md">Component Inspector</a></p>
+<hr>
+<h2>🔍 1. Overview</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Scope</strong></td>
+<td>Popup toggle, context-menu region copy, hover highlight, expand/shrink selection, and scoped Markdown/HTML/ZIP export.</td>
+</tr>
+<tr>
+<td><strong>Default state</strong></td>
+<td>🟢 <code>regionSelect: true</code> in <code>src/shared/feature-flags.js</code>.</td>
+</tr>
+<tr>
+<td><strong>Selection source</strong></td>
+<td>🟢 Clicked element from selection mode or <code>lastRightClickedElement</code> from the <code>contextmenu</code> event.</td>
+</tr>
+<tr>
+<td><strong>Main limits</strong></td>
+<td>🟡 Browser live smoke is manual-pending; static checks committed pass 10/10. Cross-frame selection depends on the injected target frame.</td>
+</tr>
+</tbody></table>
+<pre class="mermaid">flowchart TD
+    A[Enable Select Region] --> B[Hover highlights element]
+    B --> C[Click target]
+    C --> D[Action bar appears]
+    D --> E{Choose action}
+    E --> F[Copy MD]
+    E --> G[Copy HTML]
+    E --> H[Download HTML or ZIP]
+</pre>
+<div class="callout callout-note"><div class="callout-title">Note</div><p>Region selection is mutually exclusive with Visual Edit and Inspect. Enabling one disables the others in both popup coordination and content-script mode handlers.</p>
+</div>
+<hr>
+<h2>🔄 2. How-To Flows</h2>
+<h3>Select a region from the popup</h3>
+<ol>
+<li>Click <strong>Select Region</strong> in the popup toolbar.</li>
+<li>The content script enables capture listeners and closes the popup after activation.</li>
+<li>Hover a page element; <code>.web2md-region-highlighted</code> applies a dashed outline.</li>
+<li>Click the element to stop selection and show <code>#web2md-region-actions-bar</code>.</li>
+<li>Choose <strong>Copy MD</strong>, <strong>Copy HTML</strong>, <strong>HTML</strong>, or <strong>ZIP</strong>.</li>
+</ol>
+<h3>Adjust selected scope</h3>
+<ol>
+<li>After selecting an element, click <strong>Expand</strong> to move to its parent element.</li>
+<li>Click <strong>Shrink</strong> to return through <code>selectionHistory</code>.</li>
+<li>Export only when the label shows the intended element description.</li>
+</ol>
+<h3>Use the context-menu path</h3>
+<ol>
+<li>First load the content bundle in that tab, for example by using <strong>Extract Page</strong> or <strong>Select Region</strong> once.</li>
+<li>Right-click a page element.</li>
+<li>Choose a Web2MD context-menu copy action.</li>
+<li>The handler uses <code>lastRightClickedElement</code>; if none exists, the page shows <code>No element selected to copy</code>.</li>
+</ol>
+<div class="callout callout-warning"><div class="callout-title">Warning</div><p>On first use in a fresh tab, the context-menu click can inject Web2MD only after the originating browser <code>contextmenu</code> event has already occurred. That event cannot be recovered, so no element is available until the content listener has been loaded and the user right-clicks again.</p>
+</div>
+<hr>
+<h2>🧪 3. QA Test Scenarios</h2>
+<h3>✅ Happy paths</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Scenario</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>H1</td>
+<td>Enable selection and click an element</td>
+<td>🟢 Action bar appears near the element and page click is prevented.</td>
+</tr>
+<tr>
+<td>H2</td>
+<td>Copy MD for a selected form region</td>
+<td>🟢 Markdown includes parent/preceding headings plus preprocessed region content.</td>
+</tr>
+<tr>
+<td>H3</td>
+<td>Copy HTML for a selected region</td>
+<td>🟢 Clipboard receives serialized self-contained node HTML.</td>
+</tr>
+<tr>
+<td>H4</td>
+<td>Download region ZIP</td>
+<td>🟢 ZIP download contains <code>index.html</code>, optional <code>styles.css</code>, optional <code>scripts.js</code>, assets, and optional <code>mock_apis.json</code>.</td>
+</tr>
+</tbody></table>
+<h3>🔒 Permissions/world security</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Run on Chrome system page</td>
+<td>🟢 Popup blocks with <code>Cannot inspect Chrome system pages.</code></td>
+</tr>
+<tr>
+<td>Action bar clicked</td>
+<td>🟢 Region selection ignores clicks inside <code>#web2md-region-actions-bar</code> and <code>#web2md-toast</code>.</td>
+</tr>
+<tr>
+<td>Extension overlays present</td>
+<td>🟢 Clone serialization excludes Web2MD overlay/highlight nodes.</td>
+</tr>
+</tbody></table>
+<h3>⚠️ Input/output validation</h3>
+<table>
+<thead>
+<tr>
+<th>Input/output</th>
+<th>Invalid condition</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Context menu region</td>
+<td>Content listener was not loaded before right-click</td>
+<td>🟡 First action cannot recover that element; load a Web2MD content feature, right-click again, then retry.</td>
+</tr>
+<tr>
+<td>ZIP export</td>
+<td><code>JSZip</code> missing</td>
+<td>🟡 Toast shows <code>JSZip not loaded</code>.</td>
+</tr>
+<tr>
+<td>Hidden descendants</td>
+<td><code>display:none</code> or <code>visibility:hidden</code></td>
+<td>🟢 Marked <code>data-web2md-ignore</code> during export and restored afterward.</td>
+</tr>
+</tbody></table>
+<h3>🚫 Feature interaction/business rules</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Enable while Visual Edit active</td>
+<td>🟢 Visual Edit is disabled before selection starts.</td>
+</tr>
+<tr>
+<td>Enable while Inspect active</td>
+<td>🟢 Inspect is disabled through <code>WEB2MD_TOGGLE_INSPECT</code>.</td>
+</tr>
+<tr>
+<td>Region HTML/ZIP export</td>
+<td>🟢 <code>serializePageToSelfContainedHtml</code> receives <code>targetElement</code>, so output is scoped to the selected node.</td>
+</tr>
+</tbody></table>
+<h3>🧾 Sensitive data/storage</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Handling</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Region Markdown</td>
+<td>🟢 Uses same password masking and form preprocessing as page Markdown.</td>
+</tr>
+<tr>
+<td>Region HTML/ZIP</td>
+<td>🟡 Serializes live form values in selected scope, including non-password inputs.</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>🟢 No region selection state is persisted; active selection is in page memory.</td>
+</tr>
+<tr>
+<td>Browser smoke</td>
+<td>🟡 Manual-pending; committed static checks pass 10/10.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>📚 4. Reference</h2>
+<h3>Code paths</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>src/content/region-select/mode.js</code></td>
+<td>Selection active state, context-menu target tracking, hover/click/key handlers.</td>
+</tr>
+<tr>
+<td><code>src/content/region-select/actions-bar.js</code></td>
+<td>Floating action bar, expand/shrink, region Markdown/HTML/ZIP actions.</td>
+</tr>
+<tr>
+<td><code>src/popup/mode-toggles.js</code></td>
+<td>Popup toggle wiring and mutual exclusion with Inspect/Visual Edit.</td>
+</tr>
+<tr>
+<td><code>src/background/context-menus.js</code></td>
+<td>Context-menu entry point for right-click region copy.</td>
+</tr>
+<tr>
+<td><code>src/content/html-clone/serializer.js</code></td>
+<td>Scoped HTML serialization through <code>targetElement</code>.</td>
+</tr>
+</tbody></table>
+<h3>Actions and DOM IDs</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>toggleRegionSelection</code></td>
+<td>runtime action</td>
+<td>Enables/disables region picking.</td>
+</tr>
+<tr>
+<td><code>getRegionSelectionState</code></td>
+<td>runtime action</td>
+<td>Reads active state for popup sync.</td>
+</tr>
+<tr>
+<td><code>contextMenuCopyRegion</code></td>
+<td>runtime action</td>
+<td>Copies right-clicked element in requested format.</td>
+</tr>
+<tr>
+<td><code>#web2md-region-actions-bar</code></td>
+<td>DOM overlay</td>
+<td>Export toolbar.</td>
+</tr>
+<tr>
+<td><code>.web2md-region-highlighted</code></td>
+<td>CSS class</td>
+<td>Dashed selection outline.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>💡 5. Explanation</h2>
+<h3>Selection is element-scoped, not text-range scoped</h3>
+<p>Region export starts from an element reference rather than a text <code>Range</code>. That lets HTML and ZIP exports preserve descendants, styles, assets, shadow DOM serialization, and form state for the chosen region.</p>
+<h3>Expand/shrink is intentionally one-dimensional</h3>
+<div class="callout callout-important"><div class="callout-title">Important</div><p><strong>Invariant:</strong> Region actions must use the current selected element, not the original clicked element after scope changes.</p>
+</div>
+<p><code>currentSelectedElement</code> plus <code>selectionHistory</code> keeps scope changes predictable without implementing arbitrary DOM tree navigation.</p>
+<hr>
+<h2>📑 Changelog</h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Entry</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>2026-07-30</td>
+<td>Documented as-built v0.2.0; browser smoke manual-pending; committed static checks pass 10/10.</td>
+</tr>
+</tbody></table>
+  </div>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark=(document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';
+mermaid.initialize({startOnLoad:true,theme:dark?'dark':'default'});
+</script>
+<script>
+(function themeInit(){
+  const btn = document.getElementById('tt');
+  const saved = localStorage.getItem('theme');
+  const initial = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  if (saved) document.documentElement.setAttribute('data-theme', initial);
+  btn.textContent = initial === 'dark' ? '☀' : '☾';
+  btn.onclick = function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    location.reload();
+  };
+})();
+
+(function sidebarInit() {
+  const mode = "auto";
+  const contentWrap = document.getElementById('content-wrap');
+  const headings = [...contentWrap.querySelectorAll('h2, h3')];
+  const h2Count = headings.filter(function isH2(h) { return h.tagName === 'H2'; }).length;
+
+  if (mode === 'off' || (mode === 'auto' && h2Count < 4)) return;
+
+  document.body.classList.add('has-sidebar');
+
+  // Assign unique IDs (handle duplicates by appending -N)
+  const usedIds = new Set();
+  headings.forEach(function assignId(h) {
+    if (h.id) { usedIds.add(h.id); return; }
+    let base = h.textContent.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (!base) base = 'section';
+    let id = base;
+    let n = 2;
+    while (usedIds.has(id)) { id = base + '-' + n; n += 1; }
+    h.id = id;
+    usedIds.add(id);
+  });
+
+  // Build nav links
+  const nav = document.getElementById('sidebar-nav');
+  headings.forEach(function buildNavLink(h) {
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.textContent = h.textContent;
+    a.className = h.tagName === 'H2' ? 'nav-h2' : 'nav-h3';
+    nav.appendChild(a);
+  });
+
+  // Scrollspy via IntersectionObserver
+  let activeLink = null;
+  const observer = new IntersectionObserver(function onIntersect(entries) {
+    entries.forEach(function handleEntry(entry) {
+      if (!entry.isIntersecting) return;
+      if (activeLink) activeLink.classList.remove('nav-active');
+      activeLink = nav.querySelector('a[href="#' + entry.target.id + '"]');
+      if (activeLink) {
+        activeLink.classList.add('nav-active');
+        // Keep active link visible in sidebar
+        activeLink.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { root: contentWrap, rootMargin: '-10% 0px -80% 0px' });
+  headings.forEach(function observe(h) { observer.observe(h); });
+
+  // Sidebar search: filter nav links by substring
+  const searchInput = document.getElementById('sidebar-search');
+  searchInput.addEventListener('input', function onSearch() {
+    const q = this.value.trim().toLowerCase();
+    [...nav.querySelectorAll('a')].forEach(function filterLink(a) {
+      if (!q) {
+        a.style.display = '';
+        a.classList.remove('nav-match');
+        return;
+      }
+      const matches = a.textContent.toLowerCase().indexOf(q) !== -1;
+      a.style.display = matches ? '' : 'none';
+      a.classList.toggle('nav-match', matches);
+    });
+  });
+
+  // Mobile hamburger toggle
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  hamburger.addEventListener('click', function toggleSidebar(e) {
+    e.stopPropagation();
+    sidebar.classList.toggle('mobile-open');
+  });
+  document.addEventListener('click', function closeSidebar(e) {
+    if (sidebar.classList.contains('mobile-open')
+        && !sidebar.contains(e.target)
+        && e.target !== hamburger) {
+      sidebar.classList.remove('mobile-open');
+    }
+  });
+})();
+</script>
+</body>
+</html>
