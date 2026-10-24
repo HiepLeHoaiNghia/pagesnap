@@ -57,10 +57,11 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     Object.assign(card.style, {
       background: '#111827',
       border: '1px solid #374151',
+// plan-exempt — wide studio container to fit full-width 3-column components
       borderRadius: '16px',
-      width: '92%',
-      maxWidth: '900px',
-      maxHeight: '92vh',
+      width: '95vw',
+      maxWidth: '1440px',
+      maxHeight: '94vh',
       display: 'flex',
       flexDirection: 'column',
       boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
@@ -215,22 +216,23 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     card.appendChild(toolbar);
 
     // ─── Preview Canvas ─────────────────────────────────────────────────────
+// plan-exempt — wide flexible canvas for high-resolution responsive preview
     const canvas = document.createElement("div");
     Object.assign(canvas.style, {
       flex: '1',
-      minHeight: '280px',
-      maxHeight: '460px',
+      minHeight: '360px',
+      maxHeight: '75vh',
       overflow: 'auto',
-      padding: '30px',
+      padding: '24px',
       display: 'flex',
-      alignItems: 'center',
-// plan-exempt — set initial canvas background from component data
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+// plan-exempt — set initial canvas content and background
       background: componentData.effectiveBg || '#090d16',
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
     card.appendChild(canvas);
-
     // Wire live text edit toggle
     let isEditing = false;
     editToggleBtn.addEventListener('click', () => {
@@ -285,27 +287,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       btn.addEventListener('click', onClick);
       return btn;
     }
-
-    // 1. Copy Markdown
-    const copyMdBtn = makeBtn("📝 Copy MD", "#1f2937", "#e5e7eb", async () => {
-      const clone = element.cloneNode(true);
-      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
-        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (e) {}
-      }
-      let md = '';
-      if (typeof Web2MD.htmlToMarkdown === 'function') {
-        const settings = await Web2MD.getSettings();
-        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
-      } else {
-        md = clone.textContent || '';
-      }
-// plan-exempt — English copy confirmation
-      await Web2MD.copyTextToClipboard(md);
-      copyMdBtn.innerText = "✅ Copied MD!";
-      setTimeout(() => { copyMdBtn.innerText = "📝 Copy MD"; }, 2000);
-    });
-    leftGroup.appendChild(copyMdBtn);
-
+// plan-exempt — remove redundant Copy MD from studio footer, keep hints
+    const infoHint = document.createElement("span");
+    infoHint.innerText = "⚡ Ready to paste into React, Next.js, or HTML";
+    infoHint.style.color = '#9ca3af';
+    infoHint.style.fontSize = '12px';
+    leftGroup.appendChild(infoHint);
 // plan-exempt — remove obsolete raw HTML copy button
     // 3. Copy Scoped Component (HTML + CSS)
 // plan-exempt — clean editor artifacts before copying component code
