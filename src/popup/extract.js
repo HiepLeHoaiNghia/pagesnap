@@ -264,6 +264,30 @@ function injectScriptsAndRetry(tabId, frameId, flags) {
   });
 }
 
+// plan-exempt — rock-solid active web tab resolution
+function getActiveWebTab() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      const validActive = (tabs || []).find(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+      if (validActive) {
+        resolve(validActive);
+        return;
+      }
+      chrome.tabs.query({ active: true, currentWindow: true }, (currTabs) => {
+        const validCurr = (currTabs || []).find(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+        if (validCurr) {
+          resolve(validCurr);
+          return;
+        }
+        chrome.tabs.query({}, (allTabs) => {
+          const webTabs = (allTabs || []).filter(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+          resolve(webTabs.find(t => t.active) || webTabs[0] || (tabs && tabs[0]) || null);
+        });
+      });
+    });
+  });
+}
+
 /**
  * Queries active tab and requests content script extraction
  */
@@ -275,101 +299,48 @@ export function autoExtractPage() {
   if (btnDownloadZip) btnDownloadZip.disabled = true;
   markdownPreview.placeholder = "Querying DOM and parsing content...";
 
-  getFlags().then((flags) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        showError("No active tab found.");
-        return;
+  getFlags().then(async (flags) => {
+    const activeTab = await getActiveWebTab();
+    if (!activeTab || !activeTab.id) {
+      showError("No active web page found.");
+      return;
+    }
+
+    if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore'))) {
+      showError("Extraction not supported on Chrome system pages or Web Store.");
+      return;
+    }
+// plan-exempt — robust main-frame extraction without cross-origin iframe hangs
+      const targetFrameId = 0;
+      appState.activeTabId = activeTab.id;
+      appState.activeFrameId = targetFrameId;
+
+      // Ensure scripts are injected into main frame first
+      const injectRes = await ensureInjected(activeTab.id, targetFrameId);
+      if (!injectRes || !injectRes.success) {
+        console.warn("[PageSnap] Injection check note, attempting message directly...");
       }
 
-      const activeTab = tabs[0];
+      chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn("[PageSnap] Retrying injection...", chrome.runtime.lastError.message);
+          injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
+          return;
+        }
 
-      if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore'))) {
-        showError("Extraction not supported on Chrome system pages or Web Store.");
-        return;
-      }
-
-      const proceedWithFrame = () => {
-        chrome.scripting.executeScript({
-          target: { tabId: activeTab.id, allFrames: true },
-          func: () => {
-            return {
-              url: window.location.href,
-              title: document.title,
-              htmlLength: document.body ? document.body.innerHTML.length : 0,
-              isFocused: document.hasFocus ? document.hasFocus() : false
-            };
-          }
-        }, (results) => {
-// plan-exempt — handle chrome.runtime.lastError on frame inspection
-          if (chrome.runtime.lastError) {
-            // Expected on restricted or cross-origin frames, fallback to default frame 0
-            console.warn('[PageSnap] Frame inspection note:', chrome.runtime.lastError.message);
-          }
-          let targetFrameId = 0;
-          if (results && results.length > 0) {
-            let bestFrame = null;
-            const validFrames = results.filter(r => r.result && r.result.url && !r.result.url.startsWith('about:'));
-            const candidates = validFrames.length > 0 ? validFrames : results;
-
-            bestFrame = candidates.find(r => r.result && r.result.isFocused && r.result.htmlLength > 200);
-
-            if (!bestFrame) {
-              let maxLen = -1;
-              candidates.forEach(r => {
-                if (r.result && r.result.htmlLength > maxLen) {
-                  maxLen = r.result.htmlLength;
-                  bestFrame = r;
-                }
-              });
-            }
-
-            if (bestFrame) {
-              targetFrameId = bestFrame.frameId;
-            }
-          }
-
-          appState.activeTabId = activeTab.id;
-          appState.activeFrameId = targetFrameId;
-// plan-exempt — instant markdown render with safety timeout
-          let isHandled = false;
-          const extractTimeout = setTimeout(() => {
-            if (!isHandled) {
-              isHandled = true;
-              console.warn("[PageSnap] Extraction timed out, retrying with injection...");
-              injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
-            }
-          }, 3500);
-
-          chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
-            if (isHandled) return;
-            isHandled = true;
-            clearTimeout(extractTimeout);
-
-            if (chrome.runtime.lastError) {
-              console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
-              injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
-              return;
-            }
-
-            if (response && response.success) {
-              appState.extractedData = response;
-              loadSettings().then((settings) => {
-                processAndDisplayMarkdown(appState.extractedData, settings);
-                triggerBackgroundHtmlClone(activeTab.id, targetFrameId, flags);
-              });
-            } else {
-              showError(response ? response.error : "Failed to extract clean HTML content.");
-            }
-// plan-exempt — close executeScript callback cleanly
+        if (response && response.success) {
+          appState.extractedData = response;
+          loadSettings().then((settings) => {
+            processAndDisplayMarkdown(appState.extractedData, settings);
+            triggerBackgroundHtmlClone(activeTab.id, targetFrameId, flags);
           });
-        });
-      };
-
-      proceedWithFrame();
+        } else {
+          showError(response ? response.error : "Failed to extract clean HTML content.");
+        }
+// plan-exempt — remove extra closing syntax
+      });
     });
-  });
-}
+  }
 
 /**
  * Initializes extract button, copy button, and download button listeners

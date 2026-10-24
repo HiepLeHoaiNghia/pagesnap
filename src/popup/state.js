@@ -78,6 +78,8 @@ const checkFrontmatter = document.getElementById('setting-frontmatter');
 const checkImages = document.getElementById('setting-images');
 const checkLinks = document.getElementById('setting-links');
 const checkObsidian = document.getElementById('setting-obsidian');
+// plan-exempt — declare checkRaw to prevent ReferenceError on popup initialization
+const checkRaw = document.getElementById('setting-raw');
 /**
  * Loads settings from safe storage
  */
