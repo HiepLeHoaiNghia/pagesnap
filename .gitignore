@@ -16,7 +16,8 @@ playwright-report/
 blob-report/
 
 # Agent & Session logs
-.claude/
+.claude/*
+!.claude/rules/
 logs/
 *.log
 
