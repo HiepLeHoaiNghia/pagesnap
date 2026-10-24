@@ -30,18 +30,24 @@ document.addEventListener("contextmenu", (e) => {
 /**
  * Region Selection Mode Helpers and Logic
  */
-Web2MD.toggleRegionSelectionMode = function (forceValue) {
+let currentIntent = 'region';
+
+// plan-exempt — support distinct intent for studio vs region selection
+Web2MD.toggleRegionSelectionMode = function (forceValue, intent = 'region') {
   const enabled = forceValue !== undefined ? forceValue : !Web2MD.isRegionSelectionActive;
   Web2MD.isRegionSelectionActive = enabled;
+  currentIntent = intent || 'region';
 
   if (enabled) {
-
     document.addEventListener("mouseover", handleRegionMouseOver, true);
     document.addEventListener("mouseout", handleRegionMouseOut, true);
     document.addEventListener("click", handleRegionClick, true);
     document.addEventListener("keydown", handleRegionKeyDown, true);
 
-    Web2MD.showToast("🎯 Selection mode active. Click any element to select. Press Esc to cancel.");
+    const msg = currentIntent === 'studio'
+      ? "✨ Component Studio: Click any component to inspect & customize."
+      : "🎯 Select Region: Click any element to export. Press Esc to cancel.";
+    Web2MD.showToast(msg);
   } else {
     document.removeEventListener("mouseover", handleRegionMouseOver, true);
     document.removeEventListener("mouseout", handleRegionMouseOut, true);
@@ -117,9 +123,11 @@ function updateInspectorOverlay(el) {
   overlay.style.display = 'block';
 
   const badge = overlay.querySelector('#pagesnap-inspector-badge');
+// plan-exempt — fix badge position logic
   if (badge) {
     const desc = Web2MD.getElementDescription(el);
-    badge.innerText = `${desc} • ${Math.round(rect.width)}×${Math.round(rect.height)}px [↑ Parent]`;
+    const hint = currentIntent === 'studio' ? '✨ Open Studio' : '↑ Parent';
+    badge.innerText = `${desc} • ${Math.round(rect.width)}×${Math.round(rect.height)}px [${hint}]`;
     if (rect.top < 28) {
       badge.style.top = `${rect.height + 4}px`;
     } else {
@@ -190,12 +198,18 @@ function handleRegionClick(e) {
   e.stopPropagation();
 
   const target = lastHoveredElement || e.target;
+  const intent = currentIntent;
+
   Web2MD.toggleRegionSelectionMode(false);
   hideInspectorOverlay();
-  Web2MD.highlightElement(target);
-  Web2MD.showRegionActionsBar(target);
-}
 
+  if (intent === 'studio' && typeof Web2MD.openComponentStudioModal === 'function') {
+    Web2MD.openComponentStudioModal(target);
+  } else {
+    Web2MD.highlightElement(target);
+    Web2MD.showRegionActionsBar(target);
+  }
+}
 Web2MD.highlightElement = function (element) {
   document.querySelectorAll(".pagesnap-region-highlighted, .web2md-region-highlighted").forEach(el => {
     el.classList.remove("pagesnap-region-highlighted", "web2md-region-highlighted");
@@ -225,8 +239,8 @@ Web2MD.registerHandlers({
     return true;
   },
   toggleRegionSelection: (request, sender, sendResponse) => {
-    Web2MD.toggleRegionSelectionMode(request.enabled);
-    sendResponse({ success: true, active: Web2MD.isRegionSelectionActive });
+    Web2MD.toggleRegionSelectionMode(request.enabled, request.intent);
+    sendResponse({ success: true, active: Web2MD.isRegionSelectionActive, intent: currentIntent });
     return true;
   },
   contextMenuCopyRegion: (request, sender, sendResponse) => {

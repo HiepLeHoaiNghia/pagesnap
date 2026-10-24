@@ -428,7 +428,7 @@ Web2MD.handleRegionAction = async function (element, action) {
 };
 
 // plan-exempt — interactive Component Studio modal implementation
-function openComponentStudioModal(element) {
+Web2MD.openComponentStudioModal = PageSnap.openComponentStudioModal = function openComponentStudioModal(element) {
   const existingModal = document.getElementById("pagesnap-component-studio-modal");
   if (existingModal) existingModal.remove();
 

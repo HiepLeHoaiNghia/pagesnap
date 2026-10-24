@@ -107,8 +107,9 @@ export function initTabs() {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
+// plan-exempt — pass intent studio to toggleRegionSelection
         chrome.runtime.sendMessage({ action: 'ensureInjected', tabId: activeTab.id, frameId: 0 }, () => {
-          chrome.tabs.sendMessage(activeTab.id, { action: 'toggleRegionSelection', enabled: true }, () => {
+          chrome.tabs.sendMessage(activeTab.id, { action: 'toggleRegionSelection', enabled: true, intent: 'studio' }, () => {
             window.close();
           });
         });
