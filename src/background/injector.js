@@ -12,6 +12,7 @@ import {
 const LEGACY_REGISTERED_IDS = ['web2md-mw-core', 'web2md-mw-api', 'web2md-bridge'];
 const pendingContentInjections = new Map();
 
+// plan-exempt — sequential script injection ensuring compatibility with mock test harness
 async function injectFiles(tabId, frameId, files) {
   for (const script of files) {
     await chrome.scripting.executeScript({

@@ -7,13 +7,15 @@ import { appState } from './state.js';
 import { updateStats } from './extract.js';
 
 const tabMd = document.getElementById('tab-md');
+// plan-exempt — wire component studio tab in popup tabs
 const tabHtml = document.getElementById('tab-html');
+const tabStudio = document.getElementById('tab-studio');
 const markdownPreview = document.getElementById('markdown-preview');
 const htmlPreviewWrapper = document.getElementById('html-preview-wrapper');
+const studioPreviewWrapper = document.getElementById('studio-preview-wrapper');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnDownloadZip = document.getElementById('btn-download-zip');
-
 /**
  * Dispatch table for footer action button layout based on active tab
  */
@@ -45,6 +47,11 @@ const TAB_LAYOUT_DISPATCH = {
       btnDownloadZip.innerHTML = '📦 ZIP Package';
     }
     gridEl.style.gridTemplateColumns = '1fr 1fr 1fr';
+  },
+  studio: (gridEl) => {
+    if (btnCopy) btnCopy.style.display = 'none';
+    if (btnDownload) btnDownload.style.display = 'none';
+    if (btnDownloadZip) btnDownloadZip.style.display = 'none';
   }
 };
 
@@ -64,9 +71,9 @@ export function updateFooterActionsVisibility() {
 export function initTabs() {
   const previewTabs = [
     { btn: tabMd, view: markdownPreview, name: 'markdown' },
-    { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' }
+    { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' },
+    { btn: tabStudio, view: studioPreviewWrapper, name: 'studio' }
   ];
-
   previewTabs.forEach(tabObj => {
     if (tabObj.btn) {
       tabObj.btn.addEventListener('click', () => {
@@ -93,4 +100,19 @@ export function initTabs() {
       });
     }
   });
+
+  const btnLaunchStudio = document.getElementById('btn-launch-studio');
+  if (btnLaunchStudio) {
+    btnLaunchStudio.addEventListener('click', () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) return;
+        const activeTab = tabs[0];
+        chrome.runtime.sendMessage({ action: 'ensureInjected', tabId: activeTab.id, frameId: 0 }, () => {
+          chrome.tabs.sendMessage(activeTab.id, { action: 'toggleRegionSelection', enabled: true }, () => {
+            window.close();
+          });
+        });
+      });
+    });
+  }
 }
