@@ -7,12 +7,10 @@ import { appState } from './state.js';
 import { updateStats } from './extract.js';
 
 const tabMd = document.getElementById('tab-md');
-// plan-exempt — wire component studio tab in popup tabs
+// plan-exempt — clean tabs layout without redundant studio tab
 const tabHtml = document.getElementById('tab-html');
-const tabStudio = document.getElementById('tab-studio');
 const markdownPreview = document.getElementById('markdown-preview');
 const htmlPreviewWrapper = document.getElementById('html-preview-wrapper');
-const studioPreviewWrapper = document.getElementById('studio-preview-wrapper');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnDownloadZip = document.getElementById('btn-download-zip');
@@ -47,11 +45,6 @@ const TAB_LAYOUT_DISPATCH = {
       btnDownloadZip.innerHTML = '📦 ZIP Package';
     }
     gridEl.style.gridTemplateColumns = '1fr 1fr 1fr';
-  },
-  studio: (gridEl) => {
-    if (btnCopy) btnCopy.style.display = 'none';
-    if (btnDownload) btnDownload.style.display = 'none';
-    if (btnDownloadZip) btnDownloadZip.style.display = 'none';
   }
 };
 
@@ -71,8 +64,7 @@ export function updateFooterActionsVisibility() {
 export function initTabs() {
   const previewTabs = [
     { btn: tabMd, view: markdownPreview, name: 'markdown' },
-    { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' },
-    { btn: tabStudio, view: studioPreviewWrapper, name: 'studio' }
+    { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' }
   ];
   previewTabs.forEach(tabObj => {
     if (tabObj.btn) {
@@ -101,19 +93,5 @@ export function initTabs() {
     }
   });
 
-  const btnLaunchStudio = document.getElementById('btn-launch-studio');
-  if (btnLaunchStudio) {
-    btnLaunchStudio.addEventListener('click', () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs || tabs.length === 0) return;
-        const activeTab = tabs[0];
-// plan-exempt — pass intent studio to toggleRegionSelection
-        chrome.runtime.sendMessage({ action: 'ensureInjected', tabId: activeTab.id, frameId: 0 }, () => {
-          chrome.tabs.sendMessage(activeTab.id, { action: 'toggleRegionSelection', enabled: true, intent: 'studio' }, () => {
-            window.close();
-          });
-        });
-      });
-    });
-  }
+
 }

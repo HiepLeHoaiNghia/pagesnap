@@ -357,11 +357,13 @@ async function runE2E() {
       'src/content/core/settings.js',
       'src/content/markdown/dom-preprocess.js',
       'src/content/markdown/turndown-config.js',
+// plan-exempt — update scriptsToInject with inspector modules
       'src/content/markdown/extractor.js',
       'src/content/style-extractor/style-extractor.js',
+      'src/content/inspector/studio-modal.js',
+      'src/content/inspector/overlay.js',
       'src/content/html-clone/serializer.js'
     ];
-
     for (const file of scriptsToInject) {
       await page.addScriptTag({ path: path.join(extensionPath, file) });
     }

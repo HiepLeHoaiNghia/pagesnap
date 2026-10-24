@@ -51,9 +51,10 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/turndown-config.js',
   'src/content/markdown/extractor.js',
   'src/content/style-extractor/style-extractor.js',
+// plan-exempt — clean bundle registration with inspector modules
   'src/content/markdown/handlers.js',
-  'src/content/region-select/actions-bar.js',
-  'src/content/region-select/mode.js',
+  'src/content/inspector/studio-modal.js',
+  'src/content/inspector/overlay.js',
   'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js'
 ];
