@@ -375,6 +375,31 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       PageSnap.highlightElement(null);
     });
     bar.appendChild(aiBtn);
+// plan-exempt — add Copy Selection MD to floating dock per Glasshouse board verdict
+    // 📝 Copy Selection MD Button
+    const mdBtn = document.createElement("button");
+    mdBtn.innerText = "📝 Copy Selection MD";
+    mdBtn.title = "Copy selected element as clean Markdown";
+    styleBtn(mdBtn);
+    mdBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const clone = currentSelectedElement.cloneNode(true);
+      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
+        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (err) {}
+      }
+      let md = '';
+      if (typeof Web2MD.htmlToMarkdown === 'function') {
+        const settings = await Web2MD.getSettings();
+        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
+      } else {
+        md = clone.textContent || '';
+      }
+      await Web2MD.copyTextToClipboard(md);
+      Web2MD.showToast("📝 Selection copied as Markdown!");
+      bar.remove();
+      PageSnap.highlightElement(null);
+    });
+    bar.appendChild(mdBtn);
     // ✕ Close Button
     const closeBtn = document.createElement("button");
     closeBtn.innerText = "✕";

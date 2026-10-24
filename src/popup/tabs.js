@@ -31,10 +31,11 @@ const TAB_LAYOUT_DISPATCH = {
     if (btnDownloadZip) btnDownloadZip.style.display = 'none';
     gridEl.style.gridTemplateColumns = '1fr 1fr';
   },
+// plan-exempt — label HTML copy as Copy Page HTML for clarity
   html: (gridEl) => {
     if (btnCopy) {
       btnCopy.style.display = 'block';
-      btnCopy.innerHTML = '📋 Copy HTML';
+      btnCopy.innerHTML = '📋 Copy Page HTML';
     }
     if (btnDownload) {
       btnDownload.style.display = 'block';

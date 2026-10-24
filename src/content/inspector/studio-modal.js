@@ -287,13 +287,24 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       btn.addEventListener('click', onClick);
       return btn;
     }
-// plan-exempt — remove redundant Copy MD from studio footer, keep hints
-    const infoHint = document.createElement("span");
-    infoHint.innerText = "⚡ Ready to paste into React, Next.js, or HTML";
-    infoHint.style.color = '#9ca3af';
-    infoHint.style.fontSize = '12px';
-    leftGroup.appendChild(infoHint);
-// plan-exempt — remove obsolete raw HTML copy button
+// plan-exempt — add Copy Selection MD to studio footer per Glasshouse board verdict
+    const copyMdBtn = makeBtn("📝 Copy Selection MD", "#1f2937", "#e5e7eb", async () => {
+      const clone = (currentModalElement || element).cloneNode(true);
+      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
+        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (e) {}
+      }
+      let md = '';
+      if (typeof Web2MD.htmlToMarkdown === 'function') {
+        const settings = await Web2MD.getSettings();
+        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
+      } else {
+        md = clone.textContent || '';
+      }
+      await Web2MD.copyTextToClipboard(md);
+      copyMdBtn.innerText = "✅ Copied Selection MD!";
+      setTimeout(() => { copyMdBtn.innerText = "📝 Copy Selection MD"; }, 2000);
+    });
+    leftGroup.appendChild(copyMdBtn);
     // 3. Copy Scoped Component (HTML + CSS)
 // plan-exempt — clean editor artifacts before copying component code
     const copyCodeBtn = makeBtn("🎨 Copy Component", "#374151", "#ffffff", async () => {
