@@ -25,15 +25,17 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     Object.assign(overlayEl.style, {
       position: 'absolute',
       pointerEvents: 'none',
-      border: '2px solid #8b5cf6',
-      backgroundColor: 'rgba(139, 92, 246, 0.15)',
-      boxShadow: '0 0 16px rgba(139, 92, 246, 0.5)',
+// plan-exempt — fix overlay boundary rendering
+      border: '2px dashed #8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.12)',
+      boxShadow: '0 0 16px rgba(139, 92, 246, 0.45)',
       borderRadius: '4px',
       zIndex: '2147483646',
       display: 'none',
+// plan-exempt — close style object
+      boxSizing: 'border-box',
       transition: 'top 0.08s ease-out, left 0.08s ease-out, width 0.08s ease-out, height 0.08s ease-out'
     });
-
     const badge = document.createElement('div');
     badge.id = 'pagesnap-inspector-badge';
     Object.assign(badge.style, {
@@ -142,6 +144,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
   }
 
 // plan-exempt — show floating actions dock with hierarchy navigation on click
+// plan-exempt — lock high-z-index overlay to selected element on click
   function onClick(e) {
     if (!PageSnap.isInspectorActive) return;
     if (isExtensionUi(e.target)) return;
@@ -150,9 +153,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     e.stopPropagation();
 
     const target = lastHoveredElement || e.target;
-    PageSnap.toggleInspector(false);
-    selectionHistory = [];
+    PageSnap.isInspectorActive = Web2MD.isRegionSelectionActive = false;
+    document.removeEventListener("mouseover", onMouseOver, true);
+    document.removeEventListener("click", onClick, true);
+    document.removeEventListener("keydown", onKeyDown, true);
+    lastHoveredElement = null;
 
+    selectionHistory = [];
     PageSnap.highlightElement(target);
     PageSnap.showFloatingActionsBar(target);
   }
@@ -167,10 +174,19 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     if (element) {
       element.classList.add("pagesnap-region-highlighted");
-      element.style.outline = '2px dashed #8b5cf6';
+      ensureOverlayElement();
+      updateOverlayPosition(element);
+      overlayEl.style.display = 'block';
+      const badge = overlayEl.querySelector('#pagesnap-inspector-badge');
+      if (badge) {
+        badge.style.display = 'none';
+      }
+    } else {
+      if (overlayEl) {
+        overlayEl.style.display = 'none';
+      }
     }
   };
-
   PageSnap.showFloatingActionsBar = function (element) {
     currentSelectedElement = element;
 
@@ -220,11 +236,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     }
   }
 
-  function renderFloatingBar(bar) {
-    bar.innerHTML = "";
-    const element = currentSelectedElement;
-    if (!element) return;
-
+// plan-exempt — position floating bar and sync on scroll
+  function positionFloatingBar(bar, element) {
+    if (!bar || !element) return;
     const rect = element.getBoundingClientRect();
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
@@ -241,7 +255,14 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
     bar.style.top = `${top}px`;
     bar.style.left = `${left}px`;
+  }
 
+  function renderFloatingBar(bar) {
+    bar.innerHTML = "";
+    const element = currentSelectedElement;
+    if (!element) return;
+
+    positionFloatingBar(bar, element);
     // Tag Label
     const label = document.createElement("span");
     label.innerText = `[${getElementLabel(element)}]`;
@@ -411,7 +432,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("keydown", onKeyDown, true);
 
-      if (overlayEl) {
+// plan-exempt — preserve overlay when dock is active
+      if (overlayEl && !document.getElementById("pagesnap-region-actions-bar")) {
         overlayEl.style.display = 'none';
       }
       lastHoveredElement = null;
@@ -432,5 +454,17 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       }
     });
   }
+// plan-exempt — sync overlay and dock on viewport scroll or resize
+  function syncOverlayAndDock() {
+    if (currentSelectedElement && overlayEl && overlayEl.style.display !== 'none') {
+      updateOverlayPosition(currentSelectedElement);
+      const bar = document.getElementById("pagesnap-region-actions-bar");
+      if (bar) {
+        positionFloatingBar(bar, currentSelectedElement);
+      }
+    }
+  }
+  window.addEventListener('scroll', syncOverlayAndDock, { passive: true });
+  window.addEventListener('resize', syncOverlayAndDock, { passive: true });
 
 })(window.PageSnap);

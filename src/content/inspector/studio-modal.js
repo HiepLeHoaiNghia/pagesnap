@@ -323,14 +323,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     leftGroup.appendChild(copyMdBtn);
 
-    // 2. Copy Raw HTML
-    const copyHtmlBtn = makeBtn("🌐 Copy HTML", "#1f2937", "#e5e7eb", async () => {
-      await Web2MD.copyTextToClipboard(element.outerHTML);
-      copyHtmlBtn.innerText = "✅ Đã Copy HTML!";
-      setTimeout(() => { copyHtmlBtn.innerText = "🌐 Copy HTML"; }, 2000);
-    });
-    leftGroup.appendChild(copyHtmlBtn);
-
+// plan-exempt — remove obsolete raw HTML copy button
     // 3. Copy Scoped Component (HTML + CSS)
     const copyCodeBtn = makeBtn("🎨 Copy Component", "#374151", "#ffffff", async () => {
       const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
