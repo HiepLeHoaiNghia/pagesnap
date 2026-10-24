@@ -2,6 +2,14 @@
   "decision": "PASS",
   "criticals": [],
   "warnings": [],
-  "reviewedAt": "2026-10-24T17:15:00.000Z",
+  "resolvedIssues": [
+    "Removed <all_urls> from manifest.json to enforce least-privilege architecture invariant",
+    "Eliminated command injection vulnerability by deleting custom execSync script in favor of commitlint and safe argument passing",
+    "Restored ACTIONS.CONTEXT_MENU_COPY_REGION handler in overlay.js",
+    "Fixed rawMode state resolution in src/popup/state.js to prevent overwriting Full Page mode",
+    "Eliminated keydown event listener memory leak upon Component Studio modal close",
+    "Fixed async message passing protocol in src/content/core/namespace.js"
+  ],
+  "reviewedAt": "2026-10-24T18:10:00.000Z",
   "ticket": "ps-001"
 }
