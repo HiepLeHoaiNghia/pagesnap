@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "./scripts/launch.sh",
-    "test": "node tests/static-checks.mjs",
+    "test": "node tests/static-checks.mjs && node tests/contract-integrity.test.mjs",
+    "commitlint": "commitlint --from origin/develop --to HEAD",
     "test:e2e": "node tests/e2e/e2e-smoke.mjs",
     "package": "node scripts/package.mjs",
     "release": "./scripts/release/full-release.sh"
@@ -22,5 +23,9 @@
     "llm-context"
   ],
   "author": "PageSnap Contributors",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4"
+  }
 }
