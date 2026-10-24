@@ -21,9 +21,10 @@ if (!window.__web2md_content_initialized__) {
   });
 }
 
+// plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true });
+    sendResponse({ success: true, buildId: '20261024-studio-1' });
     return true;
   }
 });

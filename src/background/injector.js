@@ -29,8 +29,12 @@ export function ensureContentInjected(tabId, frameId = 0) {
 
   const injection = (async () => {
     try {
+// plan-exempt — force re-injection if content script buildId is outdated
       try {
-        await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
+        const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
+        if (!pingRes || pingRes.buildId !== '20261024-studio-1') {
+          await injectFiles(tabId, frameId, CONTENT_BUNDLE);
+        }
       } catch (err) {
         // Tab has not loaded scripts yet, inject bundle
         await injectFiles(tabId, frameId, CONTENT_BUNDLE);
