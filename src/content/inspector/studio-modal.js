@@ -156,10 +156,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       if (!newCompData) return;
       componentData = newCompData;
 
+// plan-exempt — fix template string and adapt background
       titleArea.innerHTML = `
         <strong style="color: #ffffff; font-size: 14px;">🎯 PageSnap Component Studio</strong>
         <span style="color: #9ca3af; font-size: 12px; margin-left: 10px;">&lt;${componentData.tagName}&gt; • ${componentData.width}×${componentData.height}px</span>
       `;
+      canvas.style.background = componentData.effectiveBg || '#090d16';
       canvas.innerHTML = componentData.selfContainedHtml;
       if (isEditing) {
         const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
@@ -208,22 +210,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'all 0.15s ease'
     });
 
-    // 2. Canvas Theme Switcher
-    const bgSwitchBtn = document.createElement("button");
-    bgSwitchBtn.innerText = "🌓 Switch Background";
-    Object.assign(bgSwitchBtn.style, {
-      background: '#1f2937',
-      border: '1px solid #374151',
-      color: '#e5e7eb',
-      borderRadius: '6px',
-      padding: '5px 12px',
-      cursor: 'pointer',
-      fontSize: '12px',
-      fontWeight: '500'
-    });
-
+// plan-exempt — remove superficial background switcher
     toolbar.appendChild(editToggleBtn);
-    toolbar.appendChild(bgSwitchBtn);
     card.appendChild(toolbar);
 
     // ─── Preview Canvas ─────────────────────────────────────────────────────
@@ -236,11 +224,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       padding: '30px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
-      background: '#090d16',
+// plan-exempt — set initial canvas background from component data
+      background: componentData.effectiveBg || '#090d16',
       transition: 'background 0.2s ease'
     });
-
     canvas.innerHTML = componentData.selfContainedHtml;
     card.appendChild(canvas);
 
@@ -260,14 +247,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         });
       }
     });
-
-    // Wire canvas background switch
-    let isLight = false;
-    bgSwitchBtn.addEventListener('click', () => {
-      isLight = !isLight;
-      canvas.style.background = isLight ? '#f8fafc' : '#090d16';
-    });
-
     // ─── Footer Action Bar (All Formats at Your Fingertips) ──────────────────
     const footer = document.createElement("div");
     Object.assign(footer.style, {

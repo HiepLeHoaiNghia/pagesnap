@@ -247,10 +247,12 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
 \`\`\`
 `;
 
+// plan-exempt — expose effectiveBg for authentic canvas rendering
     return {
       tagName: tagName,
       width: Math.round(rect.width),
       height: Math.round(rect.height),
+      effectiveBg: effectiveBg,
       selfContainedHtml: selfContainedHtml,
       promptMarkdown: promptMarkdown,
       colorTokens: Array.from(colorTokens),
