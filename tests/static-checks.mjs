@@ -185,6 +185,15 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
   assert.match(result.html, /Selected text/);
   assert.match(result.package.html, /Selected text/);
 });
+// plan-exempt — enforce 100% English invariant in static checks
+test('repository source files in src/ are 100% English (no non-ASCII Vietnamese characters)', () => {
+  const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+  for (const file of collect('src')) {
+    const content = read(file);
+    const match = content.match(vietnameseRegex);
+    assert.ok(!match, `Found non-English/Vietnamese text in ${file}: ${match ? match[0] : ''}`);
+  }
+});
 
 let failures = 0;
 for (const { name, fn } of tests) {

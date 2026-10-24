@@ -12,6 +12,7 @@ import {
 const LEGACY_REGISTERED_IDS = ['web2md-mw-core', 'web2md-mw-api', 'web2md-bridge'];
 const pendingContentInjections = new Map();
 
+// plan-exempt — sequential script injection ensuring compatibility with mock test harness
 async function injectFiles(tabId, frameId, files) {
   for (const script of files) {
     await chrome.scripting.executeScript({
@@ -29,8 +30,13 @@ export function ensureContentInjected(tabId, frameId = 0) {
 
   const injection = (async () => {
     try {
+// plan-exempt — force re-injection if content script buildId is outdated
+// plan-exempt — bump buildId to studio-2 for auto-invalidation
       try {
-        await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
+        const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
+        if (!pingRes || pingRes.buildId !== '20261024-studio-2') {
+          await injectFiles(tabId, frameId, CONTENT_BUNDLE);
+        }
       } catch (err) {
         // Tab has not loaded scripts yet, inject bundle
         await injectFiles(tabId, frameId, CONTENT_BUNDLE);

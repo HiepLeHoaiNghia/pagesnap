@@ -104,6 +104,7 @@ PageSnap.registerHandlers({
     try {
       const markdown = Web2MD.htmlToMarkdown(request.html, request.metadata, request.settings);
       sendResponse({ success: true, markdown: markdown });
+// plan-exempt — fix try catch closing
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }

@@ -63,27 +63,13 @@ export function initModeToggles() {
           return;
         }
 
-        chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled }, (response) => {
-          if (chrome.runtime.lastError) {
-            ensureInjected(activeTab.id, 0, null).then((result) => {
-              if (!result || !result.success) {
-                console.error("Script injection failed");
-                showError("Please refresh the page before selecting region.");
-                btnToggleSelectRegion.checked = false;
-                return;
-              }
-              setTimeout(() => {
-                chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled });
-                if (enabled) {
-                  window.close();
-                }
-              }, 200);
-            });
-          } else {
+// plan-exempt — ensure injection before toggling region selection
+        ensureInjected(activeTab.id, 0).then(() => {
+          chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled }, () => {
             if (enabled) {
               window.close();
             }
-          }
+          });
         });
       });
     });

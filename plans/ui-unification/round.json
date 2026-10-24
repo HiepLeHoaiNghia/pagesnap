@@ -1,0 +1,199 @@
+{
+  "id": "g-ui-unification",
+  "title": "PageSnap UI Unification · Consistency & Action Hierarchy",
+  "how": "For each item: choose an option to observe the live mockup update beside the board. Answers are saved to plans/ui-unification/round.answers.json.",
+  "noPreference": "I have no preference",
+  "groups": [
+    {
+      "id": "dock",
+      "label": "Surface 1 · Floating Selection Dock",
+      "how": "Actions displayed directly above an element when clicked on any live webpage."
+    },
+    {
+      "id": "studio",
+      "label": "Surface 2 · Component Studio Modal",
+      "how": "Layout, width, and action bar inside the deep component inspection sandbox."
+    },
+    {
+      "id": "popup",
+      "label": "Surface 3 · Extension Popup Relationship",
+      "how": "Clarifying the boundary between Full Page extraction and In-Page component picking."
+    }
+  ],
+  "items": [
+    {
+      "id": "UI-1",
+      "group": "dock",
+      "question": "Should the on-page Floating Selection Dock include 'Copy Selection MD' for copying the chosen element as Markdown?",
+      "where": "Floating Dock above selected element",
+      "target": "#floating-dock-el",
+      "example": "Clicking a pricing card and hitting 'Copy Selection MD' copies only that pricing card to Markdown instead of the whole page.",
+      "onScreen": "The floating dock reveals or hides the '📝 Copy Selection MD' button beside 'Copy Component'.",
+      "effect": "dock_copy_md",
+      "why": "The user explicitly pointed out that the floating dock represents the granular selected region (not the whole page), so having a 1-click Markdown copy for that specific card/section is valuable for note-takers and developers.",
+      "options": [
+        {
+          "value": "include_selection_md",
+          "label": "Include '📝 Copy Selection MD' on Floating Dock (Recommended)",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-md",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-md\" style=\"display: inline-block;\">📝 Copy Selection MD</button>"
+            }
+          ]
+        },
+        {
+          "value": "omit_selection_md",
+          "label": "Omit Markdown copy from Dock (Keep only Studio, Component, and AI Prompt)",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-md",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-md\" style=\"display: none;\"></button>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UI-2",
+      "group": "dock",
+      "question": "How should copy actions be named across the Floating Dock and Studio Modal to eliminate cognitive confusion?",
+      "where": "Floating Dock and Studio Modal Action Buttons",
+      "target": "#floating-dock-el, #studio-footer-right",
+      "example": "Using 'Copy Component' everywhere prevents users from wondering whether 'Copy Code' generates something different.",
+      "onScreen": "Button labels switch between unified standard names ('🎨 Copy Component') and legacy names ('🎨 Copy Code').",
+      "effect": "naming_standard",
+      "why": "Previously, the dock called it 'Copy Code' while the Studio called it 'Copy Component', leading users to question whether they produced different outputs. Strictly unified naming eliminates ambiguity.",
+      "options": [
+        {
+          "value": "unified_standard_names",
+          "label": "Unified clear names: '🎨 Copy Component' & '🤖 Copy AI Prompt' (Recommended)",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-comp",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-comp\">🎨 Copy Component</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-ai",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-ai\">🤖 Copy AI Prompt</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-comp",
+              "html": "<button class=\"dock-btn\" id=\"btn-studio-copy-comp\">🎨 Copy Component</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-ai",
+              "html": "<button class=\"dock-btn primary\" id=\"btn-studio-copy-ai\">🤖 Copy AI Prompt</button>"
+            }
+          ]
+        },
+        {
+          "value": "shortened_names",
+          "label": "Shortened names: 'Copy Code' & 'AI Prompt'",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-comp",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-comp\">🎨 Copy Code</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-dock-copy-ai",
+              "html": "<button class=\"dock-btn\" id=\"btn-dock-copy-ai\">🤖 AI Prompt</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-comp",
+              "html": "<button class=\"dock-btn\" id=\"btn-studio-copy-comp\">🎨 Copy Code</button>"
+            },
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-ai",
+              "html": "<button class=\"dock-btn primary\" id=\"btn-studio-copy-ai\">🤖 AI Prompt</button>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UI-3",
+      "group": "studio",
+      "question": "Should the Component Studio Modal footer provide 'Copy Selection MD' in addition to 'Copy Component' and 'Copy AI Prompt'?",
+      "where": "Studio Modal Footer Action Bar",
+      "target": "#studio-footer-el",
+      "example": "Inside the Studio Modal, a user who edits component text can click 'Copy Selection MD' to get their edited content in Markdown.",
+      "onScreen": "The studio footer toggles the presence of the '📝 Copy Selection MD' button on the left group.",
+      "effect": "studio_footer_md",
+      "why": "Providing 'Copy Selection MD' in the Studio allows users who just edited text in the sandbox to copy the modified content as Markdown.",
+      "options": [
+        {
+          "value": "provide_in_studio",
+          "label": "Provide '📝 Copy Selection MD' in Studio Footer (Recommended)",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-md",
+              "html": "<button class=\"dock-btn\" id=\"btn-studio-copy-md\" style=\"display: inline-block;\">📝 Copy Selection MD</button>"
+            }
+          ]
+        },
+        {
+          "value": "omit_from_studio",
+          "label": "Keep Studio Footer minimal (Component & AI Prompt only)",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#btn-studio-copy-md",
+              "html": "<button class=\"dock-btn\" id=\"btn-studio-copy-md\" style=\"display: none;\"></button>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UI-4",
+      "group": "popup",
+      "question": "How should the Popup delineate between Whole Page extraction and In-Page element inspection?",
+      "where": "Main Extension Popup",
+      "target": "#section-popup",
+      "example": "The popup header shows 'Full Page Mode' badge and a prominent 'Inspect Component' button to switch modes.",
+      "onScreen": "The popup preview switches between explicit mode badges and a unified compact header.",
+      "effect": "popup_mode_nav",
+      "why": "The popup is optimized for 1-click whole-page conversion (Article/Full Page to Markdown & HTML Snapshot), while the in-page dock handles granular element selection. Clear labels prevent confusing the two workflows.",
+      "options": [
+        {
+          "value": "distinct_mode_indicators",
+          "label": "Clearly distinguish: Popup = 'Full Page Mode', Toolbar = '🎯 Inspect Component' (Recommended)",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#section-popup .popup-preview > div:nth-child(2)",
+              "html": "<div style=\"display: flex; gap: 8px; margin-bottom: 12px;\"><div style=\"flex: 1; padding: 6px 12px; background: #1e293b; border-radius: 6px; font-size: 12px; color: #38bdf8; text-align: center;\">📄 Full Page Mode</div><div style=\"flex: 1; padding: 6px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; font-size: 12px; color: #94a3b8; text-align: center;\">🎯 Inspect Component</div></div>"
+            }
+          ]
+        },
+        {
+          "value": "compact_single_flow",
+          "label": "Unified compact flow with contextual region prompt",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#section-popup .popup-preview > div:nth-child(2)",
+              "html": "<div style=\"display: flex; gap: 8px; margin-bottom: 12px;\"><div style=\"flex: 1; padding: 6px 12px; background: #1e293b; border-radius: 6px; font-size: 12px; color: #e2e8f0; text-align: center;\">📄 Convert Current Page</div></div>"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

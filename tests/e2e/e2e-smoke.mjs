@@ -59,7 +59,10 @@ const server = http.createServer((req, res) => {
   <meta charset="UTF-8">
   <title>Understanding Modern AI Architectures</title>
   <link rel="stylesheet" href="/article.css">
-  <style>.article-heading { font-weight: bold; }</style>
+  <style>
+    @keyframes pulseGlow { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .article-heading { font-weight: bold; }
+  </style>
 </head>
 <body>
   <header>
@@ -84,9 +87,9 @@ const server = http.createServer((req, res) => {
       <div id="target-region" style="border: 1px solid green; padding: 10px;">
         <h3>Specific Architecture Section</h3>
         <p>This is a focused region that a user might want to extract separately from the main article.</p>
+        <button id="animated-demo-button" style="animation: pulseGlow 2s infinite; background: #8b5cf6; color: #ffffff; border-radius: 8px;">Explore More</button>
       </div>
       <pre><code>function evaluate(context) {\n  return context.length > 0;\n}</code></pre>
-    </article>
   </main>
   <footer>
     <p>© 2026 Tech Publishing Inc. All rights reserved.</p>
@@ -127,9 +130,28 @@ const server = http.createServer((req, res) => {
   </div>
 </body>
 </html>`);
-// plan-exempt — close route if block
+// plan-exempt — multi-page pagination test routes
     return;
   }
+
+  if (req.url === '/book/page-1.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 1: The Beginning</title><link rel="next" href="/book/page-2.html"></head><body><article><h1>Chapter 1: The Beginning</h1><p>This is the first chapter of the story detailing the origin.</p></article></body></html>`);
+    return;
+  }
+
+  if (req.url === '/book/page-2.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 2: The Journey</title><link rel="next" href="/book/page-3.html"></head><body><article><h1>Chapter 2: The Journey</h1><p>This is the second chapter detailing the long voyage across the sea.</p></article></body></html>`);
+    return;
+  }
+
+  if (req.url === '/book/page-3.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Chapter 3: The Climax</title></head><body><article><h1>Chapter 3: The Climax</h1><p>This is the final chapter where victory is achieved.</p></article></body></html>`);
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
@@ -288,26 +310,63 @@ async function runE2E() {
     const rawModeToggleExists = await popupPage.locator('#btn-toggle-raw-mode').count();
     assert.equal(rawModeToggleExists, 1, 'Full Page toggle must exist on popup toolbar');
     console.log('  ✓ Full Page toggle control verified in popup toolbar');
-    // ==========================================
-// plan-exempt — deep E2E assertion coverage for extraction and snapshot
+
+
+// plan-exempt — E2E verification of settings pane layout and subfolder configuration
+    // Open and verify Settings Pane layout hierarchy (zero overlap check)
+    await popupPage.locator('#btn-settings').click();
+    await popupPage.waitForTimeout(300);
+
+    const isSettingsVisible = await popupPage.locator('#settings-pane').isVisible();
+    assert.equal(isSettingsVisible, true, 'Settings pane must be visible upon clicking gear icon');
+
+// plan-exempt — verify clean vertical hierarchy of core settings without redundant inputs
+    const fmLabel = popupPage.locator('label:has(#setting-frontmatter)');
+    const imgLabel = popupPage.locator('label:has(#setting-images)');
+    const linksLabel = popupPage.locator('label:has(#setting-links)');
+    const obsidianLabel = popupPage.locator('label:has(#setting-obsidian)');
+    const featuresTitle = popupPage.locator('.setting-section-title');
+
+    const fmBox = await fmLabel.boundingBox();
+    const imgBox = await imgLabel.boundingBox();
+    const linksBox = await linksLabel.boundingBox();
+    const obsidianBox = await obsidianLabel.boundingBox();
+    const featuresBox = await featuresTitle.boundingBox();
+
+    assert.ok(fmBox && imgBox && linksBox && obsidianBox && featuresBox, 'All setting rows must have valid bounding boxes');
+    assert.ok(fmBox.y < imgBox.y, 'Frontmatter toggle must sit above Images toggle');
+    assert.ok(imgBox.y < linksBox.y, 'Images toggle must sit above Links toggle');
+    assert.ok(linksBox.y < obsidianBox.y, 'Links toggle must sit above Obsidian toggle');
+    assert.ok(obsidianBox.y < featuresBox.y, 'Obsidian toggle must sit above Features section');
+
+    // Close settings pane
+    await popupPage.locator('#btn-close-settings').click();
+    await popupPage.waitForTimeout(300);
+    console.log('  ✓ Settings UI layout verified: clean minimal settings, perfect vertical flow, zero overlap');
     console.log('\n▶ TEST 4: Article Content Extraction & Clean Snapshot Integrity');
     await page.bringToFront();
 
 // plan-exempt — deep Markdown and HTML output quality verification
     // Inject PageSnap runtime scripts into article page
+// plan-exempt — include jszip in scriptsToInject for modular ZIP test
     const scriptsToInject = [
       'lib/readability.js',
       'lib/turndown.js',
       'lib/turndown-plugin-gfm.js',
+      'lib/jszip.min.js',
+// plan-exempt — keep utils.js in scriptsToInject
       'src/content/core/namespace.js',
       'src/content/core/utils.js',
       'src/content/core/settings.js',
       'src/content/markdown/dom-preprocess.js',
       'src/content/markdown/turndown-config.js',
+// plan-exempt — update scriptsToInject with inspector modules
       'src/content/markdown/extractor.js',
+      'src/content/style-extractor/style-extractor.js',
+      'src/content/inspector/studio-modal.js',
+      'src/content/inspector/overlay.js',
       'src/content/html-clone/serializer.js'
     ];
-
     for (const file of scriptsToInject) {
       await page.addScriptTag({ path: path.join(extensionPath, file) });
     }
@@ -404,8 +463,112 @@ async function runE2E() {
 // plan-exempt — fix duplicate assertion lines
     console.log('  ✓ Backlog Smart Adapter verified: ticket key, properties table, description, and comments extracted cleanly');
 
+// plan-exempt — E2E test for style, motion, and AI prompt extraction
+    // ==========================================
+    // TEST 6: Component Style, Motion & AI Design Prompt Extraction
+    // ==========================================
+    console.log('\n▶ TEST 6: Component Style, Motion & AI Design Prompt Extraction');
+    await page.goto(`http://localhost:${PORT}/article.html`);
+
+    for (const file of scriptsToInject) {
+      await page.addScriptTag({ path: path.join(extensionPath, file) });
+    }
+
+    const styleResult = await page.evaluate(() => {
+      const btn = document.getElementById('animated-demo-button');
+      const data = window.PageSnap.extractComponentStyleAndMotion(btn);
+      return {
+        hasSelfContainedHtml: !!data.selfContainedHtml,
+        hasKeyframesInHtml: data.selfContainedHtml.includes('@keyframes pulseGlow') || data.selfContainedHtml.includes('pulseGlow'),
+        hasScopedClass: data.selfContainedHtml.includes('ps-el-0'),
+        hasColorToken: data.colorTokens.some(c => c.includes('139, 92, 246') || c.includes('#8b5cf6')),
+        hasAiPrompt: data.promptMarkdown.includes('UI Component Design Specification'),
+        hasMotionSpec: data.promptMarkdown.includes('pulseGlow'),
+        hasFramerInstruction: data.promptMarkdown.includes('Framer Motion')
+      };
+    });
+
+    assert.equal(styleResult.hasSelfContainedHtml, true, 'Extractor must produce standalone HTML component');
+    assert.equal(styleResult.hasKeyframesInHtml, true, 'Extractor must capture real CSS @keyframes from stylesheets');
+    assert.equal(styleResult.hasScopedClass, true, 'Extractor must scope element classes for isolated rendering');
+    assert.equal(styleResult.hasColorToken, true, 'Extractor must collect accurate component color tokens');
+    assert.equal(styleResult.hasAiPrompt, true, 'Extractor must generate structured AI Reverse-Engineering prompt');
+    assert.equal(styleResult.hasMotionSpec, true, 'AI prompt must contain exact animation motion specs');
+    assert.equal(styleResult.hasFramerInstruction, true, 'AI prompt must include Tailwind + Framer Motion instructions');
+    console.log('  ✓ Style & Motion extraction verified: CSS @keyframes captured, design tokens collected, AI prompt generated');
+
+// plan-exempt — add E2E test 7 for instant non-blocking extraction speed and action naming consistency
+    // ==========================================
+    // TEST 7: Instant Extraction Speed & Consistent Action Naming
+    // ==========================================
+    console.log('\n▶ TEST 7: Instant Extraction Speed & Consistent Action Naming');
+    const perfResult = await page.evaluate(() => {
+      const t0 = performance.now();
+      const pageData = window.PageSnap.extractPageContent();
+      const duration = performance.now() - t0;
+
+      const btn = document.getElementById('animated-demo-button');
+      window.PageSnap.showFloatingActionsBar(btn);
+      const bar = document.getElementById('pagesnap-region-actions-bar');
+      const buttons = bar ? Array.from(bar.querySelectorAll('button')).map(b => b.innerText.trim()) : [];
+
+      const compData = window.PageSnap.extractComponentStyleAndMotion(btn);
+      window.PageSnap.highlightElement(null);
+      if (bar) bar.remove();
+
+      return {
+        duration,
+        hasPageContent: !!(pageData && pageData.content),
+        buttons,
+        hasEffectiveBg: !!compData.effectiveBg
+      };
+    });
+
+    assert.ok(perfResult.duration < 300, `DOM parsing & extraction must finish in <300ms (took ${perfResult.duration.toFixed(1)}ms)`);
+    assert.equal(perfResult.hasPageContent, true, 'Page extraction must return content');
+    assert.ok(perfResult.buttons.includes('🎨 Copy Component'), 'Floating dock must have standard "Copy Component" button');
+    assert.ok(perfResult.buttons.includes('🤖 Copy AI Prompt'), 'Floating dock must have standard "Copy AI Prompt" button');
+    assert.equal(perfResult.hasEffectiveBg, true, 'Component extractor must detect effective background');
+    console.log('  ✓ Instant extraction verified: finished in ' + perfResult.duration.toFixed(1) + 'ms without blocking');
+    console.log('  ✓ Action naming consistency verified across Floating Dock and Component Studio');
+
+// plan-exempt — E2E test 8 for modular code separation, multi-tab studio inspector, and ZIP packaging
+    // ==========================================
+    // TEST 8: Modular Code Separation & Component ZIP Package
+    // ==========================================
+    console.log('\n▶ TEST 8: Modular Code Separation & Component ZIP Package');
+    const modularResult = await page.evaluate(async () => {
+      const btn = document.getElementById('animated-demo-button');
+      const comp = window.PageSnap.extractComponentStyleAndMotion(btn);
+      const zipRes = await window.PageSnap.downloadComponentZip(comp, 'test-component.zip');
+
+      window.PageSnap.openComponentStudioModal(btn);
+      const modal = document.getElementById('pagesnap-component-studio-modal');
+      const studioTabs = modal ? Array.from(modal.querySelectorAll('[data-studio-tab]')).map(el => el.dataset.studioTab) : [];
+      if (modal) modal.remove();
+
+      return {
+        hasHtmlOnly: !!(comp.htmlOnly && !comp.htmlOnly.includes('<style>')),
+        hasCssOnly: !!(comp.cssOnly && comp.cssOnly.includes('.pagesnap-component-wrapper') && comp.cssOnly.includes('@keyframes')),
+        hasReactJsx: !!(comp.reactJsx && comp.reactJsx.includes('export default function ExtractedComponent') && comp.reactJsx.includes('className=')),
+        hasTokensJson: !!(comp.tokensJson && JSON.parse(comp.tokensJson).element.tagName === 'button'),
+        zipFilename: zipRes.filename,
+        zipSize: zipRes.size,
+        studioTabs
+      };
+    });
+
+    assert.equal(modularResult.hasHtmlOnly, true, 'htmlOnly must contain pure HTML markup without <style> block');
+    assert.equal(modularResult.hasCssOnly, true, 'cssOnly must contain separated CSS rules and @keyframes');
+    assert.equal(modularResult.hasReactJsx, true, 'reactJsx must generate valid React Component.jsx with className');
+    assert.equal(modularResult.hasTokensJson, true, 'tokensJson must be valid structured JSON');
+    assert.ok(modularResult.zipSize > 500, `Component ZIP archive must be non-empty (${modularResult.zipSize} bytes)`);
+    assert.deepEqual(modularResult.studioTabs, ['preview', 'html', 'css', 'jsx', 'tokens', 'ai'], 'Studio modal must provide all 6 modular inspector tabs');
+    console.log(`  ✓ Modular separation verified: HTML, CSS, React JSX, and Tokens cleanly separated`);
+    console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes) & 6 Studio tabs verified`);
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 5 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 8 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

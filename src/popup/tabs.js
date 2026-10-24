@@ -7,13 +7,13 @@ import { appState } from './state.js';
 import { updateStats } from './extract.js';
 
 const tabMd = document.getElementById('tab-md');
+// plan-exempt — clean tabs layout without redundant studio tab
 const tabHtml = document.getElementById('tab-html');
 const markdownPreview = document.getElementById('markdown-preview');
 const htmlPreviewWrapper = document.getElementById('html-preview-wrapper');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnDownloadZip = document.getElementById('btn-download-zip');
-
 /**
  * Dispatch table for footer action button layout based on active tab
  */
@@ -31,10 +31,11 @@ const TAB_LAYOUT_DISPATCH = {
     if (btnDownloadZip) btnDownloadZip.style.display = 'none';
     gridEl.style.gridTemplateColumns = '1fr 1fr';
   },
+// plan-exempt — label HTML copy as Copy Page HTML for clarity
   html: (gridEl) => {
     if (btnCopy) {
       btnCopy.style.display = 'block';
-      btnCopy.innerHTML = '📋 Copy HTML';
+      btnCopy.innerHTML = '📋 Copy Page HTML';
     }
     if (btnDownload) {
       btnDownload.style.display = 'block';
@@ -66,7 +67,6 @@ export function initTabs() {
     { btn: tabMd, view: markdownPreview, name: 'markdown' },
     { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' }
   ];
-
   previewTabs.forEach(tabObj => {
     if (tabObj.btn) {
       tabObj.btn.addEventListener('click', () => {
@@ -93,4 +93,6 @@ export function initTabs() {
       });
     }
   });
+
+
 }

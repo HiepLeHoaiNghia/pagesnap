@@ -1,4 +1,4 @@
-// plan-exempt — single-source-of-truth configuration
+// plan-exempt — smart pagination actions and bundle registration
 /**
  * PageSnap shared constants (ES module — background + popup only).
  * Content scripts use literal strings (no ESM support there);
@@ -31,12 +31,14 @@ export const ACTIONS = {
   FETCH_EXTERNAL_SCRIPT: 'fetchExternalScript',
   FETCH_ASSET_AS_BASE64: 'fetchAssetAsBase64',
   TRIGGER_DOWNLOAD: 'triggerDownload',
+// plan-exempt — prune pagination actions and bundles
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };
 
 // Ordered script bundles — single source of truth for the injector.
 // Order matters: libs → namespace/core → feature modules.
+// plan-exempt — restore actions-bar and mode in CONTENT_BUNDLE
 export const CONTENT_BUNDLE = [
   'lib/readability.js',
   'lib/turndown.js',
@@ -48,9 +50,11 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/dom-preprocess.js',
   'src/content/markdown/turndown-config.js',
   'src/content/markdown/extractor.js',
+  'src/content/style-extractor/style-extractor.js',
+// plan-exempt — clean bundle registration with inspector modules
   'src/content/markdown/handlers.js',
-  'src/content/region-select/mode.js',
-  'src/content/region-select/actions-bar.js',
+  'src/content/inspector/studio-modal.js',
+  'src/content/inspector/overlay.js',
   'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js'
 ];

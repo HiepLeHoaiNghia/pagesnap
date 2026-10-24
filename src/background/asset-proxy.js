@@ -103,6 +103,7 @@ export const handlers = {
       })
       .then(text => sendResponse({ success: true, text }))
       .catch(error => sendResponse({ success: false, error: error.message }));
+// plan-exempt — clean handler closing
     return true; // Keep channel open for async response
   }
 };

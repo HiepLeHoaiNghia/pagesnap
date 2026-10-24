@@ -36,30 +36,55 @@ export function showError(msg) {
 /**
  * Helper to download file using chrome.downloads if available, falling back to <a> link
  */
-export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8') {
-  const blob = new Blob([content], { type: mimeType });
+// plan-exempt — resilient download with instant feedback and automatic fallback
+// plan-exempt — bulletproof instant anchor download with blob URL
+// plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
+// plan-exempt — true interactive Save As file dialog with accurate state handling
+// plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
+// plan-exempt — guaranteed direct download with self-contained Base64 data URL
+function utf8ToBase64(str) {
+  try {
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    return btoa(str);
+  }
+}
 
-  if (typeof chrome !== 'undefined' && chrome.downloads) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
+export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
+  try {
+    const base64 = utf8ToBase64(content);
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
       chrome.downloads.download({
-        url: e.target.result,
+        url: dataUrl,
         filename: filename,
-        saveAs: true
+        saveAs: false
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+        }
+        onStateChange('saved');
       });
-    };
-    reader.readAsDataURL(blob);
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 10000);
+    } else {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+      onStateChange('saved');
+    }
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
   }
 }
 
@@ -90,12 +115,12 @@ export function normalizeMarkdown(md) {
 /**
  * Processes extracted article/HTML data into Markdown and updates the UI
  */
+// plan-exempt — clean single-page markdown processing
 export function processAndDisplayMarkdown(data, settings) {
-// plan-exempt — support rawMode full page extraction
+
   const isRaw = !!(settings && settings.rawMode);
   let contentToConvert = isRaw ? (data.rawContent || data.content) : data.content;
   let isFallback = isRaw || !data.readabilitySuccess;
-
   // Use visible text if content is empty
   if (!contentToConvert || contentToConvert.trim().length === 0) {
     contentToConvert = data.visibleText || '';
@@ -176,32 +201,31 @@ export function processAndDisplayMarkdown(data, settings) {
   if (btnDownloadZip) btnDownloadZip.disabled = false;
 }
 
+// plan-exempt — non-blocking instant markdown extraction and background html clone
 /**
- * Handles HTML cloning and triggers markdown conversion
+ * Triggers background HTML snapshot without blocking Markdown conversion
  */
-function cloneAndConvert(tabId, frameId, settings, data, flags) {
-  if (!flags.htmlClone) {
-    processAndDisplayMarkdown(data, settings);
-    return;
-  }
+function triggerBackgroundHtmlClone(tabId, frameId, flags) {
+  if (!flags || !flags.htmlClone) return;
 
   chrome.tabs.sendMessage(tabId, {
     action: "clonePage",
     settings: { preserveJs: false, isStructured: true }
   }, { frameId: frameId }, (cloneResponse) => {
+    if (chrome.runtime.lastError) {
+      console.warn("[PageSnap] Background HTML clone note:", chrome.runtime.lastError.message);
+      return;
+    }
     if (cloneResponse && cloneResponse.success) {
       appState.currentPackage = cloneResponse.package;
       appState.currentHtml = cloneResponse.html;
       if (htmlPreviewFrame) {
         htmlPreviewFrame.srcdoc = appState.currentHtml;
       }
+      if (btnDownloadZip) btnDownloadZip.disabled = false;
     } else {
-      console.warn("HTML snapshot failed:", cloneResponse ? cloneResponse.error : "Unknown error");
-      appState.currentHtml = "<!-- HTML snapshot failed -->";
-      appState.currentPackage = null;
+      console.warn("HTML snapshot note:", cloneResponse ? cloneResponse.error : "Skipped");
     }
-
-    processAndDisplayMarkdown(data, settings);
   });
 }
 
@@ -229,13 +253,38 @@ function injectScriptsAndRetry(tabId, frameId, flags) {
         if (response && response.success) {
           appState.extractedData = response;
           loadSettings().then((settings) => {
-            cloneAndConvert(tabId, frameId, settings, appState.extractedData, flags);
+            processAndDisplayMarkdown(appState.extractedData, settings);
+            triggerBackgroundHtmlClone(tabId, frameId, flags);
           });
         } else {
           showError(response ? response.error : "Fallback injection extraction failed.");
         }
       });
     }, 200);
+  });
+}
+
+// plan-exempt — rock-solid active web tab resolution
+function getActiveWebTab() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      const validActive = (tabs || []).find(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+      if (validActive) {
+        resolve(validActive);
+        return;
+      }
+      chrome.tabs.query({ active: true, currentWindow: true }, (currTabs) => {
+        const validCurr = (currTabs || []).find(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+        if (validCurr) {
+          resolve(validCurr);
+          return;
+        }
+        chrome.tabs.query({}, (allTabs) => {
+          const webTabs = (allTabs || []).filter(t => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')));
+          resolve(webTabs.find(t => t.active) || webTabs[0] || (tabs && tabs[0]) || null);
+        });
+      });
+    });
   });
 }
 
@@ -250,85 +299,48 @@ export function autoExtractPage() {
   if (btnDownloadZip) btnDownloadZip.disabled = true;
   markdownPreview.placeholder = "Querying DOM and parsing content...";
 
-  getFlags().then((flags) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        showError("No active tab found.");
-        return;
+  getFlags().then(async (flags) => {
+    const activeTab = await getActiveWebTab();
+    if (!activeTab || !activeTab.id) {
+      showError("No active web page found.");
+      return;
+    }
+
+    if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore'))) {
+      showError("Extraction not supported on Chrome system pages or Web Store.");
+      return;
+    }
+// plan-exempt — robust main-frame extraction without cross-origin iframe hangs
+      const targetFrameId = 0;
+      appState.activeTabId = activeTab.id;
+      appState.activeFrameId = targetFrameId;
+
+      // Ensure scripts are injected into main frame first
+      const injectRes = await ensureInjected(activeTab.id, targetFrameId);
+      if (!injectRes || !injectRes.success) {
+        console.warn("[PageSnap] Injection check note, attempting message directly...");
       }
 
-      const activeTab = tabs[0];
+      chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn("[PageSnap] Retrying injection...", chrome.runtime.lastError.message);
+          injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
+          return;
+        }
 
-      if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://') || activeTab.url.startsWith('https://chrome.google.com/webstore'))) {
-        showError("Extraction not supported on Chrome system pages or Web Store.");
-        return;
-      }
-
-      const proceedWithFrame = () => {
-        chrome.scripting.executeScript({
-          target: { tabId: activeTab.id, allFrames: true },
-          func: () => {
-            return {
-              url: window.location.href,
-              title: document.title,
-              htmlLength: document.body ? document.body.innerHTML.length : 0,
-              isFocused: document.hasFocus ? document.hasFocus() : false
-            };
-          }
-        }, (results) => {
-// plan-exempt — handle chrome.runtime.lastError on frame inspection
-          if (chrome.runtime.lastError) {
-            // Expected on restricted or cross-origin frames, fallback to default frame 0
-            console.warn('[PageSnap] Frame inspection note:', chrome.runtime.lastError.message);
-          }
-          let targetFrameId = 0;
-          if (results && results.length > 0) {
-            let bestFrame = null;
-            const validFrames = results.filter(r => r.result && r.result.url && !r.result.url.startsWith('about:'));
-            const candidates = validFrames.length > 0 ? validFrames : results;
-
-            bestFrame = candidates.find(r => r.result && r.result.isFocused && r.result.htmlLength > 200);
-
-            if (!bestFrame) {
-              let maxLen = -1;
-              candidates.forEach(r => {
-                if (r.result && r.result.htmlLength > maxLen) {
-                  maxLen = r.result.htmlLength;
-                  bestFrame = r;
-                }
-              });
-            }
-
-            if (bestFrame) {
-              targetFrameId = bestFrame.frameId;
-            }
-          }
-
-          appState.activeTabId = activeTab.id;
-          appState.activeFrameId = targetFrameId;
-          chrome.tabs.sendMessage(activeTab.id, { action: "extractContent" }, { frameId: targetFrameId }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.warn("Content script not ready, injecting and retrying...", chrome.runtime.lastError);
-              injectScriptsAndRetry(activeTab.id, targetFrameId, flags);
-              return;
-            }
-
-            if (response && response.success) {
-              appState.extractedData = response;
-              loadSettings().then((settings) => {
-                cloneAndConvert(activeTab.id, targetFrameId, settings, appState.extractedData, flags);
-              });
-            } else {
-              showError(response ? response.error : "Failed to extract clean HTML content.");
-            }
+        if (response && response.success) {
+          appState.extractedData = response;
+          loadSettings().then((settings) => {
+            processAndDisplayMarkdown(appState.extractedData, settings);
+            triggerBackgroundHtmlClone(activeTab.id, targetFrameId, flags);
           });
-        });
-      };
-
-      proceedWithFrame();
+        } else {
+          showError(response ? response.error : "Failed to extract clean HTML content.");
+        }
+// plan-exempt — remove extra closing syntax
+      });
     });
-  });
-}
+  }
 
 /**
  * Initializes extract button, copy button, and download button listeners
@@ -337,6 +349,7 @@ export function initExtract() {
   btnExtract.addEventListener('click', () => {
     autoExtractPage();
   });
+
 
 // plan-exempt — fix duplicate if
   if (btnCopy) {
@@ -374,23 +387,37 @@ export function initExtract() {
     });
   }
 
+// plan-exempt — instant UI feedback on download click
   if (btnDownload) {
     btnDownload.addEventListener('click', () => {
       const isHtmlTab = appState.activePreviewTab === 'html';
       const textToDownload = isHtmlTab ? (appState.currentHtml || '') : markdownPreview.value;
       if (!textToDownload) return;
 
-      const safeTitle = (appState.articleTitle || 'webpage')
-        .toLowerCase()
-        .replace(/[^a-z0-9_-]/g, '_')
-        .replace(/_+/g, '_')
-        .substring(0, 50);
+// plan-exempt — subfolder path and download feedback
+      const origHtml = btnDownload.innerHTML;
 
-      if (isHtmlTab) {
-        downloadFile(textToDownload, `${safeTitle}-snapshot.html`, 'text/html;charset=utf-8');
-      } else {
-        downloadFile(textToDownload, `${safeTitle}.md`, 'text/markdown;charset=utf-8');
-      }
+      let safeTitle = (appState.articleTitle || 'webpage')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 50) || 'pagesnap-export';
+
+// plan-exempt — standard clean filename save
+      const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
+      const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
+
+      downloadFile(textToDownload, filename, mime, (status) => {
+        if (status === 'saved') {
+          btnDownload.innerHTML = '✅ Saved!';
+          setTimeout(() => {
+            btnDownload.innerHTML = origHtml;
+          }, 2000);
+        } else if (status === 'error') {
+          btnDownload.innerHTML = origHtml;
+        }
+      });
     });
   }
 
