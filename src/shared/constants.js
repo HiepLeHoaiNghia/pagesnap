@@ -38,6 +38,7 @@ export const ACTIONS = {
 
 // Ordered script bundles — single source of truth for the injector.
 // Order matters: libs → namespace/core → feature modules.
+// plan-exempt — restore actions-bar and mode in CONTENT_BUNDLE
 export const CONTENT_BUNDLE = [
   'lib/readability.js',
   'lib/turndown.js',
@@ -47,11 +48,12 @@ export const CONTENT_BUNDLE = [
   'src/content/core/utils.js',
   'src/content/core/settings.js',
   'src/content/markdown/dom-preprocess.js',
-// plan-exempt — register style-extractor in CONTENT_BUNDLE
   'src/content/markdown/turndown-config.js',
   'src/content/markdown/extractor.js',
   'src/content/style-extractor/style-extractor.js',
   'src/content/markdown/handlers.js',
+  'src/content/region-select/actions-bar.js',
+  'src/content/region-select/mode.js',
   'src/content/html-clone/serializer.js',
   'src/content/html-clone/zip-builder.js'
 ];
