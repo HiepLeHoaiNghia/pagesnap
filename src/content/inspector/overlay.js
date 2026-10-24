@@ -271,14 +271,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     label.style.marginRight = '2px';
     bar.appendChild(label);
 
-    // Navigation Hierarchy Buttons: 🔼 Ra ngoài (Parent) & 🔽 Vào trong (Child)
+// plan-exempt — English UI strings for international open-source standard
+    // Navigation Hierarchy Buttons: 🔼 Expand (Parent) & 🔽 Shrink (Child)
     const navGroup = document.createElement("div");
     navGroup.style.display = "flex";
     navGroup.style.gap = "4px";
 
     const expandBtn = document.createElement("button");
-    expandBtn.innerText = "🔼 Ra ngoài";
-    expandBtn.title = "Mở rộng ra thẻ cha bao quanh (Parent)";
+    expandBtn.innerText = "🔼 Expand";
+    expandBtn.title = "Expand to parent container (Parent)";
     styleBtn(expandBtn);
 
     const parent = element.parentElement;
@@ -298,8 +299,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     navGroup.appendChild(expandBtn);
 
     const shrinkBtn = document.createElement("button");
-    shrinkBtn.innerText = "🔽 Vào trong";
-    shrinkBtn.title = "Thu hẹp vào thẻ con (Child)";
+    shrinkBtn.innerText = "🔽 Shrink";
+    shrinkBtn.title = "Shrink to child element (Child)";
     styleBtn(shrinkBtn);
 
     const hasChild = (selectionHistory.length > 0) || (element.firstElementChild !== null);
@@ -334,7 +335,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // ✨ Live Studio Button
     const studioBtn = document.createElement("button");
     studioBtn.innerText = "✨ Live Studio";
-    studioBtn.title = "Mở phòng thí nghiệm để xem thử, sửa chữ, và tuỳ biến component";
+    studioBtn.title = "Open Component Studio to preview, edit text, and customize";
     styleBtn(studioBtn, true);
     studioBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -347,13 +348,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // 🤖 AI Prompt Button
     const aiBtn = document.createElement("button");
     aiBtn.innerText = "🤖 AI Prompt";
-    aiBtn.title = "Copy Design Specs & Motion Tokens cho Claude Code / Cursor";
+    aiBtn.title = "Copy AI Design Specs & Motion Tokens for Claude Code / Cursor";
     styleBtn(aiBtn);
     aiBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
       await Web2MD.copyTextToClipboard(comp.promptMarkdown);
-      Web2MD.showToast("🤖 AI Design Prompt đã được copy!");
+      Web2MD.showToast("🤖 AI Design Prompt copied to clipboard!");
       bar.remove();
       PageSnap.highlightElement(null);
     });
@@ -362,13 +363,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // 🎨 Copy Code Button
     const codeBtn = document.createElement("button");
     codeBtn.innerText = "🎨 Copy Code";
-    codeBtn.title = "Copy HTML + Scoped CSS tự chạy";
+    codeBtn.title = "Copy self-contained HTML + Scoped CSS";
     styleBtn(codeBtn);
     codeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
       await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
-      Web2MD.showToast("🎨 Component Code đã được copy!");
+      Web2MD.showToast("🎨 Component Code copied to clipboard!");
       bar.remove();
       PageSnap.highlightElement(null);
     });
@@ -392,12 +393,11 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         md = clone.textContent || '';
       }
       await Web2MD.copyTextToClipboard(md);
-      Web2MD.showToast("📝 Markdown đã được copy!");
+      Web2MD.showToast("📝 Markdown copied to clipboard!");
       bar.remove();
       PageSnap.highlightElement(null);
     });
     bar.appendChild(mdBtn);
-
     // ✕ Close Button
     const closeBtn = document.createElement("button");
     closeBtn.innerText = "✕";

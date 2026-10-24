@@ -116,14 +116,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       fontSize: '12px'
     });
 
-    // Navigation Hierarchy Buttons: 🔼 Ra ngoài (Parent) & 🔽 Vào trong (Child)
+// plan-exempt — English UI strings for international open-source standard
+    // Navigation Hierarchy Buttons: 🔼 Expand (Parent) & 🔽 Shrink (Child)
     const navGroup = document.createElement("div");
     navGroup.style.display = "flex";
     navGroup.style.gap = "6px";
 
     const expandBtn = document.createElement("button");
-    expandBtn.innerText = "🔼 Ra ngoài";
-    expandBtn.title = "Mở rộng ra thẻ cha bao quanh (Parent)";
+    expandBtn.innerText = "🔼 Expand";
+    expandBtn.title = "Expand to parent container (Parent)";
     Object.assign(expandBtn.style, {
       background: '#1f2937',
       border: '1px solid #374151',
@@ -136,8 +137,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
 
     const shrinkBtn = document.createElement("button");
-    shrinkBtn.innerText = "🔽 Vào trong";
-    shrinkBtn.title = "Thu hẹp vào thẻ con (Child)";
+    shrinkBtn.innerText = "🔽 Shrink";
+    shrinkBtn.title = "Shrink to child element (Child)";
     Object.assign(shrinkBtn.style, {
       background: '#1f2937',
       border: '1px solid #374151',
@@ -191,8 +192,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     navGroup.appendChild(shrinkBtn);
     toolbar.appendChild(navGroup);
     // 1. Live Text Edit Toggle
+// plan-exempt — English UI controls
+    // 1. Live Text Edit Toggle
     const editToggleBtn = document.createElement("button");
-    editToggleBtn.innerText = "✏️ Sửa trực tiếp chữ (Off)";
+    editToggleBtn.innerText = "✏️ Direct Text Edit (Off)";
     Object.assign(editToggleBtn.style, {
       background: '#1f2937',
       border: '1px solid #374151',
@@ -207,7 +210,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
     // 2. Canvas Theme Switcher
     const bgSwitchBtn = document.createElement("button");
-    bgSwitchBtn.innerText = "🌓 Đổi nền Canvas";
+    bgSwitchBtn.innerText = "🌓 Switch Background";
     Object.assign(bgSwitchBtn.style, {
       background: '#1f2937',
       border: '1px solid #374151',
@@ -244,11 +247,11 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // Wire live text edit toggle
     let isEditing = false;
     editToggleBtn.addEventListener('click', () => {
+// plan-exempt — English toggle text
       isEditing = !isEditing;
-      editToggleBtn.innerText = isEditing ? "✏️ Sửa trực tiếp chữ (ĐANG BẬT)" : "✏️ Sửa trực tiếp chữ (Off)";
+      editToggleBtn.innerText = isEditing ? "✏️ Direct Text Edit (ON)" : "✏️ Direct Text Edit (Off)";
       editToggleBtn.style.background = isEditing ? '#8b5cf6' : '#1f2937';
       editToggleBtn.style.color = '#ffffff';
-
       const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
       if (previewWrapper) {
         previewWrapper.querySelectorAll('*').forEach(el => {
@@ -317,8 +320,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       } else {
         md = clone.textContent || '';
       }
+// plan-exempt — English copy confirmation
       await Web2MD.copyTextToClipboard(md);
-      copyMdBtn.innerText = "✅ Đã Copy MD!";
+      copyMdBtn.innerText = "✅ Copied MD!";
       setTimeout(() => { copyMdBtn.innerText = "📝 Copy MD"; }, 2000);
     });
     leftGroup.appendChild(copyMdBtn);
@@ -328,16 +332,18 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const copyCodeBtn = makeBtn("🎨 Copy Component", "#374151", "#ffffff", async () => {
       const previewWrapper = canvas.querySelector('.pagesnap-component-wrapper');
       const htmlToCopy = previewWrapper ? previewWrapper.outerHTML : componentData.selfContainedHtml;
+// plan-exempt — English copy confirmation
       await Web2MD.copyTextToClipboard(htmlToCopy);
-      copyCodeBtn.innerText = "✅ Đã Copy Code!";
+      copyCodeBtn.innerText = "✅ Copied Code!";
       setTimeout(() => { copyCodeBtn.innerText = "🎨 Copy Component"; }, 2000);
     });
     rightGroup.appendChild(copyCodeBtn);
 
     // 4. Copy AI Reverse-Engineering Prompt (Hero Action)
     const copyPromptBtn = makeBtn("🤖 Copy AI Prompt", "linear-gradient(135deg, #8b5cf6, #3b82f6)", "#ffffff", async () => {
+// plan-exempt — English copy confirmation
       await Web2MD.copyTextToClipboard(componentData.promptMarkdown);
-      copyPromptBtn.innerText = "✅ Đã Copy AI Prompt!";
+      copyPromptBtn.innerText = "✅ Copied AI Prompt!";
       setTimeout(() => { copyPromptBtn.innerText = "🤖 Copy AI Prompt"; }, 2000);
     });
     copyPromptBtn.style.border = 'none';
