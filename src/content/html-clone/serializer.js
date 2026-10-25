@@ -660,7 +660,9 @@ ${headStructured}
   };
 };
 
-// plan-exempt — safe registerHandlers call
+// plan-exempt — safe registerHandlers call with tab-based direct download handlers
+let lastSerializedHtml = '';
+
 (typeof PageSnap !== 'undefined' ? PageSnap : Web2MD).registerHandlers({
   clonePage: (request, sender, sendResponse) => {
     const opts = request.settings || request || {};
@@ -668,8 +670,58 @@ ${headStructured}
       preserveJs: !!opts.preserveJs,
       targetElement: opts.targetElement || null
     })
-      .then(res => sendResponse({ success: true, html: res.html, package: res.package }))
+      .then(res => {
+        lastSerializedHtml = res.html;
+        sendResponse({ success: true, html: res.html, package: res.package });
+      })
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
+  },
+  downloadHtmlSnapshot: (request, sender, sendResponse) => {
+    try {
+      const htmlToDownload = request.html || lastSerializedHtml;
+      if (!htmlToDownload) {
+        sendResponse({ success: false, error: 'No HTML content available' });
+        return;
+      }
+      const blob = new Blob([htmlToDownload], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = request.filename || 'snapshot.html';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+      sendResponse({ success: true });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+  },
+  downloadTextFile: (request, sender, sendResponse) => {
+    try {
+      if (!request.content) {
+        sendResponse({ success: false, error: 'No content provided' });
+        return;
+      }
+      const blob = new Blob([request.content], { type: request.mimeType || 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = request.filename || 'export.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+      sendResponse({ success: true });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
   }
 });
