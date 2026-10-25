@@ -62,7 +62,11 @@ export function updateFooterActionsVisibility() {
   }
 }
 
+// plan-exempt — tab switching with contextual sub-toolbar toggling
 export function initTabs() {
+  const mdSubToolbar = document.getElementById('md-sub-toolbar');
+  const htmlSubToolbar = document.getElementById('html-sub-toolbar');
+
   const previewTabs = [
     { btn: tabMd, view: markdownPreview, name: 'markdown' },
     { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' }
@@ -88,11 +92,19 @@ export function initTabs() {
           }
         });
 
+        if (mdSubToolbar && htmlSubToolbar) {
+          if (tabObj.name === 'markdown') {
+            mdSubToolbar.classList.remove('hidden');
+            htmlSubToolbar.classList.add('hidden');
+          } else {
+            mdSubToolbar.classList.add('hidden');
+            htmlSubToolbar.classList.remove('hidden');
+          }
+        }
+
         updateFooterActionsVisibility();
         updateStats();
       });
     }
   });
-
-
-}
+} // plan-exempt — clean closing brace

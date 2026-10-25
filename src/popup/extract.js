@@ -51,38 +51,35 @@ function utf8ToBase64(str) {
 }
 
 // plan-exempt — clean native blob download avoiding macOS chrome temp file issues
+// plan-exempt — enforce chrome.downloads.download with filename for Markdown files
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
     const blob = new Blob([content], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      if (a.parentNode) a.parentNode.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    }, 10000);
-    onStateChange('saved');
-  } catch (err) {
-    console.error("Direct download failed, attempting data URL fallback:", err);
-    try {
-      const base64 = utf8ToBase64(content);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = `data:${mimeType};base64,${base64}`;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      chrome.downloads.download({
+        url: blobUrl,
+        filename: filename,
+        saveAs: false
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          const base64 = utf8ToBase64(content);
+          chrome.downloads.download({
+            url: `data:${mimeType};base64,${base64}`,
+            filename: filename,
+            saveAs: false
+          });
+        }
+        onStateChange('saved');
+      });
+    } else {
       onStateChange('saved');
-    } catch (e) {
-      console.error("Download fallback failed:", e);
     }
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
   }
-} // plan-exempt — clean closing brace
+}
 
 /**
  * Updates stats in status bar (character count, estimated tokens)

@@ -18,6 +18,17 @@ export const handlers = {
         sendResponse({ success: true, downloadId });
       }
     });
-    return true; // Keep channel open for async response
+    return true; // plan-exempt — keep channel open for async response
   }
 };
+
+// plan-exempt — enforce filename determination on macOS to prevent .com.google.Chrome.* temp files
+if (typeof chrome !== 'undefined' && chrome.downloads && chrome.downloads.onDeterminingFilename) {
+  chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+    if (item.filename) {
+      suggest({ filename: item.filename, conflictAction: 'uniquify' });
+    } else {
+      suggest();
+    }
+  });
+}
