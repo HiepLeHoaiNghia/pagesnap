@@ -676,31 +676,5 @@ let lastSerializedHtml = '';
       })
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
-  },
-// plan-exempt — native in-tab anchor download avoiding cross-origin blob blocks
-  downloadHtmlSnapshot: async (request, sender, sendResponse) => {
-    try {
-      let htmlToDownload = lastSerializedHtml;
-      if (!htmlToDownload) {
-        const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false });
-        htmlToDownload = res.html;
-        lastSerializedHtml = res.html;
-      }
-      const blob = new Blob([htmlToDownload], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = request.filename || 'snapshot.html';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 60000);
-      sendResponse({ success: true });
-    } catch (err) {
-      sendResponse({ success: false, error: err.message });
-    }
   }
-}); // plan-exempt — clean serializer handlers
+}); // plan-exempt — clean serializer handlers without in-tab synthetic download

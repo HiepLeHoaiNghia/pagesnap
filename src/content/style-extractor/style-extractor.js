@@ -360,22 +360,42 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
 
-// plan-exempt — trigger background download using persistent tab blob URL
+// plan-exempt — convert ZIP to data URL and trigger background chrome.downloads with saveAs: true
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
-    const blobUrl = URL.createObjectURL(zipBlob);
-// plan-exempt — native in-tab anchor download for ZIP package to guarantee exact filename
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      if (a.parentNode) a.parentNode.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    }, 60000);
-    return { filename, size: zipBlob.size };
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+          chrome.runtime.sendMessage({
+            action: 'triggerDownload',
+            url: dataUrl,
+            filename: filename,
+            conflictAction: 'uniquify',
+            saveAs: true
+          }, (res) => {
+            if (chrome.runtime.lastError || (res && !res.success)) {
+              reject(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error)));
+            } else {
+              resolve({ filename, size: zipBlob.size });
+            }
+          });
+        } else {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
+          resolve({ filename, size: zipBlob.size });
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader failed'));
+      reader.readAsDataURL(zipBlob);
+    });
   };
 })(window.PageSnap);

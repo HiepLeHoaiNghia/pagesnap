@@ -62,69 +62,48 @@ function safeUtf8ToBase64(str) {
   }
 }
 
-// plan-exempt — in-tab native download delegation to guarantee exact filenames without temp file collision
+// plan-exempt — rock-solid direct download using FileReader data URL and official chrome.downloads.download API
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
-    const isHtml = mimeType.includes('html');
-    const action = isHtml ? 'downloadHtmlSnapshot' : 'downloadTextFile';
-    const payload = isHtml
-      ? { action, filename }
-      : { action, filename, content, mimeType };
+    const blob = new Blob([content], { type: mimeType });
 
-    if (appState && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.sendMessage === 'function') {
-      chrome.tabs.sendMessage(appState.activeTabId, payload, (res) => {
-        if (!chrome.runtime.lastError && res && res.success) {
-          onStateChange('saved');
-          return;
-        }
-        // Fallback to background download tab if content script did not handle
-        triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange);
-      });
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.downloads.download({
+          url: e.target.result,
+          filename: filename,
+          saveAs: true
+        }, (downloadId) => {
+          if (chrome.runtime.lastError || !downloadId) {
+            console.error('[PageSnap] chrome.downloads error:', chrome.runtime.lastError);
+            onStateChange('error');
+          } else {
+            onStateChange('saved');
+          }
+        });
+      };
+      reader.onerror = () => onStateChange('error');
+      reader.readAsDataURL(blob);
       return;
     }
 
-    triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange);
+    // Direct fallback outside extension
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = e.target.result;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
+      onStateChange('saved');
+    };
+    reader.onerror = () => onStateChange('error');
+    reader.readAsDataURL(blob);
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
-    onStateChange('error');
-  }
-}
-
-function triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange) {
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && chrome.tabs && typeof chrome.tabs.create === 'function') {
-    chrome.storage.local.set({
-      pendingDownload: {
-        content: content,
-        filename: filename,
-        mimeType: mimeType
-      }
-    }, () => {
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('src/download/download.html'),
-        active: false
-      }, () => {
-        onStateChange('saved');
-      });
-    });
-    return;
-  }
-  // plan-exempt — safe direct fallback
-  try {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      if (a.parentNode) a.parentNode.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 10000);
-    onStateChange('saved');
-  } catch (err) {
-    console.error("[PageSnap] Fallback download error:", err);
     onStateChange('error');
   }
 }
