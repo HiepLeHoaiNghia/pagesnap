@@ -426,9 +426,22 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-// plan-exempt — standard clean filename save
+// plan-exempt — delegate large HTML snapshot download to active tab to avoid GURL 2MB limit
       const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
       const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
+
+      if (isHtmlTab && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs) {
+        chrome.tabs.sendMessage(appState.activeTabId, {
+          action: 'downloadHtmlSnapshot',
+          filename: filename
+        }, () => {
+          btnDownload.innerHTML = '✅ Saved!';
+          setTimeout(() => {
+            btnDownload.innerHTML = origHtml;
+          }, 2000);
+        });
+        return;
+      }
 
       downloadFile(textToDownload, filename, mime, (status) => {
         if (status === 'saved') {
