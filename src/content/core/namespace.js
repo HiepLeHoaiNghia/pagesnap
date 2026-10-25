@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to studio-2
+// plan-exempt — bump buildId to 20261025-v3
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261024-studio-2' });
+    sendResponse({ success: true, buildId: '20261025-v3' });
     return true;
   }
 });
