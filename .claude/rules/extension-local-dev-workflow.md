@@ -17,3 +17,7 @@
   1. Push the feature branch to `origin` (`git push -u origin feat/<feature-name>`).
   2. Open a standard Pull Request from `feat/<feature-name>` into `develop`.
   3. Squash merge into `develop` following the release blueprint.
+
+## 4. Headless-Only Test Execution Invariant
+- **Rule:** All automated browser tests (including `tests/e2e/e2e-smoke.mjs` and Playwright scripts) MUST strictly run in `headless: true` with `--headless=new`.
+- **Strict Prohibition:** NEVER launch automated test browsers in headful mode (`headless: false`) that opens visible GUI windows on macOS or steals the user's active desktop/workspace focus.

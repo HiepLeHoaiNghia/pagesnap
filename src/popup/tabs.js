@@ -31,7 +31,7 @@ const TAB_LAYOUT_DISPATCH = {
     if (btnDownloadZip) btnDownloadZip.style.display = 'none';
     gridEl.style.gridTemplateColumns = '1fr 1fr';
   },
-// plan-exempt — label HTML copy as Copy Page HTML for clarity
+// plan-exempt — balanced 2-button footer across both Markdown and HTML tabs
   html: (gridEl) => {
     if (btnCopy) {
       btnCopy.style.display = 'block';
@@ -41,11 +41,8 @@ const TAB_LAYOUT_DISPATCH = {
       btnDownload.style.display = 'block';
       btnDownload.innerHTML = '💾 Download .HTML';
     }
-    if (btnDownloadZip) {
-      btnDownloadZip.style.display = 'block';
-      btnDownloadZip.innerHTML = '📦 ZIP Package';
-    }
-    gridEl.style.gridTemplateColumns = '1fr 1fr 1fr';
+    if (btnDownloadZip) btnDownloadZip.style.display = 'none';
+    gridEl.style.gridTemplateColumns = '1fr 1fr';
   }
 };
 
