@@ -168,7 +168,9 @@ async function runE2E() {
   try {
 // plan-exempt — off-screen non-intrusive browser launch to prevent workspace switching
 // plan-exempt — strict headless mode: never open GUI window or steal desktop focus
+// plan-exempt — headless_shell (Playwright default for headless:true) cannot load extensions; the full 'chromium' channel can
     context = await chromium.launchPersistentContext(userDataDir, {
+      channel: 'chromium',
       headless: true,
       args: [
         `--disable-extensions-except=${extensionPath}`,
