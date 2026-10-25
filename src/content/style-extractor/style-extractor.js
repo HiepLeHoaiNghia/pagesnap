@@ -360,42 +360,63 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
 
-// plan-exempt — convert ZIP to data URL and trigger background chrome.downloads with saveAs: true
+// plan-exempt — the returned promise must always settle; an extension reload under an open page (context invalidated) used to leave "Packaging..." pending forever
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
+    const result = { filename, size: zipBlob.size };
 
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const dataUrl = e.target.result;
-        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+    // Saves straight from the page; needs no extension connection, so it also works on a stale page.
+    const saveInPage = () => {
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    };
+
+    // chrome.runtime.id is undefined once the extension was reloaded underneath an already-open page.
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+      saveInPage();
+      return result;
+    }
+
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('FileReader failed'));
+        reader.readAsDataURL(zipBlob);
+      });
+      let timer;
+      const reply = await Promise.race([
+        new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
             action: 'triggerDownload',
             url: dataUrl,
-            filename: filename,
+            filename,
             conflictAction: 'uniquify',
             saveAs: true
           }, (res) => {
-            if (chrome.runtime.lastError || (res && !res.success)) {
-              reject(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : (res && res.error)));
-            } else {
-              resolve({ filename, size: zipBlob.size });
-            }
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve(res);
           });
-        } else {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
-          resolve({ filename, size: zipBlob.size });
-        }
-      };
-      reader.onerror = () => reject(new Error('FileReader failed'));
-      reader.readAsDataURL(zipBlob);
-    });
+        }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('background download did not answer within 10s')), 10000); })
+      ]).finally(() => clearTimeout(timer));
+      if (reply && reply.success === false) throw new Error(reply.error || 'download rejected');
+    } catch (err) {
+      // The user closing the Save As dialog is a decision, not a failure: never download behind their back.
+      if (/cancel/i.test(String(err && err.message))) return { ...result, cancelled: true };
+      console.warn('[PageSnap] Background download failed, saving from the page instead:', err);
+      saveInPage();
+    }
+    return result;
   };
 })(window.PageSnap);

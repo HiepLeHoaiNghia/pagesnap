@@ -70,6 +70,14 @@ const CASES = [
     run: `(async()=>{const z=new JSZip();z.file('index.html','<h1>x</h1>');z.file('README.md','# r');(await import(U('src/popup/html-clone.js'))).downloadFileBlob(await z.generateAsync({type:'blob'}),'package-small.zip')})()` },
   { file: 'package-large.zip', bytes: MB3,
     run: `(await import(U('src/popup/html-clone.js'))).downloadFileBlob(new Blob([new Uint8Array(${MB3})],{type:'application/zip'}),'package-large.zip')` },
+  // plan-exempt — Component Studio "Download ZIP" (content-script path), data sized like a real Linear component.
+  // saveAs:true opens a Save As dialog; headless Chrome has no UI and auto-cancels it, so no file can exist here.
+  // This case therefore only proves the promise settles. Its saving behavior is covered by the stale-context case below.
+  { file: 'component-healthy.zip', bytes: null, expectResolved: true, noFile: true,
+    run: `race(PageSnap.downloadComponentZip(DATA,'component-healthy.zip'), 8000)` },
+  // Extension reloaded while the page stays open: chrome.runtime.sendMessage throws. Used to hang "Packaging..." forever.
+  { file: 'component-stale-context.zip', bytes: null, expectResolved: true,
+    run: `(async()=>{const orig=chrome.runtime.sendMessage;chrome.runtime.sendMessage=()=>{throw new Error('Extension context invalidated.')};try{return await race(PageSnap.downloadComponentZip(DATA,'component-stale-context.zip'), 8000)}finally{chrome.runtime.sendMessage=orig}})()` },
 ];
 
 const failures = [];
@@ -94,8 +102,11 @@ try {
     return r.result.value;
   };
   await evalPage(`globalThis.U = (p) => chrome.runtime.getURL(p); true`);
+  await evalPage(`(async()=>{ for (const f of ['src/content/core/namespace.js','src/content/style-extractor/style-extractor.js']) await new Promise((res,rej)=>{const s=document.createElement('script');s.src=chrome.runtime.getURL(f);s.onload=res;s.onerror=()=>rej(new Error('load '+f));document.head.appendChild(s)}); return true })()`);
+  await evalPage(`window.DATA={tagName:'div',width:1260,height:360,indexHtml:'<div>'+'x'.repeat(42000)+'</div>',cssOnly:'a{}'.repeat(104000),reactJsx:'j'.repeat(46000),tokensJson:'{}'.repeat(1300),promptMarkdown:'p'.repeat(87000),readmeMd:'# r'};
+    window.race=(p,ms)=>{const t0=performance.now();return Promise.race([p.then(v=>({status:'resolved',ms:Math.round(performance.now()-t0)}),e=>({status:'rejected',err:String(e.message||e)})),new Promise(r=>setTimeout(()=>r({status:'PENDING_FOREVER'}),ms))])}; true`);
 
-  for (const c of CASES) { await evalPage(`(async()=>{ ${c.run}; return true })()`); await sleep(c.bytes && c.bytes > 1e6 ? 3500 : 2000); }
+  for (const c of CASES) { c.out = await evalPage(`(async()=>{ return await (${c.run}) })()`); await sleep(c.bytes && c.bytes > 1e6 ? 3500 : 2000); }
   await sleep(1500);
 
   const items = await evalPage(`new Promise(r=>chrome.downloads.search({},x=>r(x.map(i=>({state:i.state,error:i.error||'',filename:i.filename,fileSize:i.fileSize})))))`);
@@ -105,6 +116,8 @@ try {
   console.log('Files on disk:', onDisk.join(', ') || '(none)', '\n');
 
   for (const c of CASES) {
+    if (c.expectResolved) check(c.out?.status === 'resolved', `${c.file}: the UI promise settles instead of hanging (got ${JSON.stringify(c.out)})`);
+    if (c.noFile) continue;
     const item = items.find((i) => path.basename(i.filename) === c.file);
     check(!!item, `${c.file}: Chrome registered a DownloadItem under the exact requested name`);
     check(item?.state === 'complete', `${c.file}: state is "complete" (got "${item?.state}")`);
