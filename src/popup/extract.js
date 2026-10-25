@@ -52,29 +52,36 @@ function utf8ToBase64(str) {
 
 // plan-exempt — clean native blob download avoiding macOS chrome temp file issues
 // plan-exempt — enforce chrome.downloads.download with filename for Markdown files
+// plan-exempt — safe self-contained data URL download surviving popup closure
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
     const blob = new Blob([content], { type: mimeType });
-    const blobUrl = URL.createObjectURL(blob);
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      chrome.downloads.download({
-        url: blobUrl,
-        filename: filename,
-        saveAs: false
-      }, (downloadId) => {
-        if (chrome.runtime.lastError || !downloadId) {
-          const base64 = utf8ToBase64(content);
-          chrome.downloads.download({
-            url: `data:${mimeType};base64,${base64}`,
-            filename: filename,
-            saveAs: false
-          });
-        }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+        chrome.downloads.download({
+          url: dataUrl,
+          filename: filename,
+          saveAs: false
+        }, (downloadId) => {
+          if (chrome.runtime.lastError || !downloadId) {
+            console.warn("[PageSnap] chrome.downloads note:", chrome.runtime.lastError);
+          }
+          onStateChange('saved');
+        });
+      } else {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
         onStateChange('saved');
-      });
-    } else {
-      onStateChange('saved');
-    }
+      }
+    };
+    reader.readAsDataURL(blob);
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
     onStateChange('error');

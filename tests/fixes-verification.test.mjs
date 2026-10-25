@@ -37,8 +37,9 @@ test('zip-builder and style-extractor specify application/zip MIME type', () => 
   assert.match(popupCloneSource, /type:\s*['"]application\/zip['"]/, 'html-clone must declare application/zip MIME');
 });
 
-test('downloadFile in popup/extract.js uses native blob URL', () => {
+// plan-exempt — verify FileReader data URL download pattern
+test('downloadFile in popup/extract.js uses safe FileReader data URL', () => {
   const popupExtractSource = read('src/popup/extract.js');
   assert.match(popupExtractSource, /new Blob\(\[content\],\s*\{\s*type:\s*mimeType\s*\}\)/, 'Must create native Blob with MIME type');
-  assert.match(popupExtractSource, /URL\.createObjectURL/, 'Must use URL.createObjectURL for instant reliable download');
+  assert.match(popupExtractSource, /new FileReader\(\)/, 'Must use FileReader to convert blob to data URL');
 });
