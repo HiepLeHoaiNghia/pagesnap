@@ -360,35 +360,40 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+// plan-exempt — bulletproof native ZIP download with application/zip MIME
+    const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
 
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const dataUrl = e.target.result;
-        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
-          chrome.runtime.sendMessage({
-            action: 'triggerDownload',
-            url: dataUrl,
-            filename: filename,
-            saveAs: false
-          }, () => {
-            resolve({ filename, size: zipBlob.size });
-          });
-        } else {
+      try {
+        const blobWithMime = new Blob([zipBlob], { type: 'application/zip' });
+        const blobUrl = URL.createObjectURL(blobWithMime);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) a.parentNode.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 30000);
+        resolve({ filename, size: zipBlob.size });
+      } catch (e) {
+        const reader = new FileReader();
+        reader.onload = function (evt) {
           const a = document.createElement('a');
           a.style.display = 'none';
-          a.href = dataUrl;
+          a.href = evt.target.result;
           a.download = filename;
           document.body.appendChild(a);
           a.click();
           setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
           resolve({ filename, size: zipBlob.size });
-        }
-      };
-      reader.readAsDataURL(zipBlob);
+        };
+        reader.readAsDataURL(zipBlob);
+      }
     });
   };
 })(window.PageSnap);

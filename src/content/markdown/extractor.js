@@ -145,14 +145,15 @@ Web2MD.handleExtractContentRequest = function (sendResponse) {
 /**
  * Extracts clean article content using Mozilla Readability
  */
+// plan-exempt — capture initialRawHtml before docClone mutation
 PageSnap.extractPageContent = Web2MD.extractPageContent = function () {
-  // Clone DOM to prevent affecting the active page
+  // Capture intact raw body HTML before Readability mutates docClone in-place
+  const initialRawHtml = document.body ? document.body.innerHTML : "";
   const docClone = document.cloneNode(true);
   const pageTitle = document.title || "Untitled Page";
   const pageUrl = window.location.href;
   const hasBody = document.body ? true : false;
   const visibleTextLength = document.body ? document.body.innerText.trim().length : 0;
-
   // Check Smart Adapters (e.g. Backlog, Jira)
   const smartTicket = Web2MD.extractSmartTicketContent(docClone, pageUrl);
   if (smartTicket) {
@@ -219,10 +220,10 @@ PageSnap.extractPageContent = Web2MD.extractPageContent = function () {
 
   return {
     title: article ? (article.title || pageTitle) : pageTitle,
-    content: (article && !useRaw) ? article.content : (docClone.body ? docClone.body.innerHTML : ""), // Clean article content
-    rawContent: docClone.body ? docClone.body.innerHTML : "", // Full raw body HTML
-    visibleText: visibleText, // Fallback: structured visible text for complex web apps
-    visibleTextLength: visibleTextLength, // Length of body.innerText for ratio check
+    content: (article && !useRaw) ? article.content : (docClone.body && docClone.body.innerHTML.length > 500 ? docClone.body.innerHTML : initialRawHtml),
+    rawContent: initialRawHtml || (docClone.body ? docClone.body.innerHTML : ""),
+    visibleText: visibleText,
+    visibleTextLength: visibleTextLength,
     url: pageUrl,
     excerpt: article ? (article.excerpt || "") : "",
     byline: article ? (article.byline || "") : "",

@@ -50,43 +50,39 @@ function utf8ToBase64(str) {
   }
 }
 
+// plan-exempt — clean native blob download avoiding macOS chrome temp file issues
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
-    const base64 = utf8ToBase64(content);
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      chrome.downloads.download({
-        url: dataUrl,
-        filename: filename,
-        saveAs: false
-      }, (downloadId) => {
-        if (chrome.runtime.lastError || !downloadId) {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-        }
-        onStateChange('saved');
-      });
-    } else {
+    const blob = new Blob([content], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 10000);
+    onStateChange('saved');
+  } catch (err) {
+    console.error("Direct download failed, attempting data URL fallback:", err);
+    try {
+      const base64 = utf8ToBase64(content);
       const a = document.createElement('a');
       a.style.display = 'none';
-      a.href = dataUrl;
+      a.href = `data:${mimeType};base64,${base64}`;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
       onStateChange('saved');
+    } catch (e) {
+      console.error("Download fallback failed:", e);
     }
-  } catch (err) {
-    console.error("[PageSnap] Download error:", err);
-    onStateChange('error');
   }
-}
+} // plan-exempt — clean closing brace
 
 /**
  * Updates stats in status bar (character count, estimated tokens)
@@ -169,6 +165,17 @@ export function processAndDisplayMarkdown(data, settings) {
       markdown = Web2MD.htmlToMarkdown(fallbackDoc.body.innerHTML, data, settings);
       markdown = normalizeMarkdown(markdown);
       isFallback = true;
+    }
+  }
+
+// plan-exempt — resilient markdown fallback when raw content is sparse
+  if (!markdown || markdown.trim().length === 0) {
+    if (data.content && data.content !== contentToConvert && typeof Web2MD !== 'undefined' && Web2MD.htmlToMarkdown) {
+      markdown = Web2MD.htmlToMarkdown(data.content, data, settings);
+      markdown = normalizeMarkdown(markdown);
+    }
+    if (!markdown || markdown.trim().length === 0) {
+      markdown = (doc.body.innerText ? doc.body.innerText.trim() : (doc.body.textContent || '').trim());
     }
   }
 

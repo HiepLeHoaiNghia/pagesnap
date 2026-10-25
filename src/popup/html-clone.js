@@ -6,28 +6,34 @@ import { appState } from './state.js';
 
 const btnDownloadZip = document.getElementById('btn-download-zip');
 
+// plan-exempt — clean native ZIP blob download without popup context timeout
 function downloadFileBlob(blob, filename) {
-  if (typeof chrome !== 'undefined' && chrome.downloads) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      chrome.downloads.download({
-        url: e.target.result,
-        filename: filename,
-        saveAs: true
-      });
-    };
-    reader.readAsDataURL(blob);
-  } else {
-    const url = URL.createObjectURL(blob);
+  try {
+    const blobWithMime = new Blob([blob], { type: 'application/zip' });
+    const url = URL.createObjectURL(blobWithMime);
     const a = document.createElement('a');
+    a.style.display = 'none';
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (a.parentNode) a.parentNode.removeChild(a);
       URL.revokeObjectURL(url);
-    }, 10000);
+    }, 20000);
+  } catch (err) {
+    console.error("Native blob download failed, attempting data URL fallback:", err);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = e.target.result;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+    };
+    reader.readAsDataURL(blob);
   }
 }
 

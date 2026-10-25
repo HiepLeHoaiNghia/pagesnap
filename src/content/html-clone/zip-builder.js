@@ -34,15 +34,32 @@ PageSnap.buildZipFromPackage = Web2MD.buildZipFromPackage = async function (pkg,
   }
 
 
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    chrome.runtime.sendMessage({
-      action: "triggerDownload",
-      url: e.target.result,
-      filename: filename
-    });
-    Web2MD.showToast("📥 Region ZIP package download triggered!");
-  };
-  reader.readAsDataURL(zipBlob);
+// plan-exempt — clean native ZIP package download
+  const zipBlob = await zip.generateAsync({ type: "blob", mimeType: "application/zip" });
+  try {
+    const blobWithMime = new Blob([zipBlob], { type: 'application/zip' });
+    const blobUrl = URL.createObjectURL(blobWithMime);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 30000);
+    Web2MD.showToast("📥 ZIP package downloaded!");
+  } catch (err) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      chrome.runtime.sendMessage({
+        action: "triggerDownload",
+        url: e.target.result,
+        filename: filename
+      });
+      Web2MD.showToast("📥 Region ZIP package download triggered!");
+    };
+    reader.readAsDataURL(zipBlob);
+  }
 };
