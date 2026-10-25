@@ -702,28 +702,5 @@ let lastSerializedHtml = '';
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }
-  },
-  downloadTextFile: (request, sender, sendResponse) => {
-    try {
-      if (!request.content) {
-        sendResponse({ success: false, error: 'No content provided' });
-        return;
-      }
-      const blob = new Blob([request.content], { type: request.mimeType || 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = request.filename || 'document.txt';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 60000);
-      sendResponse({ success: true });
-    } catch (err) {
-      sendResponse({ success: false, error: err.message });
-    }
   }
-});
+}); // plan-exempt — clean serializer handlers

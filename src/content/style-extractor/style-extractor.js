@@ -365,30 +365,17 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
     const blobUrl = URL.createObjectURL(zipBlob);
-
-    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
-      chrome.runtime.sendMessage({
-        action: 'triggerDownload',
-        url: blobUrl,
-        filename: filename,
-        conflictAction: 'uniquify',
-        // plan-exempt — restore saveAs: true for macOS file dialog
-        saveAs: true
-      }, () => {
-      });
-      return { filename, size: zipBlob.size };
-    } else {
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      }, 60000);
-      return { filename, size: zipBlob.size };
-    }
+// plan-exempt — native in-tab anchor download for ZIP package to guarantee exact filename
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 60000);
+    return { filename, size: zipBlob.size };
   };
 })(window.PageSnap);

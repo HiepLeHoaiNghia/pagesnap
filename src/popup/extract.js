@@ -62,28 +62,54 @@ function safeUtf8ToBase64(str) {
   }
 }
 
-// plan-exempt — Method 1: persistent background download tab ensuring accurate file renaming
+// plan-exempt — in-tab native download delegation to guarantee exact filenames without temp file collision
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && chrome.tabs && typeof chrome.tabs.create === 'function') {
-      chrome.storage.local.set({
-        pendingDownload: {
-          content: content,
-          filename: filename,
-          mimeType: mimeType
-        }
-      }, () => {
-        chrome.tabs.create({
-          url: chrome.runtime.getURL('src/download/download.html'),
-          active: false
-        }, () => {
+    const isHtml = mimeType.includes('html');
+    const action = isHtml ? 'downloadHtmlSnapshot' : 'downloadTextFile';
+    const payload = isHtml
+      ? { action, filename }
+      : { action, filename, content, mimeType };
+
+    if (appState && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.sendMessage === 'function') {
+      chrome.tabs.sendMessage(appState.activeTabId, payload, (res) => {
+        if (!chrome.runtime.lastError && res && res.success) {
           onStateChange('saved');
-        });
+          return;
+        }
+        // Fallback to background download tab if content script did not handle
+        triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange);
       });
       return;
     }
 
-    // Direct fallback
+    triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange);
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
+  }
+}
+
+function triggerBackgroundDownloadTab(content, filename, mimeType, onStateChange) {
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && chrome.tabs && typeof chrome.tabs.create === 'function') {
+    chrome.storage.local.set({
+      pendingDownload: {
+        content: content,
+        filename: filename,
+        mimeType: mimeType
+      }
+    }, () => {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('src/download/download.html'),
+        active: false
+      }, () => {
+        onStateChange('saved');
+      });
+    });
+    return;
+  }
+  // plan-exempt — safe direct fallback
+  try {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -98,11 +124,10 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
     }, 10000);
     onStateChange('saved');
   } catch (err) {
-    console.error("[PageSnap] Download error:", err);
+    console.error("[PageSnap] Fallback download error:", err);
     onStateChange('error');
   }
 }
-
 /**
  * Updates stats in status bar (character count, estimated tokens)
  */

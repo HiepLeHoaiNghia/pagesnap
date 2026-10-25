@@ -109,5 +109,30 @@ PageSnap.registerHandlers({
       sendResponse({ success: false, error: err.message });
     }
     return true;
+  },
+// plan-exempt — native in-tab text/markdown download
+  downloadTextFile: (request, sender, sendResponse) => {
+    try {
+      if (!request || !request.content) {
+        sendResponse({ success: false, error: 'No content' });
+        return true;
+      }
+      const blob = new Blob([request.content], { type: request.mimeType || 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = request.filename || 'document.md';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 40000);
+      sendResponse({ success: true });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
   }
 });
