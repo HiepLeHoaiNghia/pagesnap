@@ -6,10 +6,10 @@ import { ACTIONS } from '../shared/constants.js';
 
 export const handlers = {
   [ACTIONS.TRIGGER_DOWNLOAD](message, sender, sendResponse) {
-// plan-exempt — support configurable saveAs parameter with false default to avoid macOS hangs
     chrome.downloads.download({
       url: message.url,
       filename: message.filename,
+      conflictAction: message.conflictAction || 'uniquify',
       saveAs: typeof message.saveAs === 'boolean' ? message.saveAs : false
     }, (downloadId) => {
       if (chrome.runtime.lastError) {

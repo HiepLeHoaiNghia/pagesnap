@@ -360,36 +360,35 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
 
-// plan-exempt — trigger background download for component ZIP with accurate filename
+// plan-exempt — trigger background download using persistent tab blob URL
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
+    const blobUrl = URL.createObjectURL(zipBlob);
 
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function (evt) {
-        const dataUrl = evt.target.result;
-        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
-          chrome.runtime.sendMessage({
-            action: 'triggerDownload',
-            url: dataUrl,
-            filename: filename,
-            saveAs: false
-          }, () => {
-            resolve({ filename, size: zipBlob.size });
-          });
-        } else {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-          resolve({ filename, size: zipBlob.size });
-        }
-      };
-      reader.readAsDataURL(zipBlob);
-    });
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      chrome.runtime.sendMessage({
+        action: 'triggerDownload',
+        url: blobUrl,
+        filename: filename,
+        conflictAction: 'uniquify',
+        saveAs: false
+      }, () => {
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      });
+      return { filename, size: zipBlob.size };
+    } else {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 60000);
+      return { filename, size: zipBlob.size };
+    }
   };
 })(window.PageSnap);

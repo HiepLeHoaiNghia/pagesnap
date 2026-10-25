@@ -677,7 +677,7 @@ let lastSerializedHtml = '';
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   },
-// plan-exempt — tab-side snapshot download without heavy IPC payload
+// plan-exempt — tab-side snapshot download via official background downloads API
   downloadHtmlSnapshot: async (request, sender, sendResponse) => {
     try {
       let htmlToDownload = request.html || lastSerializedHtml;
@@ -688,17 +688,15 @@ let lastSerializedHtml = '';
       }
       const blob = new Blob([htmlToDownload], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = request.filename || 'snapshot.html';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 60000);
-      sendResponse({ success: true });
+      chrome.runtime.sendMessage({
+        action: 'triggerDownload',
+        url: url,
+        filename: request.filename || 'snapshot.html',
+        conflictAction: 'uniquify'
+      }, (res) => {
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        sendResponse(res || { success: true });
+      });
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }
@@ -711,17 +709,15 @@ let lastSerializedHtml = '';
       }
       const blob = new Blob([request.content], { type: request.mimeType || 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = request.filename || 'export.txt';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 60000);
-      sendResponse({ success: true });
+      chrome.runtime.sendMessage({
+        action: 'triggerDownload',
+        url: url,
+        filename: request.filename || 'export.txt',
+        conflictAction: 'uniquify'
+      }, (res) => {
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        sendResponse(res || { success: true });
+      });
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }
