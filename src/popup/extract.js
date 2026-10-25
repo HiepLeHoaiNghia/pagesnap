@@ -73,7 +73,9 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
         chrome.downloads.download({
           url: e.target.result,
           filename: filename,
-          saveAs: true
+          conflictAction: 'uniquify',
+          // plan-exempt — enforce saveAs: false to prevent macOS Chromium hidden file bug
+          saveAs: false
         }, (downloadId) => {
           if (chrome.runtime.lastError || !downloadId) {
             console.error('[PageSnap] chrome.downloads error:', chrome.runtime.lastError);

@@ -39,13 +39,13 @@ test('zip-builder and style-extractor specify application/zip MIME type', () => 
   assert.match(popupCloneSource, /application\/zip/, 'html-clone must declare application/zip MIME');
 });
 
-// plan-exempt — verify direct downloadFile uses FileReader data URL and chrome.downloads with saveAs: true
-test('downloadFile in popup/extract.js uses FileReader data URL and chrome.downloads API with saveAs: true', () => {
+// plan-exempt — verify direct downloadFile uses FileReader data URL and chrome.downloads with saveAs: false
+test('downloadFile in popup/extract.js uses FileReader data URL and chrome.downloads API with saveAs: false', () => {
   const popupExtractSource = read('src/popup/extract.js');
   assert.match(popupExtractSource, /FileReader/, 'Must use FileReader to generate data URL');
   assert.match(popupExtractSource, /readAsDataURL/, 'Must call readAsDataURL to avoid blob URL store');
   assert.match(popupExtractSource, /chrome\.downloads\.download/, 'Must call chrome.downloads.download API');
-  assert.match(popupExtractSource, /saveAs:\s*true/, 'Must enforce saveAs: true for macOS file dialog');
+  assert.match(popupExtractSource, /saveAs:\s*false/, 'Must enforce saveAs: false to prevent macOS hidden file bug');
 });
 
 // plan-exempt — TDD test verifying download.js uses chrome.downloads with filename and waits for complete

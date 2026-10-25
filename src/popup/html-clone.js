@@ -17,7 +17,9 @@ function downloadFileBlob(blob, filename, mimeType = 'application/zip', onComple
         chrome.downloads.download({
           url: e.target.result,
           filename: filename,
-          saveAs: true
+          conflictAction: 'uniquify',
+          // plan-exempt — enforce saveAs: false to prevent macOS Chromium hidden file bug
+          saveAs: false
         }, (downloadId) => {
           if (chrome.runtime.lastError || !downloadId) {
             console.error('[PageSnap] chrome.downloads ZIP error:', chrome.runtime.lastError);
