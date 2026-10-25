@@ -42,63 +42,62 @@ export function showError(msg) {
 // plan-exempt — true interactive Save As file dialog with accurate state handling
 // plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
 // plan-exempt — guaranteed direct download with self-contained Base64 data URL
-function utf8ToBase64(str) {
+// plan-exempt — rock-solid chunked UTF-8 to Base64 encoder for multi-megabyte payloads
+function safeUtf8ToBase64(str) {
   try {
-    return btoa(unescape(encodeURIComponent(str)));
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    const len = bytes.byteLength;
+    const chunkSize = 0x8000;
+    for (let i = 0; i < len; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
+    }
+    return btoa(binary);
   } catch (e) {
-    return btoa(str);
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (fallbackErr) {
+      return btoa(str);
+    }
   }
 }
 
-// plan-exempt — clean native blob download avoiding macOS chrome temp file issues
-// plan-exempt — enforce chrome.downloads.download with filename for Markdown files
-// plan-exempt — tab-delegated download surviving popup closure without temp file leak
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
-  const isHtml = mimeType.includes('html');
-  const action = isHtml ? 'downloadHtmlSnapshot' : 'downloadTextFile';
-// plan-exempt — avoid heavy IPC payload on message channel
-  const payload = isHtml ? { action, filename } : { action, filename, content, mimeType };
+  try {
+    const base64 = safeUtf8ToBase64(content);
+    const dataUrl = `data:${mimeType};base64,${base64}`;
 
-  const fallback = () => {
-    try {
-      const blob = new Blob([content], { type: mimeType });
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-          chrome.downloads.download({
-            url: e.target.result,
-            filename: filename,
-            saveAs: false
-          }, () => {
-            onStateChange('saved');
-          });
-        } else {
-          onStateChange('saved');
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      chrome.downloads.download({
+        url: dataUrl,
+        filename: filename,
+        conflictAction: 'uniquify',
+        saveAs: false
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
         }
-      };
-      reader.readAsDataURL(blob);
-    } catch (err) {
-      console.error("[PageSnap] Download fallback error:", err);
-      onStateChange('error');
+        onStateChange('saved');
+      });
+    } else {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+      onStateChange('saved');
     }
-  };
-
-  if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.query === 'function') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs && tabs[0] && tabs[0].id) {
-        chrome.tabs.sendMessage(tabs[0].id, payload, (res) => {
-          if (chrome.runtime.lastError || !res || !res.success) {
-            fallback();
-          } else {
-            onStateChange('saved');
-          }
-        });
-      } else {
-        fallback();
-      }
-    });
-  } else {
-    fallback();
+  } catch (err) {
+    console.error("[PageSnap] Download error:", err);
+    onStateChange('error');
   }
 }
 
