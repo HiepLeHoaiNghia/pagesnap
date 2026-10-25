@@ -62,37 +62,41 @@ function safeUtf8ToBase64(str) {
   }
 }
 
-// plan-exempt — restore proven original saveAs: true download flow with FileReader dataURL
+// plan-exempt — Method 1: persistent background download tab ensuring accurate file renaming
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
-    const blob = new Blob([content], { type: mimeType });
-
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        chrome.downloads.download({
-          url: e.target.result,
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local && chrome.tabs && typeof chrome.tabs.create === 'function') {
+      chrome.storage.local.set({
+        pendingDownload: {
+          content: content,
           filename: filename,
-          saveAs: true
-        }, (downloadId) => {
-          onStateChange(downloadId ? 'saved' : 'error');
+          mimeType: mimeType
+        }
+      }, () => {
+        chrome.tabs.create({
+          url: chrome.runtime.getURL('src/download/download.html'),
+          active: false
+        }, () => {
+          onStateChange('saved');
         });
-      };
-      reader.readAsDataURL(blob);
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (a.parentNode) a.parentNode.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 10000);
-      onStateChange('saved');
+      });
+      return;
     }
+
+    // Direct fallback
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 10000);
+    onStateChange('saved');
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
     onStateChange('error');
@@ -426,22 +430,10 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-// plan-exempt — delegate large HTML snapshot download to active tab to avoid GURL 2MB limit
+// plan-exempt — unified download trigger via downloadFile
       const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
       const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
 
-      if (isHtmlTab && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs) {
-        chrome.tabs.sendMessage(appState.activeTabId, {
-          action: 'downloadHtmlSnapshot',
-          filename: filename
-        }, () => {
-          btnDownload.innerHTML = '✅ Saved!';
-          setTimeout(() => {
-            btnDownload.innerHTML = origHtml;
-          }, 2000);
-        });
-        return;
-      }
 
       downloadFile(textToDownload, filename, mime, (status) => {
         if (status === 'saved') {

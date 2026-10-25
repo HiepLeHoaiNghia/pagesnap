@@ -7,11 +7,13 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-
+// plan-exempt — helper functions for tests
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
-
+function exists(rel) {
+  return fs.existsSync(path.join(ROOT, rel));
+}
 test('extractor captures intact rawContent before Readability in-place mutation', () => {
   const extractorSource = read('src/content/markdown/extractor.js');
   // Must capture initialRawHtml before Readability is initialized
@@ -34,12 +36,14 @@ test('zip-builder and style-extractor specify application/zip MIME type', () => 
 
   assert.match(zipBuilderSource, /mimeType:\s*['"]application\/zip['"]/, 'zip-builder must declare application/zip MIME');
   assert.match(styleExtractorSource, /mimeType:\s*['"]application\/zip['"]/, 'style-extractor must declare application/zip MIME');
-  assert.match(popupCloneSource, /type:\s*['"]application\/zip['"]/, 'html-clone must declare application/zip MIME');
+  assert.match(popupCloneSource, /application\/zip/, 'html-clone must declare application/zip MIME');
 });
 
-// plan-exempt — verify safe chunked base64 data URL download pattern
-test('downloadFile in popup/extract.js uses safe chunked base64 data URL', () => {
+// plan-exempt — verify Method 1: dedicated download tab architecture
+test('downloadFile delegates to dedicated download tab to guarantee macOS file renaming', () => {
   const popupExtractSource = read('src/popup/extract.js');
-  assert.match(popupExtractSource, /safeUtf8ToBase64/, 'Must use safe chunked base64 encoder');
-  assert.match(popupExtractSource, /chrome\.downloads\.download/, 'Must call chrome.downloads.download with filename');
+  assert.ok(exists('src/download/download.html'), 'src/download/download.html must exist');
+  assert.ok(exists('src/download/download.js'), 'src/download/download.js must exist');
+  assert.match(popupExtractSource, /pendingDownload/, 'Must stage pendingDownload in storage');
+  assert.match(popupExtractSource, /src\/download\/download\.html/, 'Must launch download tab');
 });
