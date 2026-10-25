@@ -47,3 +47,12 @@ test('downloadFile delegates to dedicated download tab to guarantee macOS file r
   assert.match(popupExtractSource, /pendingDownload/, 'Must stage pendingDownload in storage');
   assert.match(popupExtractSource, /src\/download\/download\.html/, 'Must launch download tab');
 });
+
+// plan-exempt — TDD test verifying download.js uses chrome.downloads with filename and waits for complete
+test('TDD: download.js uses chrome.downloads.download with exact filename and waits for complete state', () => {
+  const downloadJs = read('src/download/download.js');
+  assert.match(downloadJs, /chrome\.downloads\.download/, 'Must call chrome.downloads.download API');
+  assert.match(downloadJs, /filename:\s*item\.filename/, 'Must pass item.filename explicitly');
+  assert.match(downloadJs, /chrome\.downloads\.onChanged\.addListener/, 'Must listen to onChanged for completion');
+  assert.match(downloadJs, /state\.current\s*===\s*['"]complete['"]/, 'Must wait for state === complete');
+});

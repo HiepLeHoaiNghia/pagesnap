@@ -1,4 +1,4 @@
-// plan-exempt — dedicated background download execution tab
+// plan-exempt — dedicated background download execution tab using official chrome.downloads API
 (function() {
   const statusEl = document.getElementById('status');
 
@@ -32,17 +32,42 @@
       isBlob = true;
     }
 
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = downloadUrl;
-    a.download = item.filename;
-    document.body.appendChild(a);
-    a.click();
+    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+      chrome.downloads.download({
+        url: downloadUrl,
+        filename: item.filename,
+        conflictAction: 'uniquify',
+        saveAs: false
+      }, (downloadId) => {
+        if (chrome.runtime.lastError || !downloadId) {
+          if (statusEl) statusEl.innerText = 'Download failed: ' + (chrome.runtime.lastError ? chrome.runtime.lastError.message : 'no downloadId');
+          setTimeout(() => window.close(), 3000);
+          return;
+        }
 
-    setTimeout(() => {
-      if (a.parentNode) a.parentNode.removeChild(a);
-      if (isBlob) URL.revokeObjectURL(downloadUrl);
-      window.close();
-    }, 4000);
+        // Wait until Chrome finishes writing bytes AND renames the file!
+        const listener = (delta) => {
+          if (delta.id === downloadId && delta.state && (delta.state.current === 'complete' || delta.state.current === 'interrupted')) {
+            chrome.downloads.onChanged.removeListener(listener);
+            if (isBlob) URL.revokeObjectURL(downloadUrl);
+            setTimeout(() => window.close(), 500);
+          }
+        };
+        chrome.downloads.onChanged.addListener(listener);
+      });
+    } else {
+      // Fallback only if chrome.downloads is unavailable
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = downloadUrl;
+      a.download = item.filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        if (isBlob) URL.revokeObjectURL(downloadUrl);
+        window.close();
+      }, 5000);
+    }
   });
 })();
