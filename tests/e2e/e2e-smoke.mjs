@@ -152,6 +152,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+// plan-exempt — fixture for JS-driven motion: one SVG morphed by script on hover, one CSS-only animation
+  if (req.url === '/motion.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!DOCTYPE html><html><head><title>Motion fixture</title>
+<style>@keyframes spinFixture{to{transform:rotate(360deg)}} #css-box{width:20px;height:20px;background:#08f;animation:spinFixture 2s linear infinite}</style></head>
+<body>
+<div id="js-card"><svg id="fig" width="200" height="120" viewBox="0 0 200 120"><path id="p1" d="M0 0 L10 10" stroke="#000"/><path id="p2" d="M5 5 L20 20" stroke="#000"/></svg></div>
+<div id="css-card"><div id="css-box"></div></div>
+<div id="outline-card">outline only</div>
+<div id="tween-card">tween</div>
+<script>
+const p1 = document.getElementById('p1'), p2 = document.getElementById('p2');
+document.getElementById('fig').addEventListener('mouseenter', () => {
+  let n = 0;
+  (function frame() {
+    n++; const k = n / 30;
+    p1.setAttribute('d', 'M0 0 L' + (10 + k * 100) + ' ' + (10 + k * 50));
+    p2.setAttribute('d', 'M5 5 L' + (20 + k * 80) + ' ' + (20 + k * 40));
+    if (n < 30) requestAnimationFrame(frame);
+  })();
+});
+</script></body></html>`);
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
@@ -362,6 +387,7 @@ async function runE2E() {
 // plan-exempt — update scriptsToInject with inspector modules
       'src/content/markdown/extractor.js',
       'src/content/style-extractor/style-extractor.js',
+      'src/content/inspector/motion-sniffer.js',
       'src/content/inspector/studio-modal.js',
       'src/content/inspector/overlay.js',
       'src/content/html-clone/serializer.js'
@@ -566,8 +592,69 @@ async function runE2E() {
     console.log(`  ✓ Modular separation verified: HTML, CSS, React JSX, and Tokens cleanly separated`);
     console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes) & 6 Studio tabs verified`);
 
+    // ==========================================
+    // TEST 9: JavaScript-driven motion is captured into the AI prompt
+    // ==========================================
+    console.log('\n▶ TEST 9: JavaScript-driven Motion Capture');
+    await page.goto(`http://localhost:${PORT}/motion.html`);
+    for (const file of scriptsToInject) {
+      await page.addScriptTag({ path: path.join(extensionPath, file) });
+    }
+    await page.evaluate(() => window.PageSnap.motionSniffer.start());
+    await page.mouse.move(100, 60); // real pointer event -> mouseenter -> page JS rewrites the <path d> attributes
+    await page.waitForTimeout(900);
+
+    const motionResult = await page.evaluate(async () => {
+      const S = window.PageSnap;
+      // PageSnap's own highlight only touches `outline`: that must never be reported as page motion.
+      const o = document.getElementById('outline-card');
+      for (let i = 0; i < 10; i++) o.style.outline = i % 2 ? '2px solid red' : '2px solid blue';
+      // A genuine JS tween on inline style must be reported.
+      const t = document.getElementById('tween-card');
+      for (let i = 0; i < 10; i++) t.style.transform = `translateX(${i}px)`;
+      await new Promise((r) => setTimeout(r, 60)); // MutationObserver delivers asynchronously
+
+      const js = S.extractComponentStyleAndMotion(document.getElementById('js-card'));
+      const css = S.extractComponentStyleAndMotion(document.getElementById('css-card'));
+      const outline = S.extractComponentStyleAndMotion(document.getElementById('outline-card'));
+      const tween = S.extractComponentStyleAndMotion(document.getElementById('tween-card'));
+
+      // After stop() nothing further may be recorded.
+      const writesBefore = (S.motionSniffer.describe(document.getElementById('js-card')) || { attributes: [] }).attributes.find((a) => a.name === 'd')?.writes ?? 0; // plan-exempt — tolerate "nothing observed" so the assertions below report it clearly
+      S.motionSniffer.stop();
+      const p1 = document.getElementById('p1');
+      for (let i = 0; i < 20; i++) p1.setAttribute('d', `M0 0 L${i} ${i}`);
+      await new Promise((r) => setTimeout(r, 60));
+      const writesAfter = (S.motionSniffer.describe(document.getElementById('js-card')) || { attributes: [] }).attributes.find((a) => a.name === 'd')?.writes ?? 0;
+
+      return {
+        js: js.jsMotion, jsPrompt: js.promptMarkdown, jsTokens: JSON.parse(js.tokensJson),
+        cssMotion: css.jsMotion, cssPrompt: css.promptMarkdown,
+        outlineMotion: outline.jsMotion, tween: tween.jsMotion,
+        writesBefore, writesAfter, active: S.motionSniffer.isActive()
+      };
+    });
+
+    const dAttr = motionResult.js && motionResult.js.attributes.find((a) => a.name === 'd');
+    assert.ok(dAttr, 'A JS-driven SVG path morph must be detected as motion');
+    assert.equal(dAttr.writes, 60, 'All 30 frames x 2 paths of the JS tween must be counted');
+    assert.equal(dAttr.elements, 2, 'Both animated <path> elements must be reported');
+    assert.ok(motionResult.jsPrompt.includes('JavaScript-driven motion (observed)'), 'AI prompt must contain the observed JS motion section');
+    assert.ok(motionResult.jsPrompt.includes('M0 0 L10 10'), 'AI prompt must quote the state before the motion');
+    assert.ok(motionResult.jsPrompt.includes('M0 0 L110 60'), 'AI prompt must quote the state after the motion');
+    assert.equal(motionResult.jsTokens.jsMotion.attributes[0].name, 'd', 'tokens.json must carry the observed motion summary');
+    assert.equal(motionResult.cssMotion, null, 'A CSS-only animation must NOT be reported as JS motion');
+    assert.ok(motionResult.cssPrompt.includes('None observed'), 'AI prompt must say when no JS motion was observed');
+    assert.ok(motionResult.cssPrompt.includes('spinFixture'), 'CSS keyframes must still be captured as before');
+    assert.equal(motionResult.outlineMotion, null, "PageSnap's own outline changes must never count as page motion");
+    assert.ok(motionResult.tween && motionResult.tween.attributes.some((a) => a.name === 'style' && a.writes === 10), 'A real inline-style tween must be detected');
+    assert.equal(motionResult.active, false, 'stop() must disconnect the observer');
+    assert.equal(motionResult.writesAfter, motionResult.writesBefore, 'No mutations may be recorded after stop()');
+    console.log(`  ✓ JS motion captured: ${dAttr.writes} path writes on ${dAttr.elements} elements, before/after states quoted in the AI prompt`);
+    console.log('  ✓ CSS-only animation and PageSnap\'s own outline changes are not misreported; stop() really stops');
+
     console.log('\n======================================================');
-    console.log('🎉 ALL 8 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
+    console.log('🎉 ALL 9 E2E BROWSER ACCEPTANCE TESTS PASSED 100%!');
     console.log('======================================================\n');
   } finally {
     if (context) {

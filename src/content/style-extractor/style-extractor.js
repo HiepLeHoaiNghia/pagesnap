@@ -247,6 +247,24 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n</style>\n${clone.outerHTML}\n</div>`;
 
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
+// plan-exempt — JavaScript-driven motion observed by the motion sniffer (CSS alone cannot express it)
+    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    const mdSafe = (s) => String(s).replace(/`/g, "'");
+    const jsMotionMd = jsMotion
+      ? [
+          '### JavaScript-driven motion (observed)',
+          "These attributes were rewritten by the page's JavaScript while the component was being inspected. The CSS keyframes above do NOT contain this motion.",
+          ...jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : '')),
+          '',
+          'State before the first observed write -> state when the component was selected (up to 6 elements, long values clipped):',
+          ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`${s.attribute}\`, ${s.writes} writes)\n   - before: \`${mdSafe(s.before)}\`\n   - after: \`${mdSafe(s.after)}\``),
+          '',
+          'Recreate it by animating those attributes between the two states with the Web Animations API, Motion (Framer Motion) or GSAP, using the same trigger (hover, scroll or timer). Intermediate frames and easing were not captured, so tune them against the live page.'
+        ].join('\n')
+      : [
+          '### JavaScript-driven motion',
+          'None observed. Hover, scroll and timer effects that run in JavaScript cannot be read from CSS. To capture them, move the pointer over the component while the inspector is active, then select it.'
+        ].join('\n');
     const transition = rootComputed.getPropertyValue('transition');
     const animation = rootComputed.getPropertyValue('animation');
     const transform = rootComputed.getPropertyValue('transform');
@@ -288,6 +306,8 @@ ${Array.from(fontTokens).map(f => `- Font Family: \`${f}\``).join('\n') || '- In
 
 ${keyframesCss ? `### Keyframe Animations:\n\`\`\`css\n${keyframesCss}\n\`\`\`\n` : ''}
 
+${jsMotionMd}
+
 ---
 
 ## 4. Original HTML Markup
@@ -320,7 +340,8 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
       },
       colors: Array.from(colorTokens),
       fonts: Array.from(fontTokens),
-      animations: Array.from(animationNames)
+      animations: Array.from(animationNames),
+      jsMotion: jsMotion
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -341,7 +362,8 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
       promptMarkdown: promptMarkdown,
       colorTokens: Array.from(colorTokens),
       fontTokens: Array.from(fontTokens),
-      animationNames: Array.from(animationNames)
+      animationNames: Array.from(animationNames),
+      jsMotion: jsMotion
     };
   };
 

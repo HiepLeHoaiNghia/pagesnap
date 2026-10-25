@@ -429,6 +429,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       e.stopPropagation();
       bar.remove();
       PageSnap.highlightElement(null);
+// plan-exempt — stop observing page motion once the user closes the dock
+      if (PageSnap.motionSniffer) PageSnap.motionSniffer.stop();
     });
     bar.appendChild(closeBtn);
   }
@@ -441,6 +443,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     PageSnap.isInspectorActive = Web2MD.isRegionSelectionActive = enabled;
 
     if (enabled) {
+// plan-exempt — observe JS-driven motion only while the user is inspecting
+      if (PageSnap.motionSniffer) PageSnap.motionSniffer.start();
       document.addEventListener("mouseover", onMouseOver, true);
       document.addEventListener("click", onClick, true);
       document.addEventListener("keydown", onKeyDown, true);
@@ -450,6 +454,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         Web2MD.showToast("🎯 Click any component on page to open Studio. Press Esc to cancel.");
       }
     } else {
+      if (PageSnap.motionSniffer) PageSnap.motionSniffer.stop();
       document.removeEventListener("mouseover", onMouseOver, true);
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("keydown", onKeyDown, true);
