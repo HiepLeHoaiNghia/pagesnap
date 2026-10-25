@@ -6,9 +6,8 @@ import { appState } from './state.js';
 
 const btnDownloadZip = document.getElementById('btn-download-zip');
 
-// plan-exempt — clean native ZIP blob download without popup context timeout
-// plan-exempt — direct in-popup anchor download to ensure exact filename preservation on Chromium 150+ (application/zip)
-function downloadFileBlob(blob, filename, mimeType = 'application/zip', onComplete = () => {}) {
+// plan-exempt — ZIP download via in-popup <a download>; exported so tests/e2e/e2e-download.mjs exercises the real function
+export function downloadFileBlob(blob, filename, mimeType = 'application/zip', onComplete = () => {}) {
   try {
     if (blob.size < 2.5 * 1024 * 1024) {
       const reader = new FileReader();

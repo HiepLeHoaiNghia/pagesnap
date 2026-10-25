@@ -30,10 +30,8 @@ export const ACTIONS = {
   FETCH_EXTERNAL_STYLESHEET: 'fetchExternalStyleSheet',
   FETCH_EXTERNAL_SCRIPT: 'fetchExternalScript',
   FETCH_ASSET_AS_BASE64: 'fetchAssetAsBase64',
-// plan-exempt — add download actions to canonical ACTIONS enum
+// plan-exempt — drop unused download actions; only TRIGGER_DOWNLOAD is still used
   TRIGGER_DOWNLOAD: 'triggerDownload',
-  DOWNLOAD_HTML_SNAPSHOT: 'downloadHtmlSnapshot',
-  DOWNLOAD_TEXT_FILE: 'downloadTextFile',
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };

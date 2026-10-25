@@ -207,14 +207,14 @@ test('repository source files in src/ are 100% English (no non-ASCII Vietnamese 
     assert.ok(!match, `Found non-English/Vietnamese text in ${file}: ${match ? match[0] : ''}`);
   }
 });
-// plan-exempt — enforce strict headless-only invariant on all browser test files
+// plan-exempt — enforce strict headless-only invariant on EVERY browser e2e file (no window, no focus stealing)
 test('all browser test and runner files enforce strict headless execution (zero GUI popups)', () => {
-  const e2ePath = 'tests/e2e/e2e-smoke.mjs';
-  if (exists(e2ePath)) {
-    const e2eSource = read(e2ePath);
-    assert.ok(!e2eSource.includes('headless: false'), `${e2ePath} must NEVER contain headless: false`);
-    assert.ok(e2eSource.includes('headless: true'), `${e2ePath} must enforce headless: true`);
-    assert.ok(e2eSource.includes('--headless=new'), `${e2ePath} must include --headless=new`);
+  const e2eFiles = exists('tests/e2e') ? collect('tests/e2e') : [];
+  assert.ok(e2eFiles.length > 0, 'expected at least one e2e file');
+  for (const file of e2eFiles) {
+    const source = read(file);
+    assert.ok(!source.includes('headless: false'), `${file} must NEVER contain headless: false`);
+    assert.ok(source.includes('--headless=new') || source.includes('headless: true'), `${file} must run headless (--headless=new or headless: true)`);
   }
 });
 

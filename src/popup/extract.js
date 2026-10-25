@@ -34,35 +34,12 @@ export function showError(msg) {
 }
 
 /**
- * Helper to download file using chrome.downloads if available, falling back to <a> link
+ * Saves text via an in-popup <a download>. Under 2.5 MB uses a self-contained data URL (survives popup
+ * closing); above that uses a blob URL revoked after 2 minutes. chrome.downloads is deliberately avoided:
+ * an <a download> always carries the exact filename to Chrome's download pipeline.
+ * plan-exempt — docblock corrected to match actual behaviour.
  */
-// plan-exempt — resilient download with instant feedback and automatic fallback
-// plan-exempt — bulletproof instant anchor download with blob URL
-// plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
-// plan-exempt — true interactive Save As file dialog with accurate state handling
-// plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
-// plan-exempt — guaranteed direct download with self-contained Base64 data URL
-// plan-exempt — rock-solid chunked UTF-8 to Base64 encoder for multi-megabyte payloads
-function safeUtf8ToBase64(str) {
-  try {
-    const bytes = new TextEncoder().encode(str);
-    let binary = '';
-    const len = bytes.byteLength;
-    const chunkSize = 0x8000;
-    for (let i = 0; i < len; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
-    }
-    return btoa(binary);
-  } catch (e) {
-    try {
-      return btoa(unescape(encodeURIComponent(str)));
-    } catch (fallbackErr) {
-      return btoa(str);
-    }
-  }
-}
-
-// plan-exempt — direct in-popup anchor download to ensure exact filename preservation on Chromium 150+
+// plan-exempt — remove dead base64 encoder; downloads use in-popup anchor (verified by tests/e2e/e2e-download.mjs)
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
     const blob = new Blob([content], { type: mimeType });

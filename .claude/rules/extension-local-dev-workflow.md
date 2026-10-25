@@ -19,5 +19,6 @@
   3. Squash merge into `develop` following the release blueprint.
 
 ## 4. Headless-Only Test Execution Invariant
-- **Rule:** All automated browser tests (including `tests/e2e/e2e-smoke.mjs` and Playwright scripts) MUST strictly run in `headless: true` with `--headless=new`.
+- **Rule:** Every automated browser test under `tests/e2e/` MUST run strictly headless (`headless: true` for Playwright, or `--headless=new` when spawning Chrome directly). `tests/static-checks.mjs` enforces this for all files in that directory.
 - **Strict Prohibition:** NEVER launch automated test browsers in headful mode (`headless: false`) that opens visible GUI windows on macOS or steals the user's active desktop/workspace focus.
+- **Downloads:** Playwright installs its own download interceptor and renames files to GUIDs, so it can NEVER be used to verify download behavior. Use `tests/e2e/e2e-download.mjs` (`npm run test:e2e:download`): real Chrome, `--headless=new`, raw DevTools, Chrome's standard download pipeline.
