@@ -62,48 +62,42 @@ function safeUtf8ToBase64(str) {
   }
 }
 
-// plan-exempt — rock-solid direct download using FileReader data URL and official chrome.downloads.download API
+// plan-exempt — direct in-popup anchor download to ensure exact filename preservation on Chromium 150+
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
     const blob = new Blob([content], { type: mimeType });
 
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
+    // For files under 2.5MB (all Markdown, small HTML), Data URL is 100% self-contained and immune to popup close
+    if (blob.size < 2.5 * 1024 * 1024) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        chrome.downloads.download({
-          url: e.target.result,
-          filename: filename,
-          conflictAction: 'uniquify',
-          // plan-exempt — enforce saveAs: false to prevent macOS Chromium hidden file bug
-          saveAs: false
-        }, (downloadId) => {
-          if (chrome.runtime.lastError || !downloadId) {
-            console.error('[PageSnap] chrome.downloads error:', chrome.runtime.lastError);
-            onStateChange('error');
-          } else {
-            onStateChange('saved');
-          }
-        });
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = e.target.result;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
+        onStateChange('saved');
       };
       reader.onerror = () => onStateChange('error');
       reader.readAsDataURL(blob);
       return;
     }
 
-    // Direct fallback outside extension
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = e.target.result;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
-      onStateChange('saved');
-    };
-    reader.onerror = () => onStateChange('error');
-    reader.readAsDataURL(blob);
+    // For large files (> 2.5MB, e.g. 10MB HTML snapshot), use Blob URL with generous revocation delay
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 120000);
+    onStateChange('saved');
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
     onStateChange('error');

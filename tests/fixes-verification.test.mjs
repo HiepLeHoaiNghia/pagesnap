@@ -39,13 +39,13 @@ test('zip-builder and style-extractor specify application/zip MIME type', () => 
   assert.match(popupCloneSource, /application\/zip/, 'html-clone must declare application/zip MIME');
 });
 
-// plan-exempt — verify direct downloadFile uses FileReader data URL and chrome.downloads with saveAs: false
-test('downloadFile in popup/extract.js uses FileReader data URL and chrome.downloads API with saveAs: false', () => {
+// plan-exempt — verify direct downloadFile in popup uses in-popup anchor to ensure exact filename preservation
+test('downloadFile in popup/extract.js uses in-popup anchor to preserve exact filename on Chromium 150+', () => {
   const popupExtractSource = read('src/popup/extract.js');
-  assert.match(popupExtractSource, /FileReader/, 'Must use FileReader to generate data URL');
-  assert.match(popupExtractSource, /readAsDataURL/, 'Must call readAsDataURL to avoid blob URL store');
-  assert.match(popupExtractSource, /chrome\.downloads\.download/, 'Must call chrome.downloads.download API');
-  assert.match(popupExtractSource, /saveAs:\s*false/, 'Must enforce saveAs: false to prevent macOS hidden file bug');
+  assert.match(popupExtractSource, /FileReader/, 'Must use FileReader to generate data URL for small files');
+  assert.match(popupExtractSource, /readAsDataURL/, 'Must call readAsDataURL');
+  assert.match(popupExtractSource, /a\.download\s*=\s*filename/, 'Must assign exact filename to anchor download attribute');
+  assert.match(popupExtractSource, /a\.click\(\)/, 'Must trigger anchor click directly in popup');
 });
 
 // plan-exempt — TDD test verifying download.js uses chrome.downloads with filename and waits for complete

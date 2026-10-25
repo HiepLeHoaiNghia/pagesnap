@@ -7,42 +7,38 @@ import { appState } from './state.js';
 const btnDownloadZip = document.getElementById('btn-download-zip');
 
 // plan-exempt — clean native ZIP blob download without popup context timeout
-// plan-exempt — rock-solid direct ZIP download using FileReader data URL (application/zip) and official chrome.downloads.download API
+// plan-exempt — direct in-popup anchor download to ensure exact filename preservation on Chromium 150+ (application/zip)
 function downloadFileBlob(blob, filename, mimeType = 'application/zip', onComplete = () => {}) {
   try {
-    // plan-exempt — fix FileReader declaration
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-        chrome.downloads.download({
-          url: e.target.result,
-          filename: filename,
-          conflictAction: 'uniquify',
-          // plan-exempt — enforce saveAs: false to prevent macOS Chromium hidden file bug
-          saveAs: false
-        }, (downloadId) => {
-          if (chrome.runtime.lastError || !downloadId) {
-            console.error('[PageSnap] chrome.downloads ZIP error:', chrome.runtime.lastError);
-          }
-          onComplete();
-        });
-        return;
-      }
+    if (blob.size < 2.5 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = e.target.result;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
+        onComplete();
+      };
+      reader.onerror = () => onComplete();
+      reader.readAsDataURL(blob);
+      return;
+    }
 
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = e.target.result;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
-      onComplete();
-    };
-    reader.onerror = () => {
-      console.error('[PageSnap] FileReader error');
-      onComplete();
-    };
-    reader.readAsDataURL(blob);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 120000);
+    onComplete();
   } catch (err) {
     console.error("[PageSnap] ZIP download failed:", err);
     onComplete();
