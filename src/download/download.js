@@ -1,4 +1,4 @@
-// plan-exempt — dedicated background download execution tab using official chrome.downloads API
+// plan-exempt — robust download execution tab with visible feedback and safe completion delay
 (function() {
   const statusEl = document.getElementById('status');
 
@@ -40,23 +40,43 @@
         saveAs: false
       }, (downloadId) => {
         if (chrome.runtime.lastError || !downloadId) {
-          if (statusEl) statusEl.innerText = 'Download failed: ' + (chrome.runtime.lastError ? chrome.runtime.lastError.message : 'no downloadId');
-          setTimeout(() => window.close(), 3000);
+          const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : 'no downloadId';
+          if (statusEl) {
+            statusEl.innerText = `❌ Download failed: ${err}`;
+            statusEl.style.color = '#ef4444';
+          }
           return;
         }
 
-        // Wait until Chrome finishes writing bytes AND renames the file!
+        // Wait until Chrome finishes writing bytes AND renames the file
         const listener = (delta) => {
-          if (delta.id === downloadId && delta.state && (delta.state.current === 'complete' || delta.state.current === 'interrupted')) {
-            chrome.downloads.onChanged.removeListener(listener);
-            if (isBlob) URL.revokeObjectURL(downloadUrl);
-            setTimeout(() => window.close(), 500);
+          if (delta.id === downloadId && delta.state) {
+            if (delta.state.current === 'complete') {
+              chrome.downloads.onChanged.removeListener(listener);
+              if (statusEl) {
+                statusEl.innerText = `✅ Successfully saved as ${item.filename}!`;
+                statusEl.style.color = '#34d399';
+              }
+              // Keep blob alive and keep tab open for 8s to let macOS finalize rename
+              setTimeout(() => {
+                if (isBlob) URL.revokeObjectURL(downloadUrl);
+                window.close();
+              }, 8000);
+            } else if (delta.state.current === 'interrupted') {
+              chrome.downloads.onChanged.removeListener(listener);
+              const errReason = delta.error ? delta.error.current : 'unknown';
+              if (statusEl) {
+                statusEl.innerText = `❌ Download interrupted: ${errReason}`;
+                statusEl.style.color = '#ef4444';
+              }
+              // Do NOT close tab on error so user can inspect
+            }
           }
         };
         chrome.downloads.onChanged.addListener(listener);
       });
     } else {
-      // Fallback only if chrome.downloads is unavailable
+      // Fallback anchor
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = downloadUrl;
