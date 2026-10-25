@@ -62,7 +62,20 @@ function safeUtf8ToBase64(str) {
   }
 }
 
+// plan-exempt — separate handling: in-tab download for heavy HTML snapshot, direct dataUrl for Markdown
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
+  const isHtml = mimeType.includes('html');
+
+  if (isHtml && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.sendMessage(appState.activeTabId, {
+      action: 'downloadHtmlSnapshot',
+      filename: filename
+    }, () => {
+      onStateChange('saved');
+    });
+    return;
+  }
+
   try {
     const base64 = safeUtf8ToBase64(content);
     const dataUrl = `data:${mimeType};base64,${base64}`;
@@ -73,16 +86,7 @@ export function downloadFile(content, filename, mimeType = 'text/markdown;charse
         filename: filename,
         conflictAction: 'uniquify',
         saveAs: false
-      }, (downloadId) => {
-        if (chrome.runtime.lastError || !downloadId) {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-        }
+      }, () => {
         onStateChange('saved');
       });
     } else {

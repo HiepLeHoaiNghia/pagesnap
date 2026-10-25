@@ -677,10 +677,10 @@ let lastSerializedHtml = '';
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   },
-// plan-exempt — tab-side snapshot download via official background downloads API
+// plan-exempt — native in-tab anchor download avoiding cross-origin blob blocks
   downloadHtmlSnapshot: async (request, sender, sendResponse) => {
     try {
-      let htmlToDownload = request.html || lastSerializedHtml;
+      let htmlToDownload = lastSerializedHtml;
       if (!htmlToDownload) {
         const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false });
         htmlToDownload = res.html;
@@ -688,15 +688,17 @@ let lastSerializedHtml = '';
       }
       const blob = new Blob([htmlToDownload], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      chrome.runtime.sendMessage({
-        action: 'triggerDownload',
-        url: url,
-        filename: request.filename || 'snapshot.html',
-        conflictAction: 'uniquify'
-      }, (res) => {
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        sendResponse(res || { success: true });
-      });
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = request.filename || 'snapshot.html';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+      sendResponse({ success: true });
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }
@@ -709,15 +711,17 @@ let lastSerializedHtml = '';
       }
       const blob = new Blob([request.content], { type: request.mimeType || 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      chrome.runtime.sendMessage({
-        action: 'triggerDownload',
-        url: url,
-        filename: request.filename || 'export.txt',
-        conflictAction: 'uniquify'
-      }, (res) => {
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        sendResponse(res || { success: true });
-      });
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = request.filename || 'document.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+      sendResponse({ success: true });
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }
