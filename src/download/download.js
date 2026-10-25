@@ -37,7 +37,8 @@
         url: downloadUrl,
         filename: item.filename,
         conflictAction: 'uniquify',
-        saveAs: false
+        // plan-exempt — restore saveAs: true to grant explicit macOS file writing permission and prevent .com.google.Chrome.* quarantine
+        saveAs: true
       }, (downloadId) => {
         if (chrome.runtime.lastError || !downloadId) {
           const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : 'no downloadId';
