@@ -677,12 +677,14 @@ let lastSerializedHtml = '';
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   },
-  downloadHtmlSnapshot: (request, sender, sendResponse) => {
+// plan-exempt — tab-side snapshot download without heavy IPC payload
+  downloadHtmlSnapshot: async (request, sender, sendResponse) => {
     try {
-      const htmlToDownload = request.html || lastSerializedHtml;
+      let htmlToDownload = request.html || lastSerializedHtml;
       if (!htmlToDownload) {
-        sendResponse({ success: false, error: 'No HTML content available' });
-        return;
+        const res = await Web2MD.serializePageToSelfContainedHtml({ preserveJs: false });
+        htmlToDownload = res.html;
+        lastSerializedHtml = res.html;
       }
       const blob = new Blob([htmlToDownload], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);

@@ -56,7 +56,8 @@ function utf8ToBase64(str) {
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   const isHtml = mimeType.includes('html');
   const action = isHtml ? 'downloadHtmlSnapshot' : 'downloadTextFile';
-  const payload = isHtml ? { action, filename, html: content } : { action, filename, content, mimeType };
+// plan-exempt — avoid heavy IPC payload on message channel
+  const payload = isHtml ? { action, filename } : { action, filename, content, mimeType };
 
   const fallback = () => {
     try {
