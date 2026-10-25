@@ -372,9 +372,9 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
         url: blobUrl,
         filename: filename,
         conflictAction: 'uniquify',
-        saveAs: false
+        // plan-exempt — restore saveAs: true for macOS file dialog
+        saveAs: true
       }, () => {
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       });
       return { filename, size: zipBlob.size };
     } else {

@@ -10,7 +10,8 @@ export const handlers = {
       url: message.url,
       filename: message.filename,
       conflictAction: message.conflictAction || 'uniquify',
-      saveAs: typeof message.saveAs === 'boolean' ? message.saveAs : false
+      // plan-exempt — default saveAs to true matching original working implementation
+      saveAs: typeof message.saveAs === 'boolean' ? message.saveAs : true
     }, (downloadId) => {
       if (chrome.runtime.lastError) {
         sendResponse({ success: false, error: chrome.runtime.lastError.message });

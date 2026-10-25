@@ -62,41 +62,35 @@ function safeUtf8ToBase64(str) {
   }
 }
 
-// plan-exempt — separate handling: in-tab download for heavy HTML snapshot, direct dataUrl for Markdown
+// plan-exempt — restore proven original saveAs: true download flow with FileReader dataURL
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
-  const isHtml = mimeType.includes('html');
-
-  if (isHtml && appState.activeTabId && typeof chrome !== 'undefined' && chrome.tabs) {
-    chrome.tabs.sendMessage(appState.activeTabId, {
-      action: 'downloadHtmlSnapshot',
-      filename: filename
-    }, () => {
-      onStateChange('saved');
-    });
-    return;
-  }
-
   try {
-    const base64 = safeUtf8ToBase64(content);
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const blob = new Blob([content], { type: mimeType });
 
     if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      chrome.downloads.download({
-        url: dataUrl,
-        filename: filename,
-        conflictAction: 'uniquify',
-        saveAs: false
-      }, () => {
-        onStateChange('saved');
-      });
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        chrome.downloads.download({
+          url: e.target.result,
+          filename: filename,
+          saveAs: true
+        }, (downloadId) => {
+          onStateChange(downloadId ? 'saved' : 'error');
+        });
+      };
+      reader.readAsDataURL(blob);
     } else {
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
-      a.href = dataUrl;
+      a.href = url;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 10000);
       onStateChange('saved');
     }
   } catch (err) {
