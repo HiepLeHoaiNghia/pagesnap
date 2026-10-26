@@ -144,17 +144,35 @@
 
       rawSteps.sort((x, y) => x[0] - y[0]);
 
-      // Isolate the first continuous forward cycle (clean Hover In cascade up to 1800ms)
-      const cleanSteps = [];
-      let lastT = minT;
-      for (const [t, elIndex, name, val] of rawSteps) {
-        if (t - lastT > 300 || (t - minT > 1800)) {
-          break;
+      // plan-exempt — cluster continuous bursts across separate cards/columns and normalize each to t = 0 so multiple hovered blocks replay simultaneously
+      const clusters = [];
+      let curCluster = [];
+      for (const step of rawSteps) {
+        if (!curCluster.length) {
+          curCluster.push(step);
+        } else {
+          const prevT = curCluster[curCluster.length - 1][0];
+          if (step[0] - prevT > 400 || step[0] - curCluster[0][0] > 1800) {
+            clusters.push(curCluster);
+            curCluster = [step];
+          } else {
+            curCluster.push(step);
+          }
         }
-        lastT = t;
-        cleanSteps.push([Math.round(t - minT), elIndex, name, val]);
       }
-      const finalSteps = cleanSteps.length >= 8 ? cleanSteps : rawSteps.filter(s => s[0] - minT <= 1800).map(s => [Math.round(s[0] - minT), s[1], s[2], s[3]]);
+      if (curCluster.length) clusters.push(curCluster);
+
+      const normalizedSteps = [];
+      for (const cluster of clusters) {
+        if (!cluster.length) continue;
+        const clusterBaseT = cluster[0][0];
+        for (const [t, elIndex, name, val] of cluster) {
+          normalizedSteps.push([Math.round(t - clusterBaseT), elIndex, name, val]);
+        }
+      }
+      normalizedSteps.sort((x, y) => x[0] - y[0]);
+
+      const finalSteps = normalizedSteps;
       const durationMs = finalSteps.length ? finalSteps[finalSteps.length - 1][0] : (interactiveStates.length ? 700 : 0);
       const timeline = (finalSteps.length || interactiveStates.length) ? { durationMs, steps: finalSteps, initialStates, interactiveStates } : null;
       const attributes = Object.values(groups)
