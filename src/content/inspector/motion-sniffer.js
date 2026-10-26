@@ -37,20 +37,18 @@
 
       let rec = records.get(el);
       if (!rec) { rec = {}; records.set(el, rec); }
+      // plan-exempt — Phase 8 clean motion spec without frame bloat
       let a = rec[name];
-      if (!a) { a = rec[name] = { count: 0, first: m.oldValue, tFirst: now, tLast: now, lastBatch: -1, gaps: [], frames: [] }; }
+      if (!a) { a = rec[name] = { count: 0, first: m.oldValue, peak: null, tFirst: now, tLast: now, lastBatch: -1, gaps: [] }; }
       a.count++;
       if (a.lastBatch !== now) {
         if (a.lastBatch >= 0 && a.gaps.length < MAX_GAP_SAMPLES) a.gaps.push(now - a.lastBatch);
         a.lastBatch = now;
       }
       a.tLast = now;
-// plan-exempt — record keyframe values over time for component animation playback
-      if (a.frames && a.frames.length < 120) {
-        const val = el.getAttribute(name);
-        if (val !== null && (!a.frames.length || a.frames[a.frames.length - 1][1] !== val)) {
-          a.frames.push([now, val]);
-        }
+      const val = el.getAttribute(name);
+      if (val !== null && val !== a.first && !String(val).includes('pagesnap-') && !String(val).includes('web2md-')) {
+        a.peak = val;
       }
     }
   }
@@ -94,9 +92,14 @@
       if (!root || !root.querySelectorAll) return null;
       const groups = {};
       const samples = [];
-      [root, ...root.querySelectorAll('*')].forEach((el) => {
+      const annotatedElements = [];
+      const interactiveStates = [];
+      const allRootElements = [root, ...Array.from(root.querySelectorAll('*'))];
+
+      allRootElements.forEach((el, elIndex) => {
         const rec = records.get(el);
         if (!rec) return;
+        const elSummaries = [];
         Object.keys(rec).forEach((name) => {
           const a = rec[name];
           const g = groups[name] || (groups[name] = { name, writes: 0, elements: 0, tFirst: Infinity, tLast: 0, gaps: [] });
@@ -105,76 +108,43 @@
           g.tFirst = Math.min(g.tFirst, a.tFirst);
           g.tLast = Math.max(g.tLast, a.tLast);
           g.gaps.push(...a.gaps);
+
+          const currentVal = (el.getAttribute && el.getAttribute(name)) || '';
+          const afterVal = (currentVal && currentVal !== a.first && !String(currentVal).includes('pagesnap-')) ? currentVal : (a.peak || currentVal);
+          const spanMs = Math.round(a.tLast - a.tFirst);
+
           if (a.count >= MIN_MOTION_WRITES) {
-            samples.push({ path: relativePath(root, el), attribute: name, writes: a.count, before: clip(a.first), after: clip(el.getAttribute(name)) });
-          }
-        });
-      });
-      const allRootElements = [root, ...Array.from(root.querySelectorAll('*'))];
-      const initialStates = [];
-      const rawSteps = [];
-      const interactiveStates = [];
-      let minT = Infinity;
-
-      allRootElements.forEach((el, elIndex) => {
-        const rec = records.get(el);
-        if (!rec) return;
-        Object.keys(rec).forEach((name) => {
-          const a = rec[name];
-          // Continuous frame animation (e.g. d, transform, style, viewBox)
-          if (a.count >= MIN_MOTION_WRITES && a.frames && a.frames.length > 1) {
-            initialStates.push([elIndex, name, a.first || a.frames[0][1]]);
-            a.frames.forEach(([t, val]) => {
-              minT = Math.min(minT, t);
-              rawSteps.push([t, elIndex, name, val]);
+            samples.push({
+              elIndex,
+              path: relativePath(root, el),
+              attribute: name,
+              writes: a.count,
+              spanMs,
+              before: clip(a.first),
+              after: clip(afterVal)
             });
-          }
-          // plan-exempt — accurately capture active state during hover even if mouse later left the element
-          if ((name === 'class' || name === 'stroke' || name === 'style') && a.first !== undefined) {
-            const candidateFrames = (a.frames || [])
-              .map(f => f[1])
-              .filter(v => v !== a.first && !String(v).includes('pagesnap-') && !String(v).includes('web2md-'));
-            const activeVal = candidateFrames.length ? candidateFrames[0] : '';
-            if (activeVal && a.first !== activeVal) {
-              interactiveStates.push([elIndex, name, a.first || '', activeVal || '']);
-            }
+            elSummaries.push(`JS ${name} morph (${a.count} frames over ~${spanMs}ms)`);
+          } else if ((name === 'class' || name === 'stroke' || name === 'style') && a.first !== undefined && a.peak && a.peak !== a.first) {
+            interactiveStates.push({
+              elIndex,
+              path: relativePath(root, el),
+              attribute: name,
+              before: clip(a.first),
+              after: clip(a.peak)
+            });
+            elSummaries.push(`Interactive ${name} toggle (${clip(a.first)} -> ${clip(a.peak)})`);
           }
         });
+        if (elSummaries.length) {
+          annotatedElements.push({
+            elIndex,
+            tag: el.localName || el.tagName.toLowerCase(),
+            path: relativePath(root, el),
+            summary: elSummaries.join('; ')
+          });
+        }
       });
 
-      rawSteps.sort((x, y) => x[0] - y[0]);
-
-      // plan-exempt — cluster continuous bursts across separate cards/columns and normalize each to t = 0 so multiple hovered blocks replay simultaneously
-      const clusters = [];
-      let curCluster = [];
-      for (const step of rawSteps) {
-        if (!curCluster.length) {
-          curCluster.push(step);
-        } else {
-          const prevT = curCluster[curCluster.length - 1][0];
-          if (step[0] - prevT > 400 || step[0] - curCluster[0][0] > 1800) {
-            clusters.push(curCluster);
-            curCluster = [step];
-          } else {
-            curCluster.push(step);
-          }
-        }
-      }
-      if (curCluster.length) clusters.push(curCluster);
-
-      const normalizedSteps = [];
-      for (const cluster of clusters) {
-        if (!cluster.length) continue;
-        const clusterBaseT = cluster[0][0];
-        for (const [t, elIndex, name, val] of cluster) {
-          normalizedSteps.push([Math.round(t - clusterBaseT), elIndex, name, val]);
-        }
-      }
-      normalizedSteps.sort((x, y) => x[0] - y[0]);
-
-      const finalSteps = normalizedSteps;
-      const durationMs = finalSteps.length ? finalSteps[finalSteps.length - 1][0] : (interactiveStates.length ? 700 : 0);
-      const timeline = (finalSteps.length || interactiveStates.length) ? { durationMs, steps: finalSteps, initialStates, interactiveStates } : null;
       const attributes = Object.values(groups)
         .filter((g) => g.writes >= MIN_MOTION_WRITES)
         .sort((a, b) => b.writes - a.writes)
@@ -191,7 +161,14 @@
       if (!attributes.length && !interactiveStates.length) return null;
 
       samples.sort((x, y) => y.writes - x.writes);
-      return { totalWrites: attributes.reduce((s, g) => s + g.writes, 0) + interactiveStates.length, attributes, samples: samples.slice(0, MAX_SAMPLES), timeline, interactiveStates };
+      const totalWrites = attributes.reduce((s, g) => s + g.writes, 0) + interactiveStates.length;
+      return {
+        totalWrites,
+        attributes,
+        samples: samples.slice(0, MAX_SAMPLES),
+        interactiveStates: interactiveStates.slice(0, MAX_SAMPLES),
+        annotatedElements
+      };
     }
   };
 // plan-exempt — fix closing brackets in motion-sniffer.js

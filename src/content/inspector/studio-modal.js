@@ -204,121 +204,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         copyPromptBtn.style.display = activeStudioTab === 'ai' ? 'none' : 'inline-block';
       }
     }
-    function attachLiveMotionPlayer(containerEl, jsMotion) {
-      if (!containerEl || !jsMotion || !jsMotion.timeline) return;
-      const { steps = [], initialStates = [], interactiveStates = [] } = jsMotion.timeline;
-      if (!steps.length && !interactiveStates.length) return;
-
-      // plan-exempt — universal element lookup via data-ps-id and safe classList toggles
-      const elMap = new Map();
-      containerEl.querySelectorAll('[data-ps-id]').forEach(el => {
-        elMap.set(parseInt(el.getAttribute('data-ps-id'), 10), el);
-      });
-      if (!elMap.size) {
-        containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
-          const cls = (el.getAttribute && el.getAttribute('class')) || '';
-          const m = cls.match(/ps-el-(\d+)/);
-          if (m) elMap.set(parseInt(m[1], 10), el);
-        });
-      }
-
-      let timers = [];
-      let currentStepIdx = 0;
-
-      // Forward Play (Hover In)
-      const play = (onComplete) => {
-        timers.forEach(clearTimeout);
-        timers = [];
-
-        // 1. Safe interactive state toggle preserving element identifiers
-        interactiveStates.forEach(([idx, attr, initial, active]) => {
-          const el = elMap.get(idx);
-          if (!el) return;
-          if (attr === 'class') {
-            active.split(/\s+/).forEach(c => { if (c) el.classList.add(c); });
-          } else {
-            el.setAttribute(attr, active);
-          }
-        });
-
-        // 2. Continuous frame animation forward
-        if (steps.length) {
-          steps.forEach(([t, idx, attr, val], i) => {
-            timers.push(setTimeout(() => {
-              currentStepIdx = i;
-              const el = elMap.get(idx);
-              if (el) el.setAttribute(attr, val);
-              if (i === steps.length - 1 && typeof onComplete === 'function') {
-                onComplete();
-              }
-            }, t));
-          });
-        } else if (typeof onComplete === 'function') {
-          setTimeout(onComplete, 700);
-        }
-      };
-
-      // Smooth Reverse Play (Hover Out / Reset)
-      const reset = (onComplete) => {
-        timers.forEach(clearTimeout);
-        timers = [];
-
-        // 1. Safe revert of interactive states
-        interactiveStates.forEach(([idx, attr, initial, active]) => {
-          const el = elMap.get(idx);
-          if (!el) return;
-          if (attr === 'class') {
-            active.split(/\s+/).forEach(c => {
-              if (c && !initial.includes(c)) el.classList.remove(c);
-            });
-          } else {
-            el.setAttribute(attr, initial);
-          }
-        });
-
-        // 2. Smoothly rewind frame steps back to initial standing position at silky 60fps (capped ~40 frames)
-        if (steps.length && currentStepIdx > 0) {
-          const revSteps = steps.slice(0, currentStepIdx + 1).reverse();
-          const maxRevFrames = 40;
-          const stride = Math.max(1, Math.floor(revSteps.length / maxRevFrames));
-          const sampledRev = revSteps.filter((_, idx) => idx % stride === 0);
-          const frameInterval = Math.max(12, Math.min(22, Math.round(600 / sampledRev.length)));
-          sampledRev.forEach(([t, idx, attr, val], i) => {
-            timers.push(setTimeout(() => {
-              const el = elMap.get(idx);
-              if (el) el.setAttribute(attr, val);
-              if (i === sampledRev.length - 1) {
-                currentStepIdx = 0;
-                initialStates.forEach(([initIdx, initAttr, initVal]) => {
-                  const initEl = elMap.get(initIdx);
-                  if (initEl) initEl.setAttribute(initAttr, initVal);
-                });
-                if (typeof onComplete === 'function') onComplete();
-              }
-            }, i * frameInterval));
-          });
-        // plan-exempt — fallback initial states restoration
-        } else {
-          initialStates.forEach(([idx, attr, val]) => {
-            const el = elMap.get(idx);
-            if (el) el.setAttribute(attr, val);
-          });
-          currentStepIdx = 0;
-          if (typeof onComplete === 'function') onComplete();
-        }
-      };
-
-      containerEl.__playMotion = play;
-      containerEl.__resetMotion = reset;
-      // plan-exempt — attach hover listener to container and child figures
-      containerEl.addEventListener('mouseenter', () => play());
-      containerEl.addEventListener('mouseleave', () => reset());
-      containerEl.querySelectorAll('.GJ9TEa_figure, .GJ9TEa_benefit, [class*="benefit"], [class*="figure"]').forEach(child => {
-        child.addEventListener('mouseenter', () => play());
-        child.addEventListener('mouseleave', () => reset());
-      });
-    }
-    // plan-exempt — close attachLiveMotionPlayer cleanly
     function updateStudioContent(newEl) {
       currentModalElement = newEl;
       const newCompData = PageSnap.extractComponentStyleAndMotion(newEl);
@@ -340,9 +225,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           });
         }
       }
-      // plan-exempt — attach live motion player so hovering component in studio preview replays animation live
-      attachLiveMotionPlayer(canvas.querySelector('.pagesnap-component-wrapper'), componentData.jsMotion);
-      // plan-exempt — clean duplicate syncActiveView
       syncActiveView();
       if (typeof syncMotionButton === 'function') syncMotionButton();
     }
@@ -383,23 +265,22 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     toolbar.appendChild(editToggleBtn);
 
-// plan-exempt — explicit live motion player button on studio toolbar with bi-directional demo
+    // plan-exempt — Phase 8 motion status badge jumping to AI Specs tab
     const motionBtn = document.createElement("button");
     motionBtn.id = "pagesnap-studio-motion-btn";
-    let isPlayingDemo = false;
 
     function syncMotionButton() {
-      const hasSteps = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.steps && componentData.jsMotion.timeline.steps.length);
-      const hasInteractive = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.interactiveStates && componentData.jsMotion.timeline.interactiveStates.length);
-      const hasM = hasSteps || hasInteractive;
-      const frameCount = hasSteps ? componentData.jsMotion.timeline.steps.length : (hasInteractive ? componentData.jsMotion.timeline.interactiveStates.length : 0);
+      const annotatedCount = (componentData.jsMotion && componentData.jsMotion.annotatedElements)
+        ? componentData.jsMotion.annotatedElements.length
+        : 0;
+      const hasM = annotatedCount > 0;
 
-      if (isPlayingDemo) {
-        motionBtn.innerText = "⏳ Playing Motion...";
-      } else {
-        motionBtn.innerText = hasSteps ? `🎬 Play Motion (${frameCount} frames)` : (hasInteractive ? `🎬 Play Motion (CSS Lift)` : "🎬 Motion: None");
-      }
-      motionBtn.title = hasM ? "Click to play recorded animation demo (Forward & Smooth Reverse)" : "Hover over this element on the webpage while inspecting to capture JS motion";
+      motionBtn.innerText = hasM
+        ? `🎬 JS Motion Recorded (${annotatedCount} el) → View AI Spec`
+        : "🎬 JS Motion: None";
+      motionBtn.title = hasM
+        ? "Click to view recorded JS motion specs & Framer Motion blueprint in AI Specs"
+        : "Hover over interactive elements while inspecting to capture JS motion for AI reconstruction";
       Object.assign(motionBtn.style, {
         background: hasM ? '#8b5cf6' : '#1f2937',
         border: `1px solid ${hasM ? '#a78bfa' : '#374151'}`,
@@ -412,29 +293,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         transition: 'all 0.15s ease'
       });
       motionBtn.onclick = hasM ? () => {
-        if (isPlayingDemo) return;
-        const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
-        if (wrapper && wrapper.__playMotion) {
-          isPlayingDemo = true;
-          syncMotionButton();
-          wrapper.__playMotion(() => {
-            // Forward finished: pause 500ms then smoothly rewind
-            setTimeout(() => {
-              if (wrapper.__resetMotion) {
-                wrapper.__resetMotion(() => {
-                  isPlayingDemo = false;
-                  syncMotionButton();
-                });
-              } else {
-                isPlayingDemo = false;
-                syncMotionButton();
-              }
-            }, 500);
-          });
-        }
+        activeStudioTab = 'ai';
+        syncActiveView();
       } : null;
     }
-    // plan-exempt — initial sync of motion button text and state
     syncMotionButton();
     toolbar.appendChild(motionBtn);
     // 2. Modular View Tabs Group (Right-aligned in sub-toolbar)
@@ -488,7 +350,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
-    attachLiveMotionPlayer(canvas.querySelector('.pagesnap-component-wrapper'), componentData.jsMotion);
     card.appendChild(canvas);
 
     // ─── Modular Code Viewer Panel ──────────────────────────────────────────

@@ -20,8 +20,8 @@ Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdow
 | **Scope**            | Inspector overlay, floating action dock, Component Studio modal, modular export and AI prompt generation.                             |
 | **Permissions**      | `activeTab` only. Content scripts are injected on demand when the user acts; nothing runs in the background on other pages.           |
 | **Export files**     | `index.html`, `styles.css`, `Component.jsx`, `tokens.json`, `AI-PROMPT.md`, `README.md` (ZIP), or copy each part to the clipboard.    |
-| **Captured motion**  | CSS `@keyframes`, transitions and animations from stylesheets, plus JavaScript-driven frame recording with embedded live playback.   |
-| **Motion playback**  | Observed JS motion automatically plays back on hover in Studio Live Preview, `index.html` standalone preview, and `Component.jsx`.    |
+| **Captured motion**  | CSS `@keyframes`, transitions and animations from stylesheets, plus JavaScript-driven motion specifications (start/end coordinates, timing, and Framer Motion / GSAP blueprints). |
+| **Clean Static Code**| `index.html`, `styles.css`, and `Component.jsx` remain 100% pure, lightweight static code with inline `[PageSnap Motion Note]` annotations pointing to `AI-PROMPT.md` for agent reconstruction. |
 
 ---
 
@@ -47,13 +47,12 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 | Aspect            | Behavior                                                                                                                                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **When it runs**  | Only between starting inspector mode and closing the dock, `Esc`, or a 120 second safety timeout. Never in the background.                                           |
-| **What it sees**  | Writes to `d`, `points`, `transform`, `style`, basic SVG geometry attributes and `opacity`. It records counts, timing and values only, never page text.            |
+| **What it sees**  | Writes to `d`, `points`, `transform`, `style`, `class`, `stroke`, basic SVG geometry attributes and `opacity`. It records counts, timing, and start/end states only, never page text. |
 | **What it skips** | CSS animations (already in the keyframes) and PageSnap's own outline highlight.                                                                                     |
-| **Output**        | Embedded live motion player in `index.html` and `Component.jsx` (`useEffect`), live playback in Studio modal preview, and a full reverse-engineering specification in `AI-PROMPT.md` and `tokens.json`. |
+| **Output**        | Inline `[PageSnap Motion Note]` code annotations in `index.html` and `Component.jsx` at mutated elements, plus a complete reverse-engineering specification and Framer Motion / GSAP implementation blueprint in `AI-PROMPT.md` and `tokens.json`. |
 | **No motion**     | The prompt says "None observed" and explains how to capture it (hover the component while the inspector is active).                                                  |
 
-**Playback & Fidelity.** When motion frames are recorded during inspection, PageSnap embeds a lightweight, zero-dependency player script into `index.html` and a React `useEffect` into `Component.jsx`. Hovering over the component plays the exact recorded frames at 60 fps, and mouse leave smoothly restores the resting state.
-
+**Clean Static Export & AI Reconstruction.** Rather than bloating static `index.html` or `Component.jsx` files with thousands of synthetic `setTimeout` frame steps, PageSnap keeps exported HTML, CSS, and JSX 100% pure and production-ready. Elements driven by JavaScript motion are annotated inline with `[PageSnap Motion Note]` comments, while their exact start/end vector coordinates, duration, frame cadence, and ready-to-use Framer Motion / GSAP code blueprints are packaged into `AI-PROMPT.md` so AI coding agents (Cursor, Claude, v0) can reconstruct physics-accurate animations cleanly.
 ---
 
 ## 4. Verification
@@ -66,5 +65,5 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 
 | Date       | Change                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
-| 2026-10-26 | Added JavaScript-driven motion capture, timeline recording, and live hover player across Studio, HTML, and JSX. |
-| 2026-10-26 | Added Component Studio living documentation.                                                            |
+| 2026-10-26 | Replaced synthetic `setTimeout` frame players with clean static HTML/JSX exports, inline `[PageSnap Motion Note]` annotations, and AI-PROMPT Framer Motion / GSAP blueprints. |
+| 2026-10-26 | Added JavaScript-driven motion capture and Component Studio living documentation.                       |

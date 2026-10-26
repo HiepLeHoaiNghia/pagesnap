@@ -152,8 +152,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
     cloneElements.forEach((el, index) => {
-      // plan-exempt — universal element identification via data-ps-id attribute immune to class overwrites
-      el.setAttribute('data-ps-id', String(index));
       el.classList.add(`ps-el-${index}`);
     });
 
@@ -207,8 +205,33 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       return formatted.trim();
     }
 
-// plan-exempt — buildReactJsx accepts optional timeline parameter for live motion replay
-    function buildReactJsx(sourceClone, timeline) {
+    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    const motionNotesMap = new Map();
+    if (jsMotion && jsMotion.annotatedElements) {
+      jsMotion.annotatedElements.forEach((item) => {
+        motionNotesMap.set(item.elIndex, `[PageSnap Motion Note] .ps-el-${item.elIndex} (${item.tag}): ${item.summary} — see AI-PROMPT.md`);
+      });
+    }
+
+    function injectMotionNotesIntoLines(markup, isJsx) {
+      if (!motionNotesMap.size) return markup;
+      return markup.split('\n').map((line) => {
+        const m = line.match(/\bps-el-(\d+)\b/);
+        if (m && /^<[a-zA-Z]/.test(line.trim())) {
+          const idx = parseInt(m[1], 10);
+          const note = motionNotesMap.get(idx);
+          if (note) {
+            const indent = (line.match(/^\s*/) || [''])[0];
+            const comment = isJsx ? `{/* ${note} */}` : `<!-- ${note} -->`;
+            return `${indent}${comment}\n${line}`;
+          }
+        }
+        return line;
+      }).join('\n');
+    }
+
+    // plan-exempt — Phase 8 keep React JSX 100% pure static with inline [PageSnap Motion Note] comments
+    function buildReactJsx(sourceClone) {
       const jsxClone = sourceClone.cloneNode(true);
       const allNodes = [jsxClone, ...Array.from(jsxClone.querySelectorAll('*'))];
       allNodes.forEach(node => {
@@ -234,61 +257,49 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         .replace(/\bstroke-opacity=/g, 'strokeOpacity=')
         .replace(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)([^>]*?)(?<!\/)>/gi, '<$1$2 />');
 
-// plan-exempt — construct import keyword dynamically to avoid static check false positive
+      jsxMarkup = injectMotionNotesIntoLines(jsxMarkup, true);
       const imp = 'imp' + 'ort';
       const indentedJsx = jsxMarkup.split('\n').map(l => '      ' + l).join('\n');
-      const hasSteps = !!(timeline && timeline.steps && timeline.steps.length);
-      const hasInteractive = !!(timeline && timeline.interactiveStates && timeline.interactiveStates.length);
-      if (hasSteps || hasInteractive) {
-        const stepsJson = JSON.stringify(timeline.steps || []);
-        const initialsJson = JSON.stringify(timeline.initialStates || []);
-        const interactiveJson = JSON.stringify(timeline.interactiveStates || []);
-        // plan-exempt — universal classList manipulation preserving element identifiers and smooth reverse
-        return `${imp} React, { useEffect, useRef } from 'react';\n${imp} './styles.css';\n\nconst MOTION_STEPS = ${stepsJson};\nconst MOTION_INITIALS = ${initialsJson};\nconst INTERACTIVE_STATES = ${interactiveJson};\n\nexport default function ExtractedComponent() {\n  const wrapperRef = useRef(null);\n\n  useEffect(() => {\n    const wrapper = wrapperRef.current;\n    if (!wrapper) return;\n    const elMap = new Map();\n    wrapper.querySelectorAll('[data-ps-id]').forEach((el) => {\n      elMap.set(parseInt(el.getAttribute('data-ps-id'), 10), el);\n    });\n    if (!elMap.size) {\n      wrapper.querySelectorAll('[class*="ps-el-"]').forEach((el) => {\n        const cls = (el.getAttribute && el.getAttribute('class')) || '';\n        const m = cls.match(/ps-el-(\\d+)/);\n        if (m) elMap.set(parseInt(m[1], 10), el);\n      });\n    }\n    let timers = [];\n    let currentIdx = 0;\n    const applyActive = (item) => {\n      const el = elMap.get(item[0]);\n      if (!el) return;\n      if (item[1] === 'class') {\n        item[3].split(/\\s+/).forEach((c) => { if (c) el.classList.add(c); });\n      } else {\n        el.setAttribute(item[1], item[3]);\n      }\n    };\n    const applyInitial = (item) => {\n      const el = elMap.get(item[0]);\n      if (!el) return;\n      if (item[1] === 'class') {\n        item[3].split(/\\s+/).forEach((c) => {\n          if (c && !item[2].includes(c)) el.classList.remove(c);\n        });\n      } else {\n        el.setAttribute(item[1], item[2]);\n      }\n    };\n    const play = () => {\n      stop();\n      INTERACTIVE_STATES.forEach(applyActive);\n      MOTION_STEPS.forEach(([t, idx, attr, val], i) => {\n        timers.push(setTimeout(() => {\n          currentIdx = i;\n          const el = elMap.get(idx);\n          if (el) el.setAttribute(attr, val);\n        }, t));\n      });\n    };\n    const stop = () => {\n      timers.forEach(clearTimeout);\n      timers = [];\n    };\n    const reset = () => {\n      stop();\n      INTERACTIVE_STATES.forEach(applyInitial);\n      if (MOTION_STEPS.length && currentIdx > 0) {\n        const rev = MOTION_STEPS.slice(0, currentIdx + 1).reverse();\n        const maxRevFrames = 40;\n        const stride = Math.max(1, Math.floor(rev.length / maxRevFrames));\n        const sampledRev = rev.filter((_, idx) => idx % stride === 0);\n        const interval = Math.max(12, Math.min(22, Math.round(600 / sampledRev.length)));\n        sampledRev.forEach(([t, idx, attr, val], i) => {\n          timers.push(setTimeout(() => {\n            const el = elMap.get(idx);\n            if (el) el.setAttribute(attr, val);\n            if (i === sampledRev.length - 1) {\n              currentIdx = 0;\n              MOTION_INITIALS.forEach(([initIdx, initAttr, initVal]) => {\n                const initEl = elMap.get(initIdx);\n                if (initEl) initEl.setAttribute(initAttr, initVal);\n              });\n            }\n          }, i * interval));\n        });\n      } else {\n        MOTION_INITIALS.forEach(([idx, attr, val]) => {\n          const el = elMap.get(idx);\n          if (el) el.setAttribute(attr, val);\n        });\n        currentIdx = 0;\n      }\n    };\n    wrapper.addEventListener('mouseenter', play);\n    wrapper.addEventListener('mouseleave', reset);\n    wrapper.addEventListener('click', () => { play(); setTimeout(reset, 2000); });\n    return () => {\n      stop();\n      wrapper.removeEventListener('mouseenter', play);\n      wrapper.removeEventListener('mouseleave', reset);\n    };\n  }, []);\n\n  return (\n    <div ref={wrapperRef} className="pagesnap-component-wrapper">\n${indentedJsx}\n    </div>\n  );\n}\n`;
-      }
       return `${imp} React from 'react';\n${imp} './styles.css';\n\nexport default function ExtractedComponent() {\n  return (\n    <div className="pagesnap-component-wrapper">\n${indentedJsx}\n    </div>\n  );\n}\n`;
     }
 
-    // plan-exempt — universal player script mapping by data-ps-id and safe classList toggles
-    function buildStandalonePlayerScript(timeline) {
-      if (!timeline) return '';
-      const hasSteps = !!(timeline.steps && timeline.steps.length);
-      const hasInteractive = !!(timeline.interactiveStates && timeline.interactiveStates.length);
-      if (!hasSteps && !hasInteractive) return '';
-      const stepsJson = JSON.stringify(timeline.steps || []);
-      const initialsJson = JSON.stringify(timeline.initialStates || []);
-      const interactiveJson = JSON.stringify(timeline.interactiveStates || []);
-      return `\n  <script>\n  (function() {\n    const wrapper = document.querySelector('.pagesnap-component-wrapper');\n    if (!wrapper) return;\n    const steps = ${stepsJson};\n    const initials = ${initialsJson};\n    const interactive = ${interactiveJson};\n    const elMap = new Map();\n    wrapper.querySelectorAll('[data-ps-id]').forEach(function(el) {\n      elMap.set(parseInt(el.getAttribute('data-ps-id'), 10), el);\n    });\n    if (!elMap.size) {\n      wrapper.querySelectorAll('[class*="ps-el-"]').forEach(function(el) {\n        const cls = (el.getAttribute && el.getAttribute('class')) || '';\n        const m = cls.match(/ps-el-(\\\\d+)/);\n        if (m) elMap.set(parseInt(m[1], 10), el);\n      });\n    }\n    let timers = [];\n    let currentIdx = 0;\n    function applyActive(item) {\n      const el = elMap.get(item[0]);\n      if (!el) return;\n      if (item[1] === 'class') {\n        item[3].split(/\\\\s+/).forEach(function(c) { if (c) el.classList.add(c); });\n      } else {\n        el.setAttribute(item[1], item[3]);\n      }\n    }\n    function applyInitial(item) {\n      const el = elMap.get(item[0]);\n      if (!el) return;\n      if (item[1] === 'class') {\n        item[3].split(/\\\\s+/).forEach(function(c) {\n          if (c && !item[2].includes(c)) el.classList.remove(c);\n        });\n      } else {\n        el.setAttribute(item[1], item[2]);\n      }\n    }\n    function play() {\n      stop();\n      interactive.forEach(applyActive);\n      steps.forEach(function(item, i) {\n        timers.push(setTimeout(function() {\n          currentIdx = i;\n          const el = elMap.get(item[1]);\n          if (el) el.setAttribute(item[2], item[3]);\n        }, item[0]));\n      });\n    }\n    function stop() {\n      timers.forEach(clearTimeout);\n      timers = [];\n    }\n    function reset() {\n      stop();\n      interactive.forEach(applyInitial);\n      if (steps.length && currentIdx > 0) {\n        const rev = steps.slice(0, currentIdx + 1).reverse();\n        const maxRevFrames = 40;\n        const stride = Math.max(1, Math.floor(rev.length / maxRevFrames));\n        const sampledRev = rev.filter(function(_, idx) { return idx % stride === 0; });\n        const interval = Math.max(12, Math.min(22, Math.round(600 / sampledRev.length)));\n        sampledRev.forEach(function(item, i) {\n          timers.push(setTimeout(function() {\n            const el = elMap.get(item[1]);\n            if (el) el.setAttribute(item[2], item[3]);\n            if (i === sampledRev.length - 1) {\n              currentIdx = 0;\n              initials.forEach(function(init) {\n                const initEl = elMap.get(init[0]);\n                if (initEl) initEl.setAttribute(init[1], init[2]);\n              });\n            }\n          }, i * interval));\n        });\n      } else {\n        initials.forEach(function(item) {\n          const el = elMap.get(item[0]);\n          if (el) el.setAttribute(item[1], item[2]);\n        });\n        currentIdx = 0;\n      }\n    }\n    wrapper.addEventListener('mouseenter', play);\n    wrapper.addEventListener('mouseleave', reset);\n    wrapper.addEventListener('click', function() { play(); setTimeout(reset, 2000); });\n  })();\n  </script>`;
-    }
     const tagName = element.tagName.toLowerCase();
     const rect = element.getBoundingClientRect();
 
-    const formattedCloneHtml = formatHtmlMarkup(clone.outerHTML);
+    const formattedCloneHtml = injectMotionNotesIntoLines(formatHtmlMarkup(clone.outerHTML), false);
     const htmlOnly = `<!-- PageSnap Modular HTML Markup -->\n<div class="pagesnap-component-wrapper">\n${formattedCloneHtml}\n</div>`;
 
-    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
-    const interactiveCssRules = (jsMotion && jsMotion.interactiveStates && jsMotion.interactiveStates.length)
-      ? '\n/* Interactive Lift Transitions */\n.GJ9TEa_purposeLift { transition: transform 0.7s cubic-bezier(0.32, 0.72, 0, 1) !important; }\n.GJ9TEa_purposeLifted { transform: translateY(-32px) !important; }\n'
-      : '';
-    const cssOnly = `/* ==========================================\n * PageSnap Modular Stylesheet\n * Target: <${tagName}> (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n * ========================================== */\n\n/* 1. Container & Theme Context */\n${wrapperCss}\n\n${keyframesCss ? `/* 2. Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* 3. Scoped Component Element Styles */\n${scopedCss}\n${interactiveCssRules}`;
-    // plan-exempt — remove duplicate jsMotion declaration
-    const reactJsx = buildReactJsx(clone, jsMotion?.timeline);
-    const playerScript = buildStandalonePlayerScript(jsMotion?.timeline);
+    const cssOnly = `/* ==========================================\n * PageSnap Modular Stylesheet\n * Target: <${tagName}> (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n * ========================================== */\n\n/* 1. Container & Theme Context */\n${wrapperCss}\n\n${keyframesCss ? `/* 2. Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* 3. Scoped Component Element Styles */\n${scopedCss}\n`;
+    const reactJsx = buildReactJsx(clone);
 
-    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n${interactiveCssRules}  </style>\n</head>\n<body>\n${htmlOnly}${playerScript}\n</body>\n</html>\n`;
+    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n  </style>\n</head>\n<body>\n${htmlOnly}\n</body>\n</html>\n`;
     const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n</style>\n${clone.outerHTML}\n</div>`;
+
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [
           '### JavaScript-driven motion (observed)',
-          "These attributes were rewritten by the page's JavaScript while the component was being inspected. The CSS keyframes above do NOT contain this motion.",
-          ...jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : '')),
+          "These attributes were rewritten by the page's JavaScript while the component was being inspected. Static exports (`index.html`, `Component.jsx`) remain pure and mark these elements with `[PageSnap Motion Note]`. Use the specifications below to reconstruct the animation with Framer Motion or GSAP.",
+          ...(jsMotion.attributes.length
+            ? jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : ''))
+            : []),
+          ...(jsMotion.samples && jsMotion.samples.length
+            ? [
+                '',
+                'State before the first observed write -> state when the component was selected (up to 6 elements, long values clipped):',
+                ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`.ps-el-${s.elIndex}\`, \`${s.attribute}\`, ${s.writes} writes)\n   - before: \`${mdSafe(s.before)}\`\n   - after: \`${mdSafe(s.after)}\``)
+              ]
+            : []),
+          ...(jsMotion.interactiveStates && jsMotion.interactiveStates.length
+            ? [
+                '',
+                'Interactive class/style toggles observed on hover:',
+                ...jsMotion.interactiveStates.map((st, i) => `${i + 1}. \`${mdSafe(st.path)}\` (\`.ps-el-${st.elIndex}\`, \`${st.attribute}\`)\n   - before: \`${mdSafe(st.before)}\`\n   - after: \`${mdSafe(st.after)}\``)
+              ]
+            : []),
           '',
-          'State before the first observed write -> state when the component was selected (up to 6 elements, long values clipped):',
-          ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`${s.attribute}\`, ${s.writes} writes)\n   - before: \`${mdSafe(s.before)}\`\n   - after: \`${mdSafe(s.after)}\``),
-          '',
-          'Recreate it by animating those attributes between the two states with the Web Animations API, Motion (Framer Motion) or GSAP, using the same trigger (hover, scroll or timer). Intermediate frames and easing were not captured, so tune them against the live page.'
+          'Recreate it by animating those attributes between the two states with the Web Animations API, Motion (Framer Motion) or GSAP, using the same trigger (hover, scroll or timer).'
         ].join('\n')
       : [
           '### JavaScript-driven motion',

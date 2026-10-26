@@ -71,13 +71,15 @@ status: completed (2026-10-23) — all static checks (10/10) and Chromium E2E (4
 - Bumped the content-script build id to `20261026-v1` so already-open tabs re-inject the new bundle.
 - Added E2E TEST 9 (fixture page; mutation-checked) and the living doc `docs/features/component-studio/feature.md`.
 
-### Phase 7: Live Motion Player Integration (Completed 2026-10-26)
-- Enhanced `motion-sniffer.js` to record frame timelines (`[tDelta, elIndex, attrName, value]`) and resting initial states.
-- Implemented embedded vanilla JS player in `index.html` and React `useEffect` hook in `Component.jsx` to replay recorded motion on hover at 60 fps.
-- Integrated live motion playback directly into Component Studio `Live Preview` canvas.
-- Bumped content-script build id to `20261026-v3`.
-- Extended E2E TEST 9 to verify live player code generation and timeline recording.
+### Phase 7: Live Motion Player Prototyping (Superseded 2026-10-26)
+- Explored embedding raw `setTimeout` frame players into `index.html` and `Component.jsx`, which caused file bloat (~1 MB) and lacked physics spring fidelity compared to native Framer Motion.
+
+### Phase 8: Clean Static Code + AI-PROMPT Motion Spec Architecture (Completed 2026-10-26)
+- Keep `index.html`, `styles.css`, and `Component.jsx` 100% pure static code without synthetic `setTimeout` players or `data-ps-id` pollution.
+- Inject concise inline `[PageSnap Motion Note]` comments into `index.html` and `Component.jsx` directly above elements that exhibited JavaScript-driven attribute mutations or interactive state toggles during inspection.
+- Enrich `AI-PROMPT.md` and `tokens.json` with exact before/after coordinates, timing cadence, interactive class/style toggles, and ready-to-use Framer Motion & GSAP code blueprints so AI coding agents can reconstruct animations faithfully.
+- Replace the Studio modal `Play Motion` player button with an informative motion status badge that jumps directly to the `AI Specs` tab when clicked.
 
 ## Changelog
-- 2026-10-26: Phase 7 completed. Live motion player embedded into Component Studio, index.html, and Component.jsx.
+- 2026-10-26: Phase 8 completed — Clean static exports with inline `[PageSnap Motion Note]` annotations and AI-PROMPT motion blueprints.
 - 2026-10-26: Phase 6 shipped. JS-driven motion is described in the AI prompt; it is not reproduced (see the doc's limits).
