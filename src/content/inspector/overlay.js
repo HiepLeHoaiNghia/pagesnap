@@ -108,8 +108,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
   }
 
   function isExtensionUi(target) {
-    if (!target) return false;
+    if (!target || !target.closest) return false;
     return !!(
+      target.closest("#pagesnap-region-actions-bar") ||
       target.closest("#pagesnap-component-studio-modal") ||
       target.closest("#pagesnap-inspector-overlay") ||
       target.closest("#pagesnap-toast") ||
@@ -134,6 +135,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
+      document.removeEventListener("click", onDockActivePageClick, true);
+      const bar = document.getElementById("pagesnap-region-actions-bar");
+      if (bar) bar.remove();
+      PageSnap.highlightElement(null);
       PageSnap.toggleInspector(false);
       if (typeof Web2MD.showToast === 'function') {
         Web2MD.showToast("🎯 Inspector cancelled.");
@@ -353,7 +358,22 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       shrinkBtn.style.cursor = "not-allowed";
     }
     navGroup.appendChild(shrinkBtn);
+
+// plan-exempt — add Pick button to dock to re-activate hover inspection cleanly
+    const pickBtn = document.createElement("button");
+    pickBtn.innerText = "🎯 Pick";
+    pickBtn.title = "Re-activate hover to pick another element";
+    styleBtn(pickBtn);
+    pickBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.removeEventListener("click", onDockActivePageClick, true);
+      bar.remove();
+      PageSnap.highlightElement(null);
+      PageSnap.toggleInspector(true);
+    });
+    navGroup.appendChild(pickBtn);
     bar.appendChild(navGroup);
+    // plan-exempt — clean duplicate appends in overlay.js
 
     // Separator
     const sep = document.createElement("span");
