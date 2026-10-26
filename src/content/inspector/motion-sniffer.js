@@ -79,6 +79,19 @@
     }
     return parts.length ? `${root.localName} > ${parts.join(' > ')}` : root.localName;
   }
+  // plan-exempt — measure maximum numeric delta to reject sub-pixel noise and enforce minimum amplitude gate
+  function measureMaxNumericDelta(strA, strB) {
+    if (!strA || !strB || strA === strB) return 0;
+    const numsA = (String(strA).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const numsB = (String(strB).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const len = Math.min(numsA.length, numsB.length);
+    let maxDiff = 0;
+    for (let i = 0; i < len; i++) {
+      const diff = Math.abs(numsA[i] - numsB[i]);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    return maxDiff;
+  }
 
   const clip = (v) => {
     const s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
@@ -176,19 +189,22 @@
               transformDelta = { x: Math.round(parts[4] * 1000) / 1000, y: Math.round(parts[5] * 1000) / 1000 };
             }
           }
-
-          if (a.count >= MIN_MOTION_WRITES) {
+          const maxDelta = measureMaxNumericDelta(a.first, afterVal);
+          // Enforce minimum amplitude gate: reject 0.0004px sub-pixel noise, only accept real geometric morphs >= 3.0px
+          if (a.count >= MIN_MOTION_WRITES && (name !== 'd' || maxDelta >= 3.0)) {
             samples.push({
               elIndex,
               path: relativePath(root, el),
               attribute: name,
               writes: a.count,
               spanMs,
+              maxDelta,
               before: clip(a.first),
               after: clip(afterVal),
               motionType: name === 'd' ? 'svg-path-morph' : (name === 'transform' ? 'transform-tween' : 'attribute-tween')
             });
-            elSummaries.push(`JS ${name} morph (${a.count} frames over ~${spanMs}ms)`);
+            // plan-exempt — fix else if branch in motion-sniffer.js
+            elSummaries.push(`JS ${name} morph (${a.count} frames over ~${spanMs}ms, delta: ${Math.round(maxDelta)}px)`);
           } else if ((name === 'class' || name === 'stroke' || name === 'style' || name === 'transform') && a.first !== undefined && a.peak && a.peak !== a.first) {
             interactiveStates.push({
               elIndex,

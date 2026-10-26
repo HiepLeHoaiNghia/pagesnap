@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261026-v16 for Phase 10 auto-sweep probing
+// plan-exempt — bump buildId to 20261026-v17 for minimum amplitude gate and live probing hint
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261026-v16') {
+        if (!pingRes || pingRes.buildId !== '20261026-v17') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

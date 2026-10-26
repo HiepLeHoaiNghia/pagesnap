@@ -508,7 +508,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
       ensureOverlayElement();
       if (typeof Web2MD.showToast === 'function') {
-        Web2MD.showToast("🎯 Click any component on page to open Studio. Press Esc to cancel.");
+        Web2MD.showToast("🎯 Sweep mouse across animated elements to capture motion, then click to export.");
       }
     } else {
       document.removeEventListener("click", onDockActivePageClick, true);
