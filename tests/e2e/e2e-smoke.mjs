@@ -570,6 +570,13 @@ async function runE2E() {
       window.PageSnap.openComponentStudioModal(btn);
       const modal = document.getElementById('pagesnap-component-studio-modal');
       const studioTabs = modal ? Array.from(modal.querySelectorAll('[data-studio-tab]')).map(el => el.dataset.studioTab) : [];
+      const findBtn = (label) => modal ? Array.from(modal.querySelectorAll('button')).find(b => b.innerText.trim() === label) : null;
+      const promptBtnOnPreview = findBtn('🤖 Copy AI Prompt') ? getComputedStyle(findBtn('🤖 Copy AI Prompt')).display : 'missing';
+      const aiTab = modal ? modal.querySelector('[data-studio-tab="ai"]') : null;
+      if (aiTab) aiTab.click();
+      const promptBtnOnAiTab = findBtn('🤖 Copy AI Prompt') ? getComputedStyle(findBtn('🤖 Copy AI Prompt')).display : 'missing';
+      const copyThisFileVisible = findBtn('📋 Copy This File') ? getComputedStyle(findBtn('📋 Copy This File')).display !== 'none' : false;
+      const redundantFooterButtons = ['📄 Copy HTML', '🎨 Copy CSS', '⚛️ Copy JSX'].filter(lbl => !!findBtn(lbl));
       if (modal) modal.remove();
 
       return {
@@ -579,7 +586,11 @@ async function runE2E() {
         hasTokensJson: !!(comp.tokensJson && JSON.parse(comp.tokensJson).element.tagName === 'button'),
         zipFilename: zipRes.filename,
         zipSize: zipRes.size,
-        studioTabs
+        studioTabs,
+        promptBtnOnPreview,
+        promptBtnOnAiTab,
+        copyThisFileVisible,
+        redundantFooterButtons
       };
     });
 
@@ -589,6 +600,10 @@ async function runE2E() {
     assert.equal(modularResult.hasTokensJson, true, 'tokensJson must be valid structured JSON');
     assert.ok(modularResult.zipSize > 500, `Component ZIP archive must be non-empty (${modularResult.zipSize} bytes)`);
     assert.deepEqual(modularResult.studioTabs, ['preview', 'html', 'css', 'jsx', 'tokens', 'ai'], 'Studio modal must provide all 6 modular inspector tabs');
+    assert.notEqual(modularResult.promptBtnOnPreview, 'none', 'Copy AI Prompt must be visible on Live Preview tab');
+    assert.equal(modularResult.promptBtnOnAiTab, 'none', 'Copy AI Prompt must hide on AI Specs tab where Copy This File is already shown');
+    assert.equal(modularResult.copyThisFileVisible, true, 'Copy This File must be visible on AI Specs tab');
+    assert.deepEqual(modularResult.redundantFooterButtons, [], 'Duplicate per-file Copy HTML/CSS/JSX footer buttons must be removed');
     console.log(`  ✓ Modular separation verified: HTML, CSS, React JSX, and Tokens cleanly separated`);
     console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes) & 6 Studio tabs verified`);
 

@@ -200,6 +200,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         codeFileLabel.innerText = tabMeta ? tabMeta.file : '';
         codeTextarea.value = getActiveTabCode();
       }
+      if (typeof copyPromptBtn !== 'undefined' && copyPromptBtn) {
+        copyPromptBtn.style.display = activeStudioTab === 'ai' ? 'none' : 'inline-block';
+      }
     }
 
     function updateStudioContent(newEl) {
@@ -461,31 +464,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     leftGroup.appendChild(copyMdBtn);
 
-// plan-exempt — modular copy buttons for HTML, CSS, React JSX, and Component ZIP package
-    // 2. Copy HTML Only
-    const copyHtmlOnlyBtn = makeBtn("📄 Copy HTML", "#1f2937", "#e5e7eb", async () => {
-      await Web2MD.copyTextToClipboard(componentData.htmlOnly || '');
-      copyHtmlOnlyBtn.innerText = "✅ Copied HTML!";
-      setTimeout(() => { copyHtmlOnlyBtn.innerText = "📄 Copy HTML"; }, 2000);
-    });
-    leftGroup.appendChild(copyHtmlOnlyBtn);
-
-    // 3. Copy CSS Only
-    const copyCssOnlyBtn = makeBtn("🎨 Copy CSS", "#1f2937", "#e5e7eb", async () => {
-      await Web2MD.copyTextToClipboard(componentData.cssOnly || '');
-      copyCssOnlyBtn.innerText = "✅ Copied CSS!";
-      setTimeout(() => { copyCssOnlyBtn.innerText = "🎨 Copy CSS"; }, 2000);
-    });
-    leftGroup.appendChild(copyCssOnlyBtn);
-
-    // 4. Copy React JSX
-    const copyJsxBtn = makeBtn("⚛️ Copy JSX", "#1f2937", "#e5e7eb", async () => {
-      await Web2MD.copyTextToClipboard(componentData.reactJsx || '');
-      copyJsxBtn.innerText = "✅ Copied JSX!";
-      setTimeout(() => { copyJsxBtn.innerText = "⚛️ Copy JSX"; }, 2000);
-    });
-    leftGroup.appendChild(copyJsxBtn);
-
+// plan-exempt — individual file tabs (HTML, CSS, React JSX, Tokens, AI Specs) already have "Copy This File" in the code header
     // 5. Download Modular Component ZIP Package
     const downloadZipBtn = makeBtn("📦 Download ZIP", "#1e293b", "#38bdf8", async () => {
       downloadZipBtn.innerText = "⏳ Packaging...";

@@ -180,20 +180,42 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
   context.window.getComputedStyle = context.getComputedStyle;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'serializer.js' });
+// plan-exempt — re-injecting serializer.js into the same context (when buildId bumps) must not throw SyntaxError
+  vm.runInContext(source, context, { filename: 'serializer.js' });
 
   const textNode = { nodeType: 3, textContent: 'Selected text' };
+  const inlinedStyle = {
+    nodeType: 1,
+    tagName: 'STYLE',
+    id: 'web2md-inlined-abc12',
+    textContent: '.keep-inlined { color: rgb(18, 52, 86); }',
+    attributes: [{ name: 'id', value: 'web2md-inlined-abc12' }],
+    childNodes: [],
+    getAttribute: (k) => (k === 'id' ? 'web2md-inlined-abc12' : null),
+    getRootNode: () => document
+  };
+  const extensionUiOverlay = {
+    nodeType: 1,
+    tagName: 'DIV',
+    id: 'pagesnap-inspector-overlay',
+    attributes: [{ name: 'id', value: 'pagesnap-inspector-overlay' }],
+    childNodes: [{ nodeType: 3, textContent: 'UI noise' }],
+    getAttribute: (k) => (k === 'id' ? 'pagesnap-inspector-overlay' : null)
+  };
   const target = {
     nodeType: 1,
     tagName: 'SECTION',
     attributes: [],
-    childNodes: [textNode],
+    childNodes: [inlinedStyle, extensionUiOverlay, textNode],
     querySelectorAll: () => [],
     matches: () => false,
     closest: () => null,
     style: { cssText: '' }
   };
   const result = await (PageSnap.serializePageToSelfContainedHtml || Web2MD.serializePageToSelfContainedHtml)({ targetElement: target, preserveJs: false });
-  assert.match(result.nodeHtml, /<section[^>]*>Selected text<\/section>/i);
+  assert.match(result.nodeHtml, /<section[^>]*>.*Selected text<\/section>/is);
+  assert.match(result.nodeHtml, /\.keep-inlined/, 'inlined <style id="web2md-inlined-..."> must not be stripped on re-serialization');
+  assert.doesNotMatch(result.nodeHtml, /UI noise/, 'extension UI elements (#pagesnap-*) must still be stripped');
   assert.match(result.html, /<!DOCTYPE html>/i);
   assert.match(result.html, /Selected text/);
   assert.match(result.package.html, /Selected text/);
