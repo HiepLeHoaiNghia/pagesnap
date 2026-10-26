@@ -78,8 +78,18 @@ status: completed (2026-10-23) — all static checks (10/10) and Chromium E2E (4
 - Keep `index.html`, `styles.css`, and `Component.jsx` 100% pure static code without synthetic `setTimeout` players or `data-ps-id` pollution.
 - Inject concise inline `[PageSnap Motion Note]` comments into `index.html` and `Component.jsx` directly above elements that exhibited JavaScript-driven attribute mutations or interactive state toggles during inspection.
 - Enrich `AI-PROMPT.md` and `tokens.json` with exact before/after coordinates, timing cadence, interactive class/style toggles, and ready-to-use Framer Motion & GSAP code blueprints so AI coding agents can reconstruct animations faithfully.
-- Replace the Studio modal `Play Motion` player button with an informative motion status badge that jumps directly to the `AI Specs` tab when clicked.
+
+### Phase 9: Parametric Motion Engine & Authentic Framer Motion Generation (Completed 2026-10-26)
+- Enhanced `motion-sniffer.js` to observe pointer coordinates, compute true style diffs (rest vs active), and detect spring physics parameters without hardcoded selectors.
+- Updated `style-extractor.js` to generate authentic, production-grade Framer Motion code in `Component.jsx` and parametric specifications in `AI-PROMPT.md`.
+- In Component Studio, provide silky-smooth in-modal visual preview and clear navigation to AI Specs.
+- Verified end-to-end against live `linear.app` with real headless Chrome following the exact user inspection flow until fidelity matches production.
+
+### Phase 10: Auto-Sweep Probing & Dual-State Architecture (In Progress 2026-10-26)
+- Add `probeElementRangeOfMotion` in `motion-sniffer.js` to automatically sweep pointer coordinates across the component's bounding box on selection.
+- Wire auto-sweep probing into `overlay.js` on selection so peak motion is captured without requiring manual user hover.
+- Update `style-extractor.js` to embed Dual-State (Resting vs Peak Hover) geometry and vision comparisons in `AI-PROMPT.md`.
 
 ## Changelog
-- 2026-10-26: Phase 8 completed — Clean static exports with inline `[PageSnap Motion Note]` annotations and AI-PROMPT motion blueprints.
-- 2026-10-26: Phase 6 shipped. JS-driven motion is described in the AI prompt; it is not reproduced (see the doc's limits).
+- 2026-10-26: Phase 10 initiated — Auto-Sweep Probing & Dual-State Architecture.
+- 2026-10-26: Phase 9 completed — Parametric Motion Engine and production-grade Framer Motion synthesis.

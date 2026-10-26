@@ -179,6 +179,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     selectionHistory = [];
     PageSnap.highlightElement(target);
     PageSnap.showFloatingActionsBar(target);
+    // plan-exempt — auto-sweep component to capture full motion range without requiring manual user hover
+    if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
+      PageSnap.motionSniffer.probeElementRangeOfMotion(target);
+    }
   }
 
   function onDockActivePageClick(e) {
@@ -193,6 +197,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     selectionHistory = [];
     PageSnap.highlightElement(target);
     PageSnap.showFloatingActionsBar(target);
+    // plan-exempt — auto-sweep on dock re-selection
+    if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
+      PageSnap.motionSniffer.probeElementRangeOfMotion(target);
+    }
   }
 
   let currentSelectedElement = null;
@@ -385,11 +393,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     studioBtn.innerText = "✨ Live Studio";
     studioBtn.title = "Open Component Studio to preview, edit text, and customize";
     styleBtn(studioBtn, true);
-    studioBtn.addEventListener('click', (e) => {
+    studioBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       document.removeEventListener("click", onDockActivePageClick, true);
       bar.remove();
       PageSnap.highlightElement(null);
+      // plan-exempt — auto-probe component range of motion before opening Studio
+      if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
+        await PageSnap.motionSniffer.probeElementRangeOfMotion(currentSelectedElement);
+      }
       PageSnap.openComponentStudioModal(currentSelectedElement);
     });
     bar.appendChild(studioBtn);

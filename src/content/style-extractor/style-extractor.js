@@ -284,22 +284,24 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           ...(jsMotion.attributes.length
             ? jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : ''))
             : []),
+          // plan-exempt — Phase 10 Dual-State comparison specs in AI-PROMPT.md
           ...(jsMotion.samples && jsMotion.samples.length
             ? [
                 '',
-                'State before the first observed write -> state when the component was selected (up to 6 elements, long values clipped):',
-                ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`.ps-el-${s.elIndex}\`, \`${s.attribute}\`, ${s.writes} writes)\n   - before: \`${mdSafe(s.before)}\`\n   - after: \`${mdSafe(s.after)}\``)
+                '### Dual-State Comparison (State 1: Resting vs State 2: Peak Hover)',
+                'Auto-sweep probing captured the maximum range of motion between resting state and peak hover state:',
+                ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`.ps-el-${s.elIndex}\`, \`${s.attribute}\`)\n   - State 1 (Resting): \`${mdSafe(s.before)}\`\n   - State 2 (Peak Hover): \`${mdSafe(s.after)}\`\n   - Cadence: ~${s.writes} frames over ~${s.spanMs} ms (${s.motionType})`)
               ]
             : []),
           ...(jsMotion.interactiveStates && jsMotion.interactiveStates.length
             ? [
                 '',
-                'Interactive class/style toggles observed on hover:',
-                ...jsMotion.interactiveStates.map((st, i) => `${i + 1}. \`${mdSafe(st.path)}\` (\`.ps-el-${st.elIndex}\`, \`${st.attribute}\`)\n   - before: \`${mdSafe(st.before)}\`\n   - after: \`${mdSafe(st.after)}\``)
+                '### Interactive State Toggles (CSS & Structural Shifts):',
+                ...jsMotion.interactiveStates.map((st, i) => `${i + 1}. \`${mdSafe(st.path)}\` (\`.ps-el-${st.elIndex}\`, \`${st.attribute}\`)\n   - Rest: \`${mdSafe(st.before)}\`\n   - Active Hover: \`${mdSafe(st.after)}\`${st.transformDelta ? `\n   - Computed Delta: translateY(${st.transformDelta.y}px)` : ''}`)
               ]
             : []),
           '',
-          'Recreate it by animating those attributes between the two states with the Web Animations API, Motion (Framer Motion) or GSAP, using the same trigger (hover, scroll or timer).'
+          'Recreate it by animating those attributes between State 1 (Resting) and State 2 (Peak Hover) with Framer Motion or GSAP.'
         ].join('\n')
       : [
           '### JavaScript-driven motion',

@@ -105,6 +105,43 @@
       if (observer) { observer.disconnect(); observer = null; }
       if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
     },
+    // plan-exempt — Phase 10 auto-sweep probing across component bounding box to capture peak motion deterministically
+    async probeElementRangeOfMotion(targetElement) {
+      if (!targetElement || typeof targetElement.getBoundingClientRect !== 'function') return;
+      if (!this.isActive()) this.start();
+
+      const rect = targetElement.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+      const subTargets = [
+        targetElement,
+        ...Array.from(targetElement.querySelectorAll('svg, [class*="benefit"], [class*="card"], [class*="figure"], button'))
+      ].slice(0, 8);
+
+      const probePoints = [
+        { x: rect.left + rect.width * 0.5, y: rect.top + rect.height * 0.5 },
+        { x: rect.left + rect.width * 0.2, y: rect.top + rect.height * 0.5 },
+        { x: rect.left + rect.width * 0.8, y: rect.top + rect.height * 0.5 },
+        { x: rect.left + rect.width * 0.5, y: rect.top + rect.height * 0.25 },
+        { x: rect.left + rect.width * 0.5, y: rect.top + rect.height * 0.75 }
+      ];
+
+      for (const pt of probePoints) {
+        pointerActivity.lastX = pt.x;
+        pointerActivity.lastY = pt.y;
+        pointerActivity.movesCount++;
+
+        for (const sub of subTargets) {
+          try {
+            sub.dispatchEvent(new PointerEvent('pointerenter', { clientX: pt.x, clientY: pt.y, bubbles: true }));
+            sub.dispatchEvent(new PointerEvent('pointermove', { clientX: pt.x, clientY: pt.y, bubbles: true }));
+            sub.dispatchEvent(new MouseEvent('mouseenter', { clientX: pt.x, clientY: pt.y, bubbles: true }));
+            sub.dispatchEvent(new MouseEvent('mousemove', { clientX: pt.x, clientY: pt.y, bubbles: true }));
+          } catch (e) {}
+        }
+        await new Promise((r) => setTimeout(r, 40));
+      }
+    },
 
     /** @returns {null | {attributes: Array, samples: Array, totalWrites: number}} null when no motion was observed */
     describe(root) {

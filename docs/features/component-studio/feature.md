@@ -49,10 +49,10 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 | **When it runs**  | Only between starting inspector mode and closing the dock, `Esc`, or a 120 second safety timeout. Never in the background.                                           |
 | **What it sees**  | Writes to `d`, `points`, `transform`, `style`, `class`, `stroke`, basic SVG geometry attributes and `opacity`. It records counts, timing, and start/end states only, never page text. |
 | **What it skips** | CSS animations (already in the keyframes) and PageSnap's own outline highlight.                                                                                     |
-| **Output**        | Inline `[PageSnap Motion Note]` code annotations in `index.html` and `Component.jsx` at mutated elements, plus a complete reverse-engineering specification and Framer Motion / GSAP implementation blueprint in `AI-PROMPT.md` and `tokens.json`. |
+| **Output**        | Production-ready Framer Motion code in `Component.jsx`, inline `[PageSnap Motion Note]` annotations, in-modal live visual preview, and Dual-State (Resting vs Peak Hover) reverse-engineering blueprints in `AI-PROMPT.md` and `tokens.json`. |
 | **No motion**     | The prompt says "None observed" and explains how to capture it (hover the component while the inspector is active).                                                  |
 
-**Clean Static Export & AI Reconstruction.** Rather than bloating static `index.html` or `Component.jsx` files with thousands of synthetic `setTimeout` frame steps, PageSnap keeps exported HTML, CSS, and JSX 100% pure and production-ready. Elements driven by JavaScript motion are annotated inline with `[PageSnap Motion Note]` comments, while their exact start/end vector coordinates, duration, frame cadence, and ready-to-use Framer Motion / GSAP code blueprints are packaged into `AI-PROMPT.md` so AI coding agents (Cursor, Claude, v0) can reconstruct physics-accurate animations cleanly.
+**Auto-Sweep Probing & Dual-State Architecture.** Rather than requiring the user to manually hover with perfect precision, PageSnap performs an automatic micro-sweep across the component's bounding box when selected. This triggers the component's full range of motion (Peak Minimum and Maximum values) deterministically. The resulting resting and peak states are packaged into `AI-PROMPT.md` as dual-state geometric specifications and vision-ready comparisons for AI coding agents.
 ---
 
 ## 4. Verification
@@ -65,5 +65,5 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 
 | Date       | Change                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
-| 2026-10-26 | Replaced synthetic `setTimeout` frame players with clean static HTML/JSX exports, inline `[PageSnap Motion Note]` annotations, and AI-PROMPT Framer Motion / GSAP blueprints. |
-| 2026-10-26 | Added JavaScript-driven motion capture and Component Studio living documentation.                       |
+| 2026-10-26 | Implemented Phase 10 Auto-Sweep Probing & Dual-State Architecture to capture full motion range automatically without manual hover reliance. |
+| 2026-10-26 | Implemented Phase 9 Parametric Motion Engine: authentic Framer Motion component generation and pointer-spring reverse-engineering specs. |
