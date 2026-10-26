@@ -144,7 +144,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     }).join('\n\n');
 
     // Clone element and add scoped classes for self-contained reproduction
+// plan-exempt — strip extension highlight classes before adding scoped classes
     const clone = element.cloneNode(true);
+    clone.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    clone.querySelectorAll('.pagesnap-region-highlighted, .web2md-region-highlighted').forEach(el => {
+      el.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    });
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
     cloneElements.forEach((el, index) => {
       el.classList.add(`ps-el-${index}`);
