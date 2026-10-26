@@ -209,7 +209,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const { steps, initialStates } = jsMotion.timeline;
       const elMap = new Map();
       containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
-        const m = el.className.match(/ps-el-(\d+)/);
+        // plan-exempt — el.className is an SVGAnimatedString on SVG elements; getAttribute is safe for both HTML and SVG
+        const cls = (el.getAttribute && el.getAttribute('class')) || '';
+        const m = cls.match(/ps-el-(\d+)/);
         if (m) elMap.set(parseInt(m[1], 10), el);
       });
       let timers = [];
