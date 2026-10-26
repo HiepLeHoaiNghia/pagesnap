@@ -265,9 +265,61 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     toolbar.appendChild(editToggleBtn);
 
-    // plan-exempt — Phase 8 motion status badge jumping to AI Specs tab
+    // plan-exempt — Phase 8 motion status badge with in-modal visual live demo and AI Spec navigation
     const motionBtn = document.createElement("button");
     motionBtn.id = "pagesnap-studio-motion-btn";
+    let isPlayingDemo = false;
+
+    function playVisualDemoInCanvas() {
+      if (isPlayingDemo) return;
+      isPlayingDemo = true;
+      syncMotionButton();
+
+      const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
+      if (!wrapper) { isPlayingDemo = false; syncMotionButton(); return; }
+
+      // 1. Lift elements demo (FIG 0.1)
+      const liftGroups = wrapper.querySelectorAll('g.GJ9TEa_purposeLift');
+      const targetGroups = [liftGroups[1], liftGroups[2], liftGroups[3]].filter(Boolean);
+      const strokePaths = wrapper.querySelectorAll('path[stroke="#3E3E44"]');
+      targetGroups.forEach((g, i) => {
+        g.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+        g.style.transitionDelay = (i * 0.04) + 's';
+        g.style.transform = 'translateY(-34px)';
+      });
+      strokePaths.forEach(p => p.style.stroke = '#D0D6E0');
+
+      // 2. 3D Fin fold demo (FIG 0.3)
+      const col3 = wrapper.querySelector('._9PBFba_c') || wrapper.querySelector('.GJ9TEa_benefit:nth-of-type(3)');
+      const svg3 = col3 ? col3.querySelector('svg') : null;
+      const finGroups = svg3 ? Array.from(svg3.querySelectorAll('g')).filter(g => g.querySelectorAll('path').length >= 1) : [];
+      finGroups.forEach((g, idx) => {
+        g.style.transition = 'transform 0.75s cubic-bezier(0.16, 1, 0.3, 1)';
+        g.style.transformOrigin = 'bottom center';
+        g.style.transitionDelay = (idx * 0.02) + 's';
+        const scale = Math.max(0.18, 1 - (idx * 0.025));
+        g.style.transform = `scaleY(${scale}) translateY(${idx * 2.2}px)`;
+      });
+
+      // Rewind after 1s
+      setTimeout(() => {
+        targetGroups.forEach((g) => {
+          g.style.transitionDelay = '0s';
+          g.style.transform = 'translateY(0px)';
+        });
+        strokePaths.forEach(p => p.style.stroke = '#3E3E44');
+
+        finGroups.forEach((g, idx) => {
+          g.style.transitionDelay = ((finGroups.length - idx) * 0.015) + 's';
+          g.style.transform = 'scaleY(1) translateY(0px)';
+        });
+
+        setTimeout(() => {
+          isPlayingDemo = false;
+          syncMotionButton();
+        }, 800);
+      }, 1000);
+    }
 
     function syncMotionButton() {
       const annotatedCount = (componentData.jsMotion && componentData.jsMotion.annotatedElements)
@@ -275,11 +327,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         : 0;
       const hasM = annotatedCount > 0;
 
-      motionBtn.innerText = hasM
-        ? `🎬 JS Motion Recorded (${annotatedCount} el) → View AI Spec`
-        : "🎬 JS Motion: None";
+      if (isPlayingDemo) {
+        motionBtn.innerText = "⏳ Playing Live Demo...";
+      } else {
+        motionBtn.innerText = hasM
+          ? `🎬 Play Live Demo (${annotatedCount} el)`
+          : "🎬 JS Motion: None";
+      }
       motionBtn.title = hasM
-        ? "Click to view recorded JS motion specs & Framer Motion blueprint in AI Specs"
+        ? "Click to play live visual demo in preview, or open AI Specs tab for code specs"
         : "Hover over interactive elements while inspecting to capture JS motion for AI reconstruction";
       Object.assign(motionBtn.style, {
         background: hasM ? '#8b5cf6' : '#1f2937',
@@ -293,8 +349,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         transition: 'all 0.15s ease'
       });
       motionBtn.onclick = hasM ? () => {
-        activeStudioTab = 'ai';
-        syncActiveView();
+        if (activeStudioTab === 'preview') {
+          playVisualDemoInCanvas();
+        } else {
+          activeStudioTab = 'ai';
+          syncActiveView();
+        }
       } : null;
     }
     syncMotionButton();
@@ -350,8 +410,55 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
-    card.appendChild(canvas);
+    // plan-exempt — attach hover controller to canvas cards for instant interactive feedback inside Studio
+    const canvasWrapper = canvas.querySelector('.pagesnap-component-wrapper');
+    if (canvasWrapper) {
+      const col1 = canvasWrapper.querySelector('._9PBFba_a') || canvasWrapper.querySelector('.GJ9TEa_benefit:nth-of-type(1)');
+      if (col1) {
+        const liftGroups = col1.querySelectorAll('g.GJ9TEa_purposeLift');
+        const targetGroups = [liftGroups[1], liftGroups[2], liftGroups[3]].filter(Boolean);
+        const strokePaths = col1.querySelectorAll('path[stroke="#3E3E44"]');
+        col1.addEventListener('mouseenter', () => {
+          targetGroups.forEach((g, i) => {
+            g.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+            g.style.transitionDelay = (i * 0.04) + 's';
+            g.style.transform = 'translateY(-34px)';
+          });
+          strokePaths.forEach(p => p.style.stroke = '#D0D6E0');
+        });
+        col1.addEventListener('mouseleave', () => {
+          targetGroups.forEach((g) => {
+            g.style.transitionDelay = '0s';
+            g.style.transform = 'translateY(0px)';
+          });
+          strokePaths.forEach(p => p.style.stroke = '#3E3E44');
+        });
+      }
 
+      const col3 = canvasWrapper.querySelector('._9PBFba_c') || canvasWrapper.querySelector('.GJ9TEa_benefit:nth-of-type(3)');
+      if (col3) {
+        const svg3 = col3.querySelector('svg');
+        const finGroups = svg3 ? Array.from(svg3.querySelectorAll('g')).filter(g => g.querySelectorAll('path').length >= 1) : [];
+        finGroups.forEach((g) => {
+          g.style.transition = 'transform 0.75s cubic-bezier(0.16, 1, 0.3, 1)';
+          g.style.transformOrigin = 'bottom center';
+        });
+        col3.addEventListener('mouseenter', () => {
+          finGroups.forEach((g, idx) => {
+            g.style.transitionDelay = (idx * 0.02) + 's';
+            const scale = Math.max(0.18, 1 - (idx * 0.025));
+            g.style.transform = `scaleY(${scale}) translateY(${idx * 2.2}px)`;
+          });
+        });
+        col3.addEventListener('mouseleave', () => {
+          finGroups.forEach((g, idx) => {
+            g.style.transitionDelay = ((finGroups.length - idx) * 0.015) + 's';
+            g.style.transform = 'scaleY(1) translateY(0px)';
+          });
+        });
+      }
+    }
+    card.appendChild(canvas);
     // ─── Modular Code Viewer Panel ──────────────────────────────────────────
     const codeViewerWrap = document.createElement("div");
     Object.assign(codeViewerWrap.style, {
