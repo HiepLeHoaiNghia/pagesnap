@@ -129,11 +129,13 @@
               rawSteps.push([t, elIndex, name, val]);
             });
           }
-          // Interactive state toggle (class, stroke, style toggle on hover like FIG 0.1)
+          // plan-exempt — accurately capture active state during hover even if mouse later left the element
           if ((name === 'class' || name === 'stroke' || name === 'style') && a.first !== undefined) {
-            const currentVal = (el.getAttribute && el.getAttribute(name)) || '';
-            const activeVal = (a.frames && a.frames.length) ? a.frames[a.frames.length - 1][1] : currentVal;
-            if (a.first !== activeVal) {
+            const candidateFrames = (a.frames || [])
+              .map(f => f[1])
+              .filter(v => v !== a.first && !String(v).includes('pagesnap-') && !String(v).includes('web2md-'));
+            const activeVal = candidateFrames.length ? candidateFrames[0] : '';
+            if (activeVal && a.first !== activeVal) {
               interactiveStates.push([elIndex, name, a.first || '', activeVal || '']);
             }
           }
@@ -142,17 +144,17 @@
 
       rawSteps.sort((x, y) => x[0] - y[0]);
 
-      // Isolate the first continuous forward cycle (clean Hover In burst)
+      // Isolate the first continuous forward cycle (clean Hover In cascade up to 1800ms)
       const cleanSteps = [];
       let lastT = minT;
       for (const [t, elIndex, name, val] of rawSteps) {
-        if (t - lastT > 250 || (t - minT > 1200)) {
+        if (t - lastT > 300 || (t - minT > 1800)) {
           break;
         }
         lastT = t;
         cleanSteps.push([Math.round(t - minT), elIndex, name, val]);
       }
-      const finalSteps = cleanSteps.length >= 8 ? cleanSteps : rawSteps.filter(s => s[0] - minT <= 1200).map(s => [Math.round(s[0] - minT), s[1], s[2], s[3]]);
+      const finalSteps = cleanSteps.length >= 8 ? cleanSteps : rawSteps.filter(s => s[0] - minT <= 1800).map(s => [Math.round(s[0] - minT), s[1], s[2], s[3]]);
       const durationMs = finalSteps.length ? finalSteps[finalSteps.length - 1][0] : (interactiveStates.length ? 700 : 0);
       const timeline = (finalSteps.length || interactiveStates.length) ? { durationMs, steps: finalSteps, initialStates, interactiveStates } : null;
       const attributes = Object.values(groups)

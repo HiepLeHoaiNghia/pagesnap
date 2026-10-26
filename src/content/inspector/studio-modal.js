@@ -259,15 +259,18 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           if (el) el.setAttribute(attr, initial);
         });
 
-        // 2. Smoothly rewind frame steps back to initial standing position
+        // 2. Smoothly rewind frame steps back to initial standing position at silky 60fps (capped ~40 frames)
         if (steps.length && currentStepIdx > 0) {
           const revSteps = steps.slice(0, currentStepIdx + 1).reverse();
-          const frameInterval = Math.max(12, Math.min(22, Math.round(500 / revSteps.length)));
-          revSteps.forEach(([t, idx, attr, val], i) => {
+          const maxRevFrames = 40;
+          const stride = Math.max(1, Math.floor(revSteps.length / maxRevFrames));
+          const sampledRev = revSteps.filter((_, idx) => idx % stride === 0);
+          const frameInterval = Math.max(12, Math.min(22, Math.round(600 / sampledRev.length)));
+          sampledRev.forEach(([t, idx, attr, val], i) => {
             timers.push(setTimeout(() => {
               const el = elMap.get(idx);
               if (el) el.setAttribute(attr, val);
-              if (i === revSteps.length - 1) {
+              if (i === sampledRev.length - 1) {
                 currentStepIdx = 0;
                 initialStates.forEach(([initIdx, initAttr, initVal]) => {
                   const initEl = elMap.get(initIdx);
@@ -277,6 +280,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
               }
             }, i * frameInterval));
           });
+        // plan-exempt — fallback initial states restoration
         } else {
           initialStates.forEach(([idx, attr, val]) => {
             const el = elMap.get(idx);
@@ -289,10 +293,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
       containerEl.__playMotion = play;
       containerEl.__resetMotion = reset;
+      // plan-exempt — attach hover listener to container and child figures
       containerEl.addEventListener('mouseenter', () => play());
       containerEl.addEventListener('mouseleave', () => reset());
+      containerEl.querySelectorAll('.GJ9TEa_figure, .GJ9TEa_benefit, [class*="benefit"], [class*="figure"]').forEach(child => {
+        child.addEventListener('mouseenter', () => play());
+        child.addEventListener('mouseleave', () => reset());
+      });
     }
-
+    // plan-exempt — close attachLiveMotionPlayer cleanly
     function updateStudioContent(newEl) {
       currentModalElement = newEl;
       const newCompData = PageSnap.extractComponentStyleAndMotion(newEl);
