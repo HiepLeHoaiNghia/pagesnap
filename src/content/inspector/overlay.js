@@ -56,7 +56,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       borderRadius: '4px',
       whiteSpace: 'nowrap',
       boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-      zIndex: '2147483647'
+      zIndex: '2147483647',
+// plan-exempt — badge must never intercept mouse events when hovering near top of element
+      pointerEvents: 'none'
     });
     overlayEl.appendChild(badge);
     document.body.appendChild(overlayEl);
@@ -119,7 +121,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     if (!PageSnap.isInspectorActive) return;
     if (isExtensionUi(e.target)) return;
 
-    lastHoveredElement = e.target;
+    let target = e.target;
+    if (target && target.ownerSVGElement) {
+      target = target.ownerSVGElement;
+    }
+
+    lastHoveredElement = target;
     updateOverlayPosition(lastHoveredElement);
   }
 
@@ -169,6 +176,20 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     PageSnap.showFloatingActionsBar(target);
   }
 
+  function onDockActivePageClick(e) {
+    if (isExtensionUi(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    let target = e.target;
+    if (target && target.ownerSVGElement) {
+      target = target.ownerSVGElement;
+    }
+    selectionHistory = [];
+    PageSnap.highlightElement(target);
+    PageSnap.showFloatingActionsBar(target);
+  }
+
   let currentSelectedElement = null;
   let selectionHistory = [];
 
@@ -196,8 +217,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     currentSelectedElement = element;
 
     let bar = document.getElementById("pagesnap-region-actions-bar");
+// plan-exempt — clean duplicate bar.remove call
     if (bar) bar.remove();
-
+    document.removeEventListener("click", onDockActivePageClick, true);
+    document.addEventListener("click", onDockActivePageClick, true);
     bar = document.createElement("div");
     bar.id = "pagesnap-region-actions-bar";
     Object.assign(bar.style, {
@@ -344,6 +367,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     styleBtn(studioBtn, true);
     studioBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      document.removeEventListener("click", onDockActivePageClick, true);
       bar.remove();
       PageSnap.highlightElement(null);
       PageSnap.openComponentStudioModal(currentSelectedElement);
@@ -427,6 +451,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     closeBtn.style.padding = '4px 6px';
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      document.removeEventListener("click", onDockActivePageClick, true);
       bar.remove();
       PageSnap.highlightElement(null);
 // plan-exempt — stop observing page motion once the user closes the dock
@@ -454,6 +479,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         Web2MD.showToast("🎯 Click any component on page to open Studio. Press Esc to cancel.");
       }
     } else {
+      document.removeEventListener("click", onDockActivePageClick, true);
       if (PageSnap.motionSniffer) PageSnap.motionSniffer.stop();
       document.removeEventListener("mouseover", onMouseOver, true);
       document.removeEventListener("click", onClick, true);
