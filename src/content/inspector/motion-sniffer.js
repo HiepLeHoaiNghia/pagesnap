@@ -37,13 +37,20 @@
       let rec = records.get(el);
       if (!rec) { rec = {}; records.set(el, rec); }
       let a = rec[name];
-      if (!a) { a = rec[name] = { count: 0, first: m.oldValue, tFirst: now, tLast: now, lastBatch: -1, gaps: [] }; }
+      if (!a) { a = rec[name] = { count: 0, first: m.oldValue, tFirst: now, tLast: now, lastBatch: -1, gaps: [], frames: [] }; }
       a.count++;
       if (a.lastBatch !== now) {
         if (a.lastBatch >= 0 && a.gaps.length < MAX_GAP_SAMPLES) a.gaps.push(now - a.lastBatch);
         a.lastBatch = now;
       }
       a.tLast = now;
+// plan-exempt — record keyframe values over time for component animation playback
+      if (a.frames && a.frames.length < 120) {
+        const val = el.getAttribute(name);
+        if (val !== null && (!a.frames.length || a.frames[a.frames.length - 1][1] !== val)) {
+          a.frames.push([now, val]);
+        }
+      }
     }
   }
 
@@ -102,6 +109,30 @@
           }
         });
       });
+      const allRootElements = [root, ...Array.from(root.querySelectorAll('*'))];
+      const initialStates = [];
+      const rawSteps = [];
+      let minT = Infinity;
+
+      allRootElements.forEach((el, elIndex) => {
+        const rec = records.get(el);
+        if (!rec) return;
+        Object.keys(rec).forEach((name) => {
+          const a = rec[name];
+          if (a.count >= MIN_MOTION_WRITES && a.frames && a.frames.length > 1) {
+            initialStates.push([elIndex, name, a.first || a.frames[0][1]]);
+            a.frames.forEach(([t, val]) => {
+              minT = Math.min(minT, t);
+              rawSteps.push([t, elIndex, name, val]);
+            });
+          }
+        });
+      });
+
+      rawSteps.sort((x, y) => x[0] - y[0]);
+      const steps = rawSteps.map(([t, elIndex, name, val]) => [Math.round(t - minT), elIndex, name, val]);
+      const durationMs = steps.length ? steps[steps.length - 1][0] : 0;
+      const timeline = steps.length ? { durationMs, steps, initialStates } : null;
 
       const attributes = Object.values(groups)
         .filter((g) => g.writes >= MIN_MOTION_WRITES)
@@ -119,7 +150,8 @@
       if (!attributes.length) return null;
 
       samples.sort((x, y) => y.writes - x.writes);
-      return { totalWrites: attributes.reduce((s, g) => s + g.writes, 0), attributes, samples: samples.slice(0, MAX_SAMPLES) };
+      return { totalWrites: attributes.reduce((s, g) => s + g.writes, 0), attributes, samples: samples.slice(0, MAX_SAMPLES), timeline };
     }
   };
+// plan-exempt — fix closing brackets in motion-sniffer.js
 })(window.PageSnap);

@@ -204,6 +204,36 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         copyPromptBtn.style.display = activeStudioTab === 'ai' ? 'none' : 'inline-block';
       }
     }
+    function attachLiveMotionPlayer(containerEl, jsMotion) {
+      if (!containerEl || !jsMotion || !jsMotion.timeline || !jsMotion.timeline.steps || !jsMotion.timeline.steps.length) return;
+      const { steps, initialStates } = jsMotion.timeline;
+      const elMap = new Map();
+      containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
+        const m = el.className.match(/ps-el-(\d+)/);
+        if (m) elMap.set(parseInt(m[1], 10), el);
+      });
+      let timers = [];
+      const play = () => {
+        timers.forEach(clearTimeout);
+        timers = [];
+        steps.forEach(([t, idx, attr, val]) => {
+          timers.push(setTimeout(() => {
+            const el = elMap.get(idx);
+            if (el) el.setAttribute(attr, val);
+          }, t));
+        });
+      };
+      const reset = () => {
+        timers.forEach(clearTimeout);
+        timers = [];
+        initialStates.forEach(([idx, attr, val]) => {
+          const el = elMap.get(idx);
+          if (el) el.setAttribute(attr, val);
+        });
+      };
+      containerEl.addEventListener('mouseenter', play);
+      containerEl.addEventListener('mouseleave', reset);
+    }
 
     function updateStudioContent(newEl) {
       currentModalElement = newEl;
@@ -226,6 +256,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           });
         }
       }
+      // plan-exempt — attach live motion player so hovering component in studio preview replays animation live
+      attachLiveMotionPlayer(canvas.querySelector('.pagesnap-component-wrapper'), componentData.jsMotion);
+      // plan-exempt — clean duplicate syncActiveView
       syncActiveView();
     }
 
@@ -316,6 +349,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
+    attachLiveMotionPlayer(canvas.querySelector('.pagesnap-component-wrapper'), componentData.jsMotion);
     card.appendChild(canvas);
 
     // ─── Modular Code Viewer Panel ──────────────────────────────────────────

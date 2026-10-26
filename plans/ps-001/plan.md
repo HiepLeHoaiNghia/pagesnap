@@ -71,5 +71,13 @@ status: completed (2026-10-23) — all static checks (10/10) and Chromium E2E (4
 - Bumped the content-script build id to `20261026-v1` so already-open tabs re-inject the new bundle.
 - Added E2E TEST 9 (fixture page; mutation-checked) and the living doc `docs/features/component-studio/feature.md`.
 
+### Phase 7: Live Motion Player Integration (Completed 2026-10-26)
+- Enhanced `motion-sniffer.js` to record frame timelines (`[tDelta, elIndex, attrName, value]`) and resting initial states.
+- Implemented embedded vanilla JS player in `index.html` and React `useEffect` hook in `Component.jsx` to replay recorded motion on hover at 60 fps.
+- Integrated live motion playback directly into Component Studio `Live Preview` canvas.
+- Bumped content-script build id to `20261026-v3`.
+- Extended E2E TEST 9 to verify live player code generation and timeline recording.
+
 ## Changelog
+- 2026-10-26: Phase 7 completed. Live motion player embedded into Component Studio, index.html, and Component.jsx.
 - 2026-10-26: Phase 6 shipped. JS-driven motion is described in the AI prompt; it is not reproduced (see the doc's limits).

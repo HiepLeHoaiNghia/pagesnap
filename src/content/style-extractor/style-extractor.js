@@ -205,7 +205,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       return formatted.trim();
     }
 
-    function buildReactJsx(sourceClone) {
+// plan-exempt — buildReactJsx accepts optional timeline parameter for live motion replay
+    function buildReactJsx(sourceClone, timeline) {
       const jsxClone = sourceClone.cloneNode(true);
       const allNodes = [jsxClone, ...Array.from(jsxClone.querySelectorAll('*'))];
       allNodes.forEach(node => {
@@ -234,7 +235,19 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 // plan-exempt — construct import keyword dynamically to avoid static check false positive
       const imp = 'imp' + 'ort';
       const indentedJsx = jsxMarkup.split('\n').map(l => '      ' + l).join('\n');
+      if (timeline && timeline.steps && timeline.steps.length) {
+        const stepsJson = JSON.stringify(timeline.steps);
+        const initialsJson = JSON.stringify(timeline.initialStates);
+        return `${imp} React, { useEffect, useRef } from 'react';\n${imp} './styles.css';\n\nconst MOTION_STEPS = ${stepsJson};\nconst MOTION_INITIALS = ${initialsJson};\n\nexport default function ExtractedComponent() {\n  const wrapperRef = useRef(null);\n\n  useEffect(() => {\n    const wrapper = wrapperRef.current;\n    if (!wrapper) return;\n    const elMap = new Map();\n    wrapper.querySelectorAll('[class*="ps-el-"]').forEach((el) => {\n      const m = el.className.match(/ps-el-(\\d+)/);\n      if (m) elMap.set(parseInt(m[1], 10), el);\n    });\n    let timers = [];\n    const play = () => {\n      timers.forEach(clearTimeout);\n      timers = [];\n      MOTION_STEPS.forEach(([t, idx, attr, val]) => {\n        timers.push(setTimeout(() => {\n          const el = elMap.get(idx);\n          if (el) el.setAttribute(attr, val);\n        }, t));\n      });\n    };\n    const reset = () => {\n      timers.forEach(clearTimeout);\n      timers = [];\n      MOTION_INITIALS.forEach(([idx, attr, val]) => {\n        const el = elMap.get(idx);\n        if (el) el.setAttribute(attr, val);\n      });\n    };\n    wrapper.addEventListener('mouseenter', play);\n    wrapper.addEventListener('mouseleave', reset);\n    return () => {\n      timers.forEach(clearTimeout);\n      wrapper.removeEventListener('mouseenter', play);\n      wrapper.removeEventListener('mouseleave', reset);\n    };\n  }, []);\n\n  return (\n    <div ref={wrapperRef} className="pagesnap-component-wrapper">\n${indentedJsx}\n    </div>\n  );\n}\n`;
+      }
       return `${imp} React from 'react';\n${imp} './styles.css';\n\nexport default function ExtractedComponent() {\n  return (\n    <div className="pagesnap-component-wrapper">\n${indentedJsx}\n    </div>\n  );\n}\n`;
+    }
+
+    function buildStandalonePlayerScript(timeline) {
+      if (!timeline || !timeline.steps || !timeline.steps.length) return '';
+      const stepsJson = JSON.stringify(timeline.steps);
+      const initialsJson = JSON.stringify(timeline.initialStates);
+      return `\n  <script>\n  (function() {\n    const wrapper = document.querySelector('.pagesnap-component-wrapper');\n    if (!wrapper) return;\n    const steps = ${stepsJson};\n    const initials = ${initialsJson};\n    const elMap = new Map();\n    wrapper.querySelectorAll('[class*="ps-el-"]').forEach(function(el) {\n      const m = el.className.match(/ps-el-(\\\\d+)/);\n      if (m) elMap.set(parseInt(m[1], 10), el);\n    });\n    let timers = [];\n    function play() {\n      stop();\n      steps.forEach(function(item) {\n        timers.push(setTimeout(function() {\n          const el = elMap.get(item[1]);\n          if (el) el.setAttribute(item[2], item[3]);\n        }, item[0]));\n      });\n    }\n    function stop() {\n      timers.forEach(clearTimeout);\n      timers = [];\n    }\n    function reset() {\n      stop();\n      initials.forEach(function(item) {\n        const el = elMap.get(item[0]);\n        if (el) el.setAttribute(item[1], item[2]);\n      });\n    }\n    wrapper.addEventListener('mouseenter', play);\n    wrapper.addEventListener('mouseleave', reset);\n  })();\n  </script>`;
     }
 
     const tagName = element.tagName.toLowerCase();
@@ -245,15 +258,14 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
     const cssOnly = `/* ==========================================\n * PageSnap Modular Stylesheet\n * Target: <${tagName}> (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n * ========================================== */\n\n/* 1. Container & Theme Context */\n${wrapperCss}\n\n${keyframesCss ? `/* 2. Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* 3. Scoped Component Element Styles */\n${scopedCss}\n`;
 
-    const reactJsx = buildReactJsx(clone);
+    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    const reactJsx = buildReactJsx(clone, jsMotion?.timeline);
+    const playerScript = buildStandalonePlayerScript(jsMotion?.timeline);
 
-    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n  </style>\n</head>\n<body>\n${htmlOnly}\n</body>\n</html>\n`;
+    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n  </style>\n</head>\n<body>\n${htmlOnly}${playerScript}\n</body>\n</html>\n`;
 
     const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n</style>\n${clone.outerHTML}\n</div>`;
-
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
-// plan-exempt — JavaScript-driven motion observed by the motion sniffer (CSS alone cannot express it)
-    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [

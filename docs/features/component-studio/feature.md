@@ -20,8 +20,8 @@ Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdow
 | **Scope**            | Inspector overlay, floating action dock, Component Studio modal, modular export and AI prompt generation.                             |
 | **Permissions**      | `activeTab` only. Content scripts are injected on demand when the user acts; nothing runs in the background on other pages.           |
 | **Export files**     | `index.html`, `styles.css`, `Component.jsx`, `tokens.json`, `AI-PROMPT.md`, `README.md` (ZIP), or copy each part to the clipboard.    |
-| **Captured motion**  | CSS `@keyframes`, transitions and animations from stylesheets, plus JavaScript-driven attribute rewrites observed while inspecting.   |
-| **Main limits**      | Motion produced by page JavaScript is described, not reproduced. See section 3.                                                       |
+| **Captured motion**  | CSS `@keyframes`, transitions and animations from stylesheets, plus JavaScript-driven frame recording with embedded live playback.   |
+| **Motion playback**  | Observed JS motion automatically plays back on hover in Studio Live Preview, `index.html` standalone preview, and `Component.jsx`.    |
 
 ---
 
@@ -49,10 +49,10 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 | **When it runs**  | Only between starting inspector mode and closing the dock, `Esc`, or a 120 second safety timeout. Never in the background.                                           |
 | **What it sees**  | Writes to `d`, `points`, `transform`, `style`, basic SVG geometry attributes and `opacity`. It records counts, timing and values only, never page text.            |
 | **What it skips** | CSS animations (already in the keyframes) and PageSnap's own outline highlight.                                                                                     |
-| **Output**        | A section in `AI-PROMPT.md` with writes per attribute, element count, duration and frame cadence, plus the value before and after for up to 6 elements (clipped). The same summary is stored under `jsMotion` in `tokens.json`. |
+| **Output**        | Embedded live motion player in `index.html` and `Component.jsx` (`useEffect`), live playback in Studio modal preview, and a full reverse-engineering specification in `AI-PROMPT.md` and `tokens.json`. |
 | **No motion**     | The prompt says "None observed" and explains how to capture it (hover the component while the inspector is active).                                                  |
 
-**Limits.** This tells an AI agent what moves and between which states. It does not capture intermediate frames or easing, so a recreation will be close, not identical. For example, one hover on the Linear homepage rewrote about 2000 path attributes across roughly 100 frames; reproducing that exactly needs a recording or the original code, not a prompt.
+**Playback & Fidelity.** When motion frames are recorded during inspection, PageSnap embeds a lightweight, zero-dependency player script into `index.html` and a React `useEffect` into `Component.jsx`. Hovering over the component plays the exact recorded frames at 60 fps, and mouse leave smoothly restores the resting state.
 
 ---
 
@@ -66,4 +66,5 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 
 | Date       | Change                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
-| 2026-10-26 | Added JavaScript-driven motion capture to the AI prompt and `tokens.json`; added this document.          |
+| 2026-10-26 | Added JavaScript-driven motion capture, timeline recording, and live hover player across Studio, HTML, and JSX. |
+| 2026-10-26 | Added Component Studio living documentation.                                                            |
