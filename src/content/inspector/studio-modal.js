@@ -209,13 +209,18 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const { steps = [], initialStates = [], interactiveStates = [] } = jsMotion.timeline;
       if (!steps.length && !interactiveStates.length) return;
 
+      // plan-exempt — universal element lookup via data-ps-id and safe classList toggles
       const elMap = new Map();
-      containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
-        // plan-exempt — getAttribute is safe for both HTML and SVG elements
-        const cls = (el.getAttribute && el.getAttribute('class')) || '';
-        const m = cls.match(/ps-el-(\d+)/);
-        if (m) elMap.set(parseInt(m[1], 10), el);
+      containerEl.querySelectorAll('[data-ps-id]').forEach(el => {
+        elMap.set(parseInt(el.getAttribute('data-ps-id'), 10), el);
       });
+      if (!elMap.size) {
+        containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
+          const cls = (el.getAttribute && el.getAttribute('class')) || '';
+          const m = cls.match(/ps-el-(\d+)/);
+          if (m) elMap.set(parseInt(m[1], 10), el);
+        });
+      }
 
       let timers = [];
       let currentStepIdx = 0;
@@ -225,10 +230,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         timers.forEach(clearTimeout);
         timers = [];
 
-        // 1. Interactive state toggle (e.g. FIG 0.1 purposeLifted CSS transition)
+        // 1. Safe interactive state toggle preserving element identifiers
         interactiveStates.forEach(([idx, attr, initial, active]) => {
           const el = elMap.get(idx);
-          if (el) el.setAttribute(attr, active);
+          if (!el) return;
+          if (attr === 'class') {
+            active.split(/\s+/).forEach(c => { if (c) el.classList.add(c); });
+          } else {
+            el.setAttribute(attr, active);
+          }
         });
 
         // 2. Continuous frame animation forward
@@ -253,10 +263,17 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         timers.forEach(clearTimeout);
         timers = [];
 
-        // 1. Revert interactive states
-        interactiveStates.forEach(([idx, attr, initial]) => {
+        // 1. Safe revert of interactive states
+        interactiveStates.forEach(([idx, attr, initial, active]) => {
           const el = elMap.get(idx);
-          if (el) el.setAttribute(attr, initial);
+          if (!el) return;
+          if (attr === 'class') {
+            active.split(/\s+/).forEach(c => {
+              if (c && !initial.includes(c)) el.classList.remove(c);
+            });
+          } else {
+            el.setAttribute(attr, initial);
+          }
         });
 
         // 2. Smoothly rewind frame steps back to initial standing position at silky 60fps (capped ~40 frames)
