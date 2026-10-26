@@ -33,6 +33,20 @@
   // PageSnap itself restyles the highlighted element (outline); that must never be reported as page motion.
   const withoutOutline = (css) => String(css || '').replace(/outline[^;]*;?/gi, '').replace(/\s+/g, ' ').trim();
 
+  // plan-exempt — measure maximum numeric delta to track true peak deformation and reject noise
+  function measureMaxNumericDelta(strA, strB) {
+    if (!strA || !strB || strA === strB) return 0;
+    const numsA = (String(strA).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const numsB = (String(strB).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const len = Math.min(numsA.length, numsB.length);
+    let maxDiff = 0;
+    for (let i = 0; i < len; i++) {
+      const diff = Math.abs(numsA[i] - numsB[i]);
+      if (diff > maxDiff) maxDiff = diff;
+    }
+    return maxDiff;
+  }
+
   function onMutations(list) {
     const now = performance.now();
     for (const m of list) {
@@ -46,7 +60,7 @@
       if (!rec) { rec = {}; records.set(el, rec); }
       // plan-exempt — Phase 8 clean motion spec without frame bloat
       let a = rec[name];
-      if (!a) { a = rec[name] = { count: 0, first: m.oldValue, peak: null, tFirst: now, tLast: now, lastBatch: -1, gaps: [] }; }
+      if (!a) { a = rec[name] = { count: 0, first: m.oldValue || el.getAttribute(name), peak: null, maxDelta: 0, tFirst: now, tLast: now, lastBatch: -1, gaps: [] }; }
       a.count++;
       if (a.lastBatch !== now) {
         if (a.lastBatch >= 0 && a.gaps.length < MAX_GAP_SAMPLES) a.gaps.push(now - a.lastBatch);
@@ -54,8 +68,12 @@
       }
       a.tLast = now;
       const val = el.getAttribute(name);
-      if (val !== null && val !== a.first && !String(val).includes('pagesnap-') && !String(val).includes('web2md-')) {
-        a.peak = val;
+      if (val !== null && !String(val).includes('pagesnap-') && !String(val).includes('web2md-')) {
+        const delta = measureMaxNumericDelta(a.first, val);
+        if (delta > (a.maxDelta || 0)) {
+          a.maxDelta = delta;
+          a.peak = val;
+        }
       }
       if (name === 'class' || name === 'style' || name === 'transform') {
         try {
@@ -79,20 +97,7 @@
     }
     return parts.length ? `${root.localName} > ${parts.join(' > ')}` : root.localName;
   }
-  // plan-exempt — measure maximum numeric delta to reject sub-pixel noise and enforce minimum amplitude gate
-  function measureMaxNumericDelta(strA, strB) {
-    if (!strA || !strB || strA === strB) return 0;
-    const numsA = (String(strA).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
-    const numsB = (String(strB).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
-    const len = Math.min(numsA.length, numsB.length);
-    let maxDiff = 0;
-    for (let i = 0; i < len; i++) {
-      const diff = Math.abs(numsA[i] - numsB[i]);
-      if (diff > maxDiff) maxDiff = diff;
-    }
-    return maxDiff;
-  }
-
+  // plan-exempt — remove duplicate measureMaxNumericDelta
   const clip = (v) => {
     const s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
     return s.length > MAX_VALUE_CHARS ? `${s.slice(0, MAX_VALUE_CHARS)}...` : s;

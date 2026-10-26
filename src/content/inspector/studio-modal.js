@@ -275,50 +275,61 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       isPlayingDemo = true;
       syncMotionButton();
 
+      // plan-exempt — universal recorded path morph and interactive state preview in canvas
       const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
       if (!wrapper) { isPlayingDemo = false; syncMotionButton(); return; }
 
-      // 1. Lift elements demo (FIG 0.1)
-      const liftGroups = wrapper.querySelectorAll('g.GJ9TEa_purposeLift');
-      const targetGroups = [liftGroups[1], liftGroups[2], liftGroups[3]].filter(Boolean);
-      const strokePaths = wrapper.querySelectorAll('path[stroke="#3E3E44"]');
-      targetGroups.forEach((g, i) => {
-        g.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
-        g.style.transitionDelay = (i * 0.04) + 's';
-        g.style.transform = 'translateY(-34px)';
-      });
-      strokePaths.forEach(p => p.style.stroke = '#D0D6E0');
+      const allCanvasElements = [wrapper, ...Array.from(wrapper.querySelectorAll('*'))];
+      const revertedActions = [];
 
-      // 2. 3D Fin fold demo (FIG 0.3)
-      const col3 = wrapper.querySelector('._9PBFba_c') || wrapper.querySelector('.GJ9TEa_benefit:nth-of-type(3)');
-      const svg3 = col3 ? col3.querySelector('svg') : null;
-      const finGroups = svg3 ? Array.from(svg3.querySelectorAll('g')).filter(g => g.querySelectorAll('path').length >= 1) : [];
-      finGroups.forEach((g, idx) => {
-        g.style.transition = 'transform 0.75s cubic-bezier(0.16, 1, 0.3, 1)';
-        g.style.transformOrigin = 'bottom center';
-        g.style.transitionDelay = (idx * 0.02) + 's';
-        const scale = Math.max(0.18, 1 - (idx * 0.025));
-        g.style.transform = `scaleY(${scale}) translateY(${idx * 2.2}px)`;
-      });
+      // 1. Apply true recorded SVG path morphs from samples
+      if (componentData.jsMotion && componentData.jsMotion.samples) {
+        componentData.jsMotion.samples.forEach(s => {
+          if (s.attribute === 'd' && s.after && s.before) {
+            const targetEl = allCanvasElements[s.elIndex] || wrapper.querySelector(s.path);
+            if (targetEl && targetEl.tagName.toLowerCase() === 'path') {
+              const origD = targetEl.getAttribute('d');
+              targetEl.setAttribute('d', s.after);
+              revertedActions.push(() => targetEl.setAttribute('d', origD || s.before));
+            }
+          }
+        });
+      }
 
-      // Rewind after 1s
+      // 2. Apply true recorded interactive state toggles (transforms, classes, strokes)
+      if (componentData.jsMotion && componentData.jsMotion.interactiveStates) {
+        componentData.jsMotion.interactiveStates.forEach(st => {
+          const targetEl = allCanvasElements[st.elIndex] || wrapper.querySelector(st.path);
+          if (targetEl) {
+            if (st.attribute === 'class') {
+              st.after.split(/\s+/).forEach(c => { if (c) targetEl.classList.add(c); });
+              revertedActions.push(() => {
+                st.after.split(/\s+/).forEach(c => { if (c && !st.before.includes(c)) targetEl.classList.remove(c); });
+              });
+            } else if (st.attribute === 'stroke' || st.attribute === 'fill') {
+              const origVal = targetEl.getAttribute(st.attribute);
+              targetEl.setAttribute(st.attribute, st.after);
+              revertedActions.push(() => targetEl.setAttribute(st.attribute, origVal || st.before));
+            } else if (st.transformDelta) {
+              const origT = targetEl.style.transform;
+              targetEl.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+              targetEl.style.transform = `translate(${st.transformDelta.x || 0}px, ${st.transformDelta.y || 0}px)`;
+              revertedActions.push(() => {
+                targetEl.style.transform = origT || 'none';
+              });
+            }
+          }
+        });
+      }
+
+      // Rewind after 1.2s to resting state
       setTimeout(() => {
-        targetGroups.forEach((g) => {
-          g.style.transitionDelay = '0s';
-          g.style.transform = 'translateY(0px)';
-        });
-        strokePaths.forEach(p => p.style.stroke = '#3E3E44');
-
-        finGroups.forEach((g, idx) => {
-          g.style.transitionDelay = ((finGroups.length - idx) * 0.015) + 's';
-          g.style.transform = 'scaleY(1) translateY(0px)';
-        });
-
+        revertedActions.forEach(fn => fn());
         setTimeout(() => {
           isPlayingDemo = false;
           syncMotionButton();
-        }, 800);
-      }, 1000);
+        }, 700);
+      }, 1200);
     }
 
     function syncMotionButton() {
