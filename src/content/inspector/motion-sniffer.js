@@ -8,8 +8,9 @@
  * It records counts, timing and the first/last value of each rewritten attribute, never page text.
  */
 (function (PageSnap) {
+// plan-exempt — bi-directional smooth reverse playback and interactive class toggle
   const WATCHED = ['d', 'points', 'transform', 'style', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
-    'width', 'height', 'viewBox', 'stroke-dashoffset', 'opacity'];
+    'width', 'height', 'viewBox', 'stroke-dashoffset', 'opacity', 'class', 'stroke'];
   const MIN_MOTION_WRITES = 6;     // fewer rewrites than this is a state toggle, not motion
   const MAX_GAP_SAMPLES = 400;     // per element+attribute, bounds memory on long-running animations
   const MAX_SAMPLES = 6;           // elements quoted back to the caller
@@ -112,6 +113,7 @@
       const allRootElements = [root, ...Array.from(root.querySelectorAll('*'))];
       const initialStates = [];
       const rawSteps = [];
+      const interactiveStates = [];
       let minT = Infinity;
 
       allRootElements.forEach((el, elIndex) => {
@@ -119,6 +121,7 @@
         if (!rec) return;
         Object.keys(rec).forEach((name) => {
           const a = rec[name];
+          // Continuous frame animation (e.g. d, transform, style, viewBox)
           if (a.count >= MIN_MOTION_WRITES && a.frames && a.frames.length > 1) {
             initialStates.push([elIndex, name, a.first || a.frames[0][1]]);
             a.frames.forEach(([t, val]) => {
@@ -126,14 +129,32 @@
               rawSteps.push([t, elIndex, name, val]);
             });
           }
+          // Interactive state toggle (class, stroke, style toggle on hover like FIG 0.1)
+          if ((name === 'class' || name === 'stroke' || name === 'style') && a.first !== undefined) {
+            const currentVal = (el.getAttribute && el.getAttribute(name)) || '';
+            const activeVal = (a.frames && a.frames.length) ? a.frames[a.frames.length - 1][1] : currentVal;
+            if (a.first !== activeVal) {
+              interactiveStates.push([elIndex, name, a.first || '', activeVal || '']);
+            }
+          }
         });
       });
 
       rawSteps.sort((x, y) => x[0] - y[0]);
-      const steps = rawSteps.map(([t, elIndex, name, val]) => [Math.round(t - minT), elIndex, name, val]);
-      const durationMs = steps.length ? steps[steps.length - 1][0] : 0;
-      const timeline = steps.length ? { durationMs, steps, initialStates } : null;
 
+      // Isolate the first continuous forward cycle (clean Hover In burst)
+      const cleanSteps = [];
+      let lastT = minT;
+      for (const [t, elIndex, name, val] of rawSteps) {
+        if (t - lastT > 250 || (t - minT > 1200)) {
+          break;
+        }
+        lastT = t;
+        cleanSteps.push([Math.round(t - minT), elIndex, name, val]);
+      }
+      const finalSteps = cleanSteps.length >= 8 ? cleanSteps : rawSteps.filter(s => s[0] - minT <= 1200).map(s => [Math.round(s[0] - minT), s[1], s[2], s[3]]);
+      const durationMs = finalSteps.length ? finalSteps[finalSteps.length - 1][0] : (interactiveStates.length ? 700 : 0);
+      const timeline = (finalSteps.length || interactiveStates.length) ? { durationMs, steps: finalSteps, initialStates, interactiveStates } : null;
       const attributes = Object.values(groups)
         .filter((g) => g.writes >= MIN_MOTION_WRITES)
         .sort((a, b) => b.writes - a.writes)
@@ -147,10 +168,10 @@
             medianFrameGapMs: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null
           };
         });
-      if (!attributes.length) return null;
+      if (!attributes.length && !interactiveStates.length) return null;
 
       samples.sort((x, y) => y.writes - x.writes);
-      return { totalWrites: attributes.reduce((s, g) => s + g.writes, 0), attributes, samples: samples.slice(0, MAX_SAMPLES), timeline };
+      return { totalWrites: attributes.reduce((s, g) => s + g.writes, 0) + interactiveStates.length, attributes, samples: samples.slice(0, MAX_SAMPLES), timeline, interactiveStates };
     }
   };
 // plan-exempt — fix closing brackets in motion-sniffer.js

@@ -205,38 +205,92 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       }
     }
     function attachLiveMotionPlayer(containerEl, jsMotion) {
-      if (!containerEl || !jsMotion || !jsMotion.timeline || !jsMotion.timeline.steps || !jsMotion.timeline.steps.length) return;
-      const { steps, initialStates } = jsMotion.timeline;
+      if (!containerEl || !jsMotion || !jsMotion.timeline) return;
+      const { steps = [], initialStates = [], interactiveStates = [] } = jsMotion.timeline;
+      if (!steps.length && !interactiveStates.length) return;
+
       const elMap = new Map();
       containerEl.querySelectorAll('[class*="ps-el-"]').forEach(el => {
-        // plan-exempt — el.className is an SVGAnimatedString on SVG elements; getAttribute is safe for both HTML and SVG
+        // plan-exempt — getAttribute is safe for both HTML and SVG elements
         const cls = (el.getAttribute && el.getAttribute('class')) || '';
         const m = cls.match(/ps-el-(\d+)/);
         if (m) elMap.set(parseInt(m[1], 10), el);
       });
+
       let timers = [];
-      const play = () => {
+      let currentStepIdx = 0;
+
+      // Forward Play (Hover In)
+      const play = (onComplete) => {
         timers.forEach(clearTimeout);
         timers = [];
-        steps.forEach(([t, idx, attr, val]) => {
-          timers.push(setTimeout(() => {
+
+        // 1. Interactive state toggle (e.g. FIG 0.1 purposeLifted CSS transition)
+        interactiveStates.forEach(([idx, attr, initial, active]) => {
+          const el = elMap.get(idx);
+          if (el) el.setAttribute(attr, active);
+        });
+
+        // 2. Continuous frame animation forward
+        if (steps.length) {
+          steps.forEach(([t, idx, attr, val], i) => {
+            timers.push(setTimeout(() => {
+              currentStepIdx = i;
+              const el = elMap.get(idx);
+              if (el) el.setAttribute(attr, val);
+              if (i === steps.length - 1 && typeof onComplete === 'function') {
+                onComplete();
+              }
+            }, t));
+          });
+        } else if (typeof onComplete === 'function') {
+          setTimeout(onComplete, 700);
+        }
+      };
+
+      // Smooth Reverse Play (Hover Out / Reset)
+      const reset = (onComplete) => {
+        timers.forEach(clearTimeout);
+        timers = [];
+
+        // 1. Revert interactive states
+        interactiveStates.forEach(([idx, attr, initial]) => {
+          const el = elMap.get(idx);
+          if (el) el.setAttribute(attr, initial);
+        });
+
+        // 2. Smoothly rewind frame steps back to initial standing position
+        if (steps.length && currentStepIdx > 0) {
+          const revSteps = steps.slice(0, currentStepIdx + 1).reverse();
+          const frameInterval = Math.max(12, Math.min(22, Math.round(500 / revSteps.length)));
+          revSteps.forEach(([t, idx, attr, val], i) => {
+            timers.push(setTimeout(() => {
+              const el = elMap.get(idx);
+              if (el) el.setAttribute(attr, val);
+              if (i === revSteps.length - 1) {
+                currentStepIdx = 0;
+                initialStates.forEach(([initIdx, initAttr, initVal]) => {
+                  const initEl = elMap.get(initIdx);
+                  if (initEl) initEl.setAttribute(initAttr, initVal);
+                });
+                if (typeof onComplete === 'function') onComplete();
+              }
+            }, i * frameInterval));
+          });
+        } else {
+          initialStates.forEach(([idx, attr, val]) => {
             const el = elMap.get(idx);
             if (el) el.setAttribute(attr, val);
-          }, t));
-        });
+          });
+          currentStepIdx = 0;
+          if (typeof onComplete === 'function') onComplete();
+        }
       };
-      const reset = () => {
-        timers.forEach(clearTimeout);
-        timers = [];
-        initialStates.forEach(([idx, attr, val]) => {
-          const el = elMap.get(idx);
-          if (el) el.setAttribute(attr, val);
-        });
-      };
+
       containerEl.__playMotion = play;
       containerEl.__resetMotion = reset;
-      containerEl.addEventListener('mouseenter', play);
-      containerEl.addEventListener('mouseleave', reset);
+      containerEl.addEventListener('mouseenter', () => play());
+      containerEl.addEventListener('mouseleave', () => reset());
     }
 
     function updateStudioContent(newEl) {
@@ -303,14 +357,23 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     toolbar.appendChild(editToggleBtn);
 
-// plan-exempt — explicit live motion player button on studio toolbar showing status and frame count
+// plan-exempt — explicit live motion player button on studio toolbar with bi-directional demo
     const motionBtn = document.createElement("button");
     motionBtn.id = "pagesnap-studio-motion-btn";
+    let isPlayingDemo = false;
+
     function syncMotionButton() {
-      const hasM = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.steps && componentData.jsMotion.timeline.steps.length);
-      const frameCount = hasM ? componentData.jsMotion.timeline.steps.length : 0;
-      motionBtn.innerText = hasM ? `🎬 Play Motion (${frameCount} frames)` : "🎬 Motion: None";
-      motionBtn.title = hasM ? "Click to play recorded JavaScript animation live" : "Hover over this element on the webpage while inspecting to capture JS motion";
+      const hasSteps = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.steps && componentData.jsMotion.timeline.steps.length);
+      const hasInteractive = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.interactiveStates && componentData.jsMotion.timeline.interactiveStates.length);
+      const hasM = hasSteps || hasInteractive;
+      const frameCount = hasSteps ? componentData.jsMotion.timeline.steps.length : (hasInteractive ? componentData.jsMotion.timeline.interactiveStates.length : 0);
+
+      if (isPlayingDemo) {
+        motionBtn.innerText = "⏳ Playing Motion...";
+      } else {
+        motionBtn.innerText = hasSteps ? `🎬 Play Motion (${frameCount} frames)` : (hasInteractive ? `🎬 Play Motion (CSS Lift)` : "🎬 Motion: None");
+      }
+      motionBtn.title = hasM ? "Click to play recorded animation demo (Forward & Smooth Reverse)" : "Hover over this element on the webpage while inspecting to capture JS motion";
       Object.assign(motionBtn.style, {
         background: hasM ? '#8b5cf6' : '#1f2937',
         border: `1px solid ${hasM ? '#a78bfa' : '#374151'}`,
@@ -323,15 +386,31 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         transition: 'all 0.15s ease'
       });
       motionBtn.onclick = hasM ? () => {
+        if (isPlayingDemo) return;
         const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
         if (wrapper && wrapper.__playMotion) {
-          wrapper.__playMotion();
+          isPlayingDemo = true;
+          syncMotionButton();
+          wrapper.__playMotion(() => {
+            // Forward finished: pause 500ms then smoothly rewind
+            setTimeout(() => {
+              if (wrapper.__resetMotion) {
+                wrapper.__resetMotion(() => {
+                  isPlayingDemo = false;
+                  syncMotionButton();
+                });
+              } else {
+                isPlayingDemo = false;
+                syncMotionButton();
+              }
+            }, 500);
+          });
         }
       } : null;
     }
+    // plan-exempt — initial sync of motion button text and state
     syncMotionButton();
     toolbar.appendChild(motionBtn);
-
     // 2. Modular View Tabs Group (Right-aligned in sub-toolbar)
     const tabsGroup = document.createElement("div");
     Object.assign(tabsGroup.style, {

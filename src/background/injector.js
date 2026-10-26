@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261026-v7 for SVG animated string and indentedJsx fix
+// plan-exempt — bump buildId to 20261026-v8 for bi-directional smooth playback and CSS lift
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261026-v7') {
+        if (!pingRes || pingRes.buildId !== '20261026-v8') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
