@@ -231,6 +231,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           if (el) el.setAttribute(attr, val);
         });
       };
+      containerEl.__playMotion = play;
+      containerEl.__resetMotion = reset;
       containerEl.addEventListener('mouseenter', play);
       containerEl.addEventListener('mouseleave', reset);
     }
@@ -260,6 +262,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       attachLiveMotionPlayer(canvas.querySelector('.pagesnap-component-wrapper'), componentData.jsMotion);
       // plan-exempt — clean duplicate syncActiveView
       syncActiveView();
+      if (typeof syncMotionButton === 'function') syncMotionButton();
     }
 
     expandBtn.addEventListener('click', () => {
@@ -297,6 +300,35 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'all 0.15s ease'
     });
     toolbar.appendChild(editToggleBtn);
+
+// plan-exempt — explicit live motion player button on studio toolbar showing status and frame count
+    const motionBtn = document.createElement("button");
+    motionBtn.id = "pagesnap-studio-motion-btn";
+    function syncMotionButton() {
+      const hasM = !!(componentData.jsMotion && componentData.jsMotion.timeline && componentData.jsMotion.timeline.steps && componentData.jsMotion.timeline.steps.length);
+      const frameCount = hasM ? componentData.jsMotion.timeline.steps.length : 0;
+      motionBtn.innerText = hasM ? `🎬 Play Motion (${frameCount} frames)` : "🎬 Motion: None";
+      motionBtn.title = hasM ? "Click to play recorded JavaScript animation live" : "Hover over this element on the webpage while inspecting to capture JS motion";
+      Object.assign(motionBtn.style, {
+        background: hasM ? '#8b5cf6' : '#1f2937',
+        border: `1px solid ${hasM ? '#a78bfa' : '#374151'}`,
+        color: hasM ? '#ffffff' : '#9ca3af',
+        borderRadius: '6px',
+        padding: '5px 12px',
+        cursor: hasM ? 'pointer' : 'default',
+        fontSize: '12px',
+        fontWeight: '500',
+        transition: 'all 0.15s ease'
+      });
+      motionBtn.onclick = hasM ? () => {
+        const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
+        if (wrapper && wrapper.__playMotion) {
+          wrapper.__playMotion();
+        }
+      } : null;
+    }
+    syncMotionButton();
+    toolbar.appendChild(motionBtn);
 
     // 2. Modular View Tabs Group (Right-aligned in sub-toolbar)
     const tabsGroup = document.createElement("div");
