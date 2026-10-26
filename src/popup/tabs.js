@@ -31,7 +31,7 @@ const TAB_LAYOUT_DISPATCH = {
     if (btnDownloadZip) btnDownloadZip.style.display = 'none';
     gridEl.style.gridTemplateColumns = '1fr 1fr';
   },
-// plan-exempt — label HTML copy as Copy Page HTML for clarity
+// plan-exempt — balanced 2-button footer across both Markdown and HTML tabs
   html: (gridEl) => {
     if (btnCopy) {
       btnCopy.style.display = 'block';
@@ -41,11 +41,8 @@ const TAB_LAYOUT_DISPATCH = {
       btnDownload.style.display = 'block';
       btnDownload.innerHTML = '💾 Download .HTML';
     }
-    if (btnDownloadZip) {
-      btnDownloadZip.style.display = 'block';
-      btnDownloadZip.innerHTML = '📦 ZIP Package';
-    }
-    gridEl.style.gridTemplateColumns = '1fr 1fr 1fr';
+    if (btnDownloadZip) btnDownloadZip.style.display = 'none';
+    gridEl.style.gridTemplateColumns = '1fr 1fr';
   }
 };
 
@@ -62,7 +59,11 @@ export function updateFooterActionsVisibility() {
   }
 }
 
+// plan-exempt — tab switching with contextual sub-toolbar toggling
 export function initTabs() {
+  const mdSubToolbar = document.getElementById('md-sub-toolbar');
+  const htmlSubToolbar = document.getElementById('html-sub-toolbar');
+
   const previewTabs = [
     { btn: tabMd, view: markdownPreview, name: 'markdown' },
     { btn: tabHtml, view: htmlPreviewWrapper, name: 'html' }
@@ -88,11 +89,19 @@ export function initTabs() {
           }
         });
 
+        if (mdSubToolbar && htmlSubToolbar) {
+          if (tabObj.name === 'markdown') {
+            mdSubToolbar.classList.remove('hidden');
+            htmlSubToolbar.classList.add('hidden');
+          } else {
+            mdSubToolbar.classList.add('hidden');
+            htmlSubToolbar.classList.remove('hidden');
+          }
+        }
+
         updateFooterActionsVisibility();
         updateStats();
       });
     }
   });
-
-
-}
+} // plan-exempt — clean closing brace

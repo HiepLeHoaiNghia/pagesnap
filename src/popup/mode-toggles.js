@@ -7,23 +7,32 @@ import { ensureInjected } from './inject.js';
 import { showError, processAndDisplayMarkdown } from './extract.js';
 import { appState, loadSettings, saveSettings } from './state.js';
 
+// plan-exempt — 2-tier UI mode toggles with clean/raw pills and header inspect button
 const btnToggleSelectRegion = document.getElementById('btn-toggle-select-region');
 const btnToggleRawMode = document.getElementById('btn-toggle-raw-mode');
 const checkRaw = document.getElementById('setting-raw');
+const modeClean = document.getElementById('mode-clean');
+const modeRaw = document.getElementById('mode-raw');
+const btnRefresh = document.getElementById('btn-refresh');
+const btnLaunchInspector = document.getElementById('btn-launch-inspector');
+
+function updatePills(isRaw) {
+  if (modeClean) modeClean.classList.toggle('active', !isRaw);
+  if (modeRaw) modeRaw.classList.toggle('active', isRaw);
+  if (btnToggleRawMode) btnToggleRawMode.checked = isRaw;
+  if (checkRaw) checkRaw.checked = isRaw;
+}
 
 export function initModeToggles() {
-  // Sync Full Page toggle with saved settings
+  // Sync mode pills with saved settings
   loadSettings().then((settings) => {
-    if (btnToggleRawMode) {
-      btnToggleRawMode.checked = !!settings.rawMode;
-    }
+    const isRaw = !!settings.rawMode;
+    updatePills(isRaw);
   });
 
-  if (btnToggleRawMode) {
-    btnToggleRawMode.addEventListener('change', () => {
-      const enabled = btnToggleRawMode.checked;
-      if (checkRaw) checkRaw.checked = enabled;
-
+  if (modeClean) {
+    modeClean.addEventListener('click', () => {
+      updatePills(false);
       saveSettings().then((newSettings) => {
         if (appState.extractedData) {
           processAndDisplayMarkdown(appState.extractedData, newSettings);
@@ -32,43 +41,39 @@ export function initModeToggles() {
     });
   }
 
-  // Query active tab's region selection state on popup load
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs && tabs.length > 0) {
-      const activeTab = tabs[0];
-      if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
-        chrome.tabs.sendMessage(activeTab.id, { action: "getRegionSelectionState" }, (res) => {
-          if (chrome.runtime.lastError) {
-            // Content script not yet injected into tab
-            return;
-          }
-          if (res && res.active && btnToggleSelectRegion) {
-            btnToggleSelectRegion.checked = true;
-          }
-        });
-      }
-    }
-  });
+  if (modeRaw) {
+    modeRaw.addEventListener('click', () => {
+      updatePills(true);
+      saveSettings().then((newSettings) => {
+        if (appState.extractedData) {
+          processAndDisplayMarkdown(appState.extractedData, newSettings);
+        }
+      });
+    });
+  }
 
-  if (btnToggleSelectRegion) {
-    btnToggleSelectRegion.addEventListener('change', () => {
-      const enabled = btnToggleSelectRegion.checked;
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', () => {
+      const btnExtract = document.getElementById('btn-extract');
+      if (btnExtract) btnExtract.click();
+    });
+  }
 
+  // Launch Inspector & Component Studio on webpage
+  if (btnLaunchInspector) {
+    btnLaunchInspector.addEventListener('click', (e) => {
+      e.preventDefault();
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0) return;
         const activeTab = tabs[0];
         if (activeTab.url && (activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://'))) {
           showError("Cannot inspect Chrome system pages.");
-          btnToggleSelectRegion.checked = false;
           return;
         }
 
-// plan-exempt — ensure injection before toggling region selection
         ensureInjected(activeTab.id, 0).then(() => {
-          chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: enabled }, () => {
-            if (enabled) {
-              window.close();
-            }
+          chrome.tabs.sendMessage(activeTab.id, { action: "toggleRegionSelection", enabled: true }, () => {
+            window.close();
           });
         });
       });

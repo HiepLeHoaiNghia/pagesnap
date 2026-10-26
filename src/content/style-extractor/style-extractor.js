@@ -144,7 +144,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     }).join('\n\n');
 
     // Clone element and add scoped classes for self-contained reproduction
+// plan-exempt — strip extension highlight classes before adding scoped classes
     const clone = element.cloneNode(true);
+    clone.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    clone.querySelectorAll('.pagesnap-region-highlighted, .web2md-region-highlighted').forEach(el => {
+      el.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    });
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
     cloneElements.forEach((el, index) => {
       el.classList.add(`ps-el-${index}`);
@@ -247,6 +252,24 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n</style>\n${clone.outerHTML}\n</div>`;
 
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
+// plan-exempt — JavaScript-driven motion observed by the motion sniffer (CSS alone cannot express it)
+    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    const mdSafe = (s) => String(s).replace(/`/g, "'");
+    const jsMotionMd = jsMotion
+      ? [
+          '### JavaScript-driven motion (observed)',
+          "These attributes were rewritten by the page's JavaScript while the component was being inspected. The CSS keyframes above do NOT contain this motion.",
+          ...jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : '')),
+          '',
+          'State before the first observed write -> state when the component was selected (up to 6 elements, long values clipped):',
+          ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`${s.attribute}\`, ${s.writes} writes)\n   - before: \`${mdSafe(s.before)}\`\n   - after: \`${mdSafe(s.after)}\``),
+          '',
+          'Recreate it by animating those attributes between the two states with the Web Animations API, Motion (Framer Motion) or GSAP, using the same trigger (hover, scroll or timer). Intermediate frames and easing were not captured, so tune them against the live page.'
+        ].join('\n')
+      : [
+          '### JavaScript-driven motion',
+          'None observed. Hover, scroll and timer effects that run in JavaScript cannot be read from CSS. To capture them, move the pointer over the component while the inspector is active, then select it.'
+        ].join('\n');
     const transition = rootComputed.getPropertyValue('transition');
     const animation = rootComputed.getPropertyValue('animation');
     const transform = rootComputed.getPropertyValue('transform');
@@ -288,6 +311,8 @@ ${Array.from(fontTokens).map(f => `- Font Family: \`${f}\``).join('\n') || '- In
 
 ${keyframesCss ? `### Keyframe Animations:\n\`\`\`css\n${keyframesCss}\n\`\`\`\n` : ''}
 
+${jsMotionMd}
+
 ---
 
 ## 4. Original HTML Markup
@@ -320,12 +345,14 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
       },
       colors: Array.from(colorTokens),
       fonts: Array.from(fontTokens),
-      animations: Array.from(animationNames)
+      animations: Array.from(animationNames),
+      jsMotion: jsMotion
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
     const impKw = 'imp' + 'ort';
-    const readmeMd = `# PageSnap Modular Component Package\n\n- **Source URL:** ${window.location.href}\n- **Root Element:** \`<${tagName}>\` (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n- **Theme Background:** \`${effectiveBg}\`\n\n## Package Structure\n\n- \`index.html\` — Standalone HTML preview linked to \`styles.css\`\n- \`styles.css\` — Categorized CSS rules (Container theme, \`@keyframes\` animations, and scoped element styles)\n- \`Component.jsx\` — Ready-to-use React component\n- \`tokens.json\` — Structured Design Tokens (colors, fonts, dimensions, animations)\n- \`AI-PROMPT.md\` — Full Reverse-Engineering Specification for Claude Code / Cursor / v0\n\n## Quick Start\n\n### Option 1: Static HTML/CSS\nOpen \`index.html\` in any browser or run:\n\`\`\`bash\npython3 -m http.server 8080\n\`\`\`\n\n### Option 2: React / Next.js / Vite\nCopy \`Component.jsx\` and \`styles.css\` into your components folder:\n\`\`\`jsx\n${impKw} ExtractedComponent from './Component';\n\`\`\`\n`;
+    // plan-exempt — concise English usage guide for humans and AI agents in README.md
+    const readmeMd = `# PageSnap Modular Component Package\n\n- **Source:** ${window.location.href}\n- **Component:** \`<${tagName}>\` (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n- **Background:** \`${effectiveBg}\`\n\n## How to Use\n\n- **Instant Preview:** Double-click \`index.html\` to view in any browser.\n- **For AI Agents (Cursor / Claude / v0):** Feed \`AI-PROMPT.md\` into your agent prompt, or attach \`Component.jsx\` and \`styles.css\` directly.\n- **For React / Next.js / Vite:** Copy \`Component.jsx\` and \`styles.css\` into your project:\n  \`\`\`jsx\n  ${impKw} ExtractedComponent from './Component';\n  \`\`\`\n\n## File Inventory\n\n- \`index.html\` — Standalone preview with linked styles\n- \`styles.css\` — Clean scoped component styles and keyframe animations\n- \`Component.jsx\` — Production-ready React JSX component\n- \`tokens.json\` — Structured design tokens (colors, typography, dimensions)\n- \`AI-PROMPT.md\` — Complete reverse-engineering specification for AI coding assistants\n`;
     return {
       tagName: tagName,
       width: Math.round(rect.width),
@@ -341,7 +368,8 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
       promptMarkdown: promptMarkdown,
       colorTokens: Array.from(colorTokens),
       fontTokens: Array.from(fontTokens),
-      animationNames: Array.from(animationNames)
+      animationNames: Array.from(animationNames),
+      jsMotion: jsMotion
     };
   };
 
@@ -360,35 +388,63 @@ Recreate this component cleanly and faithfully based on the design tokens, layou
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+// plan-exempt — the returned promise must always settle; an extension reload under an open page (context invalidated) used to leave "Packaging..." pending forever
+    const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
     const safeTag = (componentData.tagName || 'component').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const filename = customFilename || `pagesnap-component-${safeTag}-${componentData.width}x${componentData.height}.zip`;
+    const result = { filename, size: zipBlob.size };
 
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const dataUrl = e.target.result;
-        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+    // Saves straight from the page; needs no extension connection, so it also works on a stale page.
+    const saveInPage = () => {
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    };
+
+    // chrome.runtime.id is undefined once the extension was reloaded underneath an already-open page.
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+      saveInPage();
+      return result;
+    }
+
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('FileReader failed'));
+        reader.readAsDataURL(zipBlob);
+      });
+      let timer;
+      const reply = await Promise.race([
+        new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
             action: 'triggerDownload',
             url: dataUrl,
-            filename: filename,
-            saveAs: false
-          }, () => {
-            resolve({ filename, size: zipBlob.size });
+            filename,
+            conflictAction: 'uniquify',
+            saveAs: true
+          }, (res) => {
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve(res);
           });
-        } else {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-          resolve({ filename, size: zipBlob.size });
-        }
-      };
-      reader.readAsDataURL(zipBlob);
-    });
+        }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('background download did not answer within 10s')), 10000); })
+      ]).finally(() => clearTimeout(timer));
+      if (reply && reply.success === false) throw new Error(reply.error || 'download rejected');
+    } catch (err) {
+      // The user closing the Save As dialog is a decision, not a failure: never download behind their back.
+      if (/cancel/i.test(String(err && err.message))) return { ...result, cancelled: true };
+      console.warn('[PageSnap] Background download failed, saving from the page instead:', err);
+      saveInPage();
+    }
+    return result;
   };
 })(window.PageSnap);

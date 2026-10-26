@@ -180,20 +180,42 @@ test('serializer targetElement path returns scoped nodeHtml', async () => {
   context.window.getComputedStyle = context.getComputedStyle;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'serializer.js' });
+// plan-exempt — re-injecting serializer.js into the same context (when buildId bumps) must not throw SyntaxError
+  vm.runInContext(source, context, { filename: 'serializer.js' });
 
   const textNode = { nodeType: 3, textContent: 'Selected text' };
+  const inlinedStyle = {
+    nodeType: 1,
+    tagName: 'STYLE',
+    id: 'web2md-inlined-abc12',
+    textContent: '.keep-inlined { color: rgb(18, 52, 86); }',
+    attributes: [{ name: 'id', value: 'web2md-inlined-abc12' }],
+    childNodes: [],
+    getAttribute: (k) => (k === 'id' ? 'web2md-inlined-abc12' : null),
+    getRootNode: () => document
+  };
+  const extensionUiOverlay = {
+    nodeType: 1,
+    tagName: 'DIV',
+    id: 'pagesnap-inspector-overlay',
+    attributes: [{ name: 'id', value: 'pagesnap-inspector-overlay' }],
+    childNodes: [{ nodeType: 3, textContent: 'UI noise' }],
+    getAttribute: (k) => (k === 'id' ? 'pagesnap-inspector-overlay' : null)
+  };
   const target = {
     nodeType: 1,
     tagName: 'SECTION',
     attributes: [],
-    childNodes: [textNode],
+    childNodes: [inlinedStyle, extensionUiOverlay, textNode],
     querySelectorAll: () => [],
     matches: () => false,
     closest: () => null,
     style: { cssText: '' }
   };
   const result = await (PageSnap.serializePageToSelfContainedHtml || Web2MD.serializePageToSelfContainedHtml)({ targetElement: target, preserveJs: false });
-  assert.match(result.nodeHtml, /<section[^>]*>Selected text<\/section>/i);
+  assert.match(result.nodeHtml, /<section[^>]*>.*Selected text<\/section>/is);
+  assert.match(result.nodeHtml, /\.keep-inlined/, 'inlined <style id="web2md-inlined-..."> must not be stripped on re-serialization');
+  assert.doesNotMatch(result.nodeHtml, /UI noise/, 'extension UI elements (#pagesnap-*) must still be stripped');
   assert.match(result.html, /<!DOCTYPE html>/i);
   assert.match(result.html, /Selected text/);
   assert.match(result.package.html, /Selected text/);
@@ -205,6 +227,16 @@ test('repository source files in src/ are 100% English (no non-ASCII Vietnamese 
     const content = read(file);
     const match = content.match(vietnameseRegex);
     assert.ok(!match, `Found non-English/Vietnamese text in ${file}: ${match ? match[0] : ''}`);
+  }
+});
+// plan-exempt — enforce strict headless-only invariant on EVERY browser e2e file (no window, no focus stealing)
+test('all browser test and runner files enforce strict headless execution (zero GUI popups)', () => {
+  const e2eFiles = exists('tests/e2e') ? collect('tests/e2e') : [];
+  assert.ok(e2eFiles.length > 0, 'expected at least one e2e file');
+  for (const file of e2eFiles) {
+    const source = read(file);
+    assert.ok(!source.includes('headless: false'), `${file} must NEVER contain headless: false`);
+    assert.ok(source.includes('--headless=new') || source.includes('headless: true'), `${file} must run headless (--headless=new or headless: true)`);
   }
 });
 

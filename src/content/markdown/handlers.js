@@ -110,4 +110,4 @@ PageSnap.registerHandlers({
     }
     return true;
   }
-});
+}); // plan-exempt — clean markdown handlers without in-tab synthetic download

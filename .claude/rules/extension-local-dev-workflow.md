@@ -17,3 +17,8 @@
   1. Push the feature branch to `origin` (`git push -u origin feat/<feature-name>`).
   2. Open a standard Pull Request from `feat/<feature-name>` into `develop`.
   3. Squash merge into `develop` following the release blueprint.
+
+## 4. Headless-Only Test Execution Invariant
+- **Rule:** Every automated browser test under `tests/e2e/` MUST run strictly headless (`headless: true` for Playwright, or `--headless=new` when spawning Chrome directly). `tests/static-checks.mjs` enforces this for all files in that directory.
+- **Strict Prohibition:** NEVER launch automated test browsers in headful mode (`headless: false`) that opens visible GUI windows on macOS or steals the user's active desktop/workspace focus.
+- **Downloads:** Playwright installs its own download interceptor and renames files to GUIDs, so it can NEVER be used to verify download behavior. Use `tests/e2e/e2e-download.mjs` (`npm run test:e2e:download`): real Chrome, `--headless=new`, raw DevTools, Chrome's standard download pipeline.

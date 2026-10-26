@@ -64,3 +64,12 @@ status: completed (2026-10-23) — all static checks (10/10) and Chromium E2E (4
 - Executed multi-agent review (`SpecAcReviewer`, `SecurityReviewer`, `DesignImpactReviewer`, `DocsImpactReviewer`, `RuleComplianceReviewer`).
 - Resolved all findings (fixed `checkPreserveJsQuick`, removed `projectFiles`, corrected property mappings, updated Mermaid diagrams).
 - Enforced 100% English language invariant across all repository documentation and rules.
+
+### Phase 6: JavaScript-driven Motion Capture (Completed 2026-10-26)
+- Added `src/content/inspector/motion-sniffer.js`: observes attribute rewrites only while inspector mode is active (auto-stops after 120 s or when the dock closes).
+- `extractComponentStyleAndMotion` now adds an "observed JavaScript-driven motion" section to `AI-PROMPT.md` and a `jsMotion` summary to `tokens.json`.
+- Bumped the content-script build id to `20261026-v1` so already-open tabs re-inject the new bundle.
+- Added E2E TEST 9 (fixture page; mutation-checked) and the living doc `docs/features/component-studio/feature.md`.
+
+## Changelog
+- 2026-10-26: Phase 6 shipped. JS-driven motion is described in the AI prompt; it is not reproduced (see the doc's limits).

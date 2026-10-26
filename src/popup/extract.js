@@ -34,60 +34,52 @@ export function showError(msg) {
 }
 
 /**
- * Helper to download file using chrome.downloads if available, falling back to <a> link
+ * Saves text via an in-popup <a download>. Under 2.5 MB uses a self-contained data URL (survives popup
+ * closing); above that uses a blob URL revoked after 2 minutes. chrome.downloads is deliberately avoided:
+ * an <a download> always carries the exact filename to Chrome's download pipeline.
+ * plan-exempt — docblock corrected to match actual behaviour.
  */
-// plan-exempt — resilient download with instant feedback and automatic fallback
-// plan-exempt — bulletproof instant anchor download with blob URL
-// plan-exempt — call chrome.downloads with saveAs: true to force OS file picker dialog
-// plan-exempt — true interactive Save As file dialog with accurate state handling
-// plan-exempt — trigger download via active tab so Chrome attaches native Save As sheet to tab
-// plan-exempt — guaranteed direct download with self-contained Base64 data URL
-function utf8ToBase64(str) {
-  try {
-    return btoa(unescape(encodeURIComponent(str)));
-  } catch (e) {
-    return btoa(str);
-  }
-}
-
+// plan-exempt — remove dead base64 encoder; downloads use in-popup anchor (verified by tests/e2e/e2e-download.mjs)
 export function downloadFile(content, filename, mimeType = 'text/markdown;charset=utf-8', onStateChange = () => {}) {
   try {
-    const base64 = utf8ToBase64(content);
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const blob = new Blob([content], { type: mimeType });
 
-    if (typeof chrome !== 'undefined' && chrome.downloads && typeof chrome.downloads.download === 'function') {
-      chrome.downloads.download({
-        url: dataUrl,
-        filename: filename,
-        saveAs: false
-      }, (downloadId) => {
-        if (chrome.runtime.lastError || !downloadId) {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-        }
+    // For files under 2.5MB (all Markdown, small HTML), Data URL is 100% self-contained and immune to popup close
+    if (blob.size < 2.5 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = e.target.result;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
         onStateChange('saved');
-      });
-    } else {
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = dataUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
-      onStateChange('saved');
+      };
+      reader.onerror = () => onStateChange('error');
+      reader.readAsDataURL(blob);
+      return;
     }
+
+    // For large files (> 2.5MB, e.g. 10MB HTML snapshot), use Blob URL with generous revocation delay
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 120000);
+    onStateChange('saved');
   } catch (err) {
     console.error("[PageSnap] Download error:", err);
     onStateChange('error');
   }
 }
-
 /**
  * Updates stats in status bar (character count, estimated tokens)
  */
@@ -169,6 +161,17 @@ export function processAndDisplayMarkdown(data, settings) {
       markdown = Web2MD.htmlToMarkdown(fallbackDoc.body.innerHTML, data, settings);
       markdown = normalizeMarkdown(markdown);
       isFallback = true;
+    }
+  }
+
+// plan-exempt — resilient markdown fallback when raw content is sparse
+  if (!markdown || markdown.trim().length === 0) {
+    if (data.content && data.content !== contentToConvert && typeof Web2MD !== 'undefined' && Web2MD.htmlToMarkdown) {
+      markdown = Web2MD.htmlToMarkdown(data.content, data, settings);
+      markdown = normalizeMarkdown(markdown);
+    }
+    if (!markdown || markdown.trim().length === 0) {
+      markdown = (doc.body.innerText ? doc.body.innerText.trim() : (doc.body.textContent || '').trim());
     }
   }
 
@@ -404,9 +407,10 @@ export function initExtract() {
         .replace(/^-|-$/g, '')
         .substring(0, 50) || 'pagesnap-export';
 
-// plan-exempt — standard clean filename save
+// plan-exempt — unified download trigger via downloadFile
       const filename = isHtmlTab ? `${safeTitle}-snapshot.html` : `${safeTitle}.md`;
       const mime = isHtmlTab ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
+
 
       downloadFile(textToDownload, filename, mime, (status) => {
         if (status === 'saved') {

@@ -6,28 +6,41 @@ import { appState } from './state.js';
 
 const btnDownloadZip = document.getElementById('btn-download-zip');
 
-function downloadFileBlob(blob, filename) {
-  if (typeof chrome !== 'undefined' && chrome.downloads) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      chrome.downloads.download({
-        url: e.target.result,
-        filename: filename,
-        saveAs: true
-      });
-    };
-    reader.readAsDataURL(blob);
-  } else {
+// plan-exempt — ZIP download via in-popup <a download>; exported so tests/e2e/e2e-download.mjs exercises the real function
+export function downloadFileBlob(blob, filename, mimeType = 'application/zip', onComplete = () => {}) {
+  try {
+    if (blob.size < 2.5 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = e.target.result;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 10000);
+        onComplete();
+      };
+      reader.onerror = () => onComplete();
+      reader.readAsDataURL(blob);
+      return;
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    a.style.display = 'none';
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (a.parentNode) a.parentNode.removeChild(a);
       URL.revokeObjectURL(url);
-    }, 10000);
+    }, 120000);
+    onComplete();
+  } catch (err) {
+    console.error("[PageSnap] ZIP download failed:", err);
+    onComplete();
   }
 }
 
@@ -70,10 +83,14 @@ async function buildZipBlob() {
 
 export function initHtmlClone() {
   if (btnDownloadZip) {
-    btnDownloadZip.addEventListener('click', () => {
+    btnDownloadZip.addEventListener('click', async () => {
       if (!appState.currentHtml) return;
+      const origHtml = btnDownloadZip.innerHTML;
+      btnDownloadZip.innerHTML = '⏳ Packaging...';
+      btnDownloadZip.disabled = true;
 
-      buildZipBlob().then((blob) => {
+      try {
+        const blob = await buildZipBlob();
         const sanitizedTitle = (appState.extractedData ? appState.extractedData.title : 'webpage')
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '-')
@@ -81,10 +98,18 @@ export function initHtmlClone() {
           .replace(/^-|-$/g, '')
           .substring(0, 50) || 'webpage';
         const filename = `${sanitizedTitle}-snapshot.zip`;
-        downloadFileBlob(blob, filename);
-      }).catch(err => {
+        downloadFileBlob(blob, filename, () => {
+          btnDownloadZip.innerHTML = '✅ Saved!';
+          setTimeout(() => {
+            btnDownloadZip.innerHTML = origHtml;
+            btnDownloadZip.disabled = false;
+          }, 2000);
+        });
+      } catch (err) {
         console.error("ZIP creation failed:", err);
-      });
+        btnDownloadZip.innerHTML = origHtml;
+        btnDownloadZip.disabled = false;
+      }
     });
   }
 }

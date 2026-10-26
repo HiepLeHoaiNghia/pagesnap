@@ -340,7 +340,8 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
     if (node.getAttribute && (node.getAttribute('data-pagesnap-ignore') === 'true' || node.getAttribute('data-web2md-ignore') === 'true')) {
       return '';
     }
-    if (node.id && (node.id.startsWith('pagesnap-') || node.id.startsWith('web2md-'))) {
+// plan-exempt — never strip <style id="web2md-inlined-..."> tags produced by our own stylesheet inliner
+    if (node.id && (node.id.startsWith('pagesnap-') || node.id.startsWith('web2md-')) && !node.id.startsWith('web2md-inlined-') && !node.id.startsWith('pagesnap-inlined-')) {
       return '';
     }
     if (node.classList && (node.classList.contains('pagesnap-highlight-overlay') || node.classList.contains('web2md-highlight-overlay') || node.classList.contains('web2md-outline-overlay'))) {
@@ -530,13 +531,13 @@ Web2MD.serializePageToSelfContainedHtml = async function (options = {}) {
     }
 
     // Insert stylesheet reference or script references under the head tag
-    if (tagName === 'head') {
+    if (tagName === 'head' && node.getRootNode() === document) {
       if (isStructured) {
         html += '<link rel="stylesheet" href="styles.css" />';
         if (preserveJs) {
           html += '<script src="scripts.js" defer></script>';
         }
-      } else {
+      } else if (!node.querySelector || !node.querySelector('style.web2md-adopted-styles')) {
         html += serializeAdoptedStyleSheets(document, false);
       }
     }
@@ -660,7 +661,7 @@ ${headStructured}
   };
 };
 
-// plan-exempt — safe registerHandlers call
+// plan-exempt — no top-level let so re-injecting CONTENT_BUNDLE into an open tab never throws SyntaxError
 (typeof PageSnap !== 'undefined' ? PageSnap : Web2MD).registerHandlers({
   clonePage: (request, sender, sendResponse) => {
     const opts = request.settings || request || {};
@@ -668,8 +669,10 @@ ${headStructured}
       preserveJs: !!opts.preserveJs,
       targetElement: opts.targetElement || null
     })
-      .then(res => sendResponse({ success: true, html: res.html, package: res.package }))
+      .then(res => {
+        sendResponse({ success: true, html: res.html, package: res.package });
+      })
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   }
-});
+}); // plan-exempt — clean serializer handlers without in-tab synthetic download

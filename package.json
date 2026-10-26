@@ -9,7 +9,8 @@
     "commitlint": "commitlint --from origin/develop --to HEAD",
     "test:e2e": "node tests/e2e/e2e-smoke.mjs",
     "package": "node scripts/package.mjs",
-    "release": "./scripts/release/full-release.sh"
+    "release": "./scripts/release/full-release.sh",
+    "test:e2e:download": "node tests/e2e/e2e-download.mjs"
   },
   "keywords": [
     "pagesnap",

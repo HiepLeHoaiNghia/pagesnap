@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <!-- plan-exempt — 2-tier UI layout redesign with balanced header and contextual sub-toolbar -->
   <div class="app-container">
     <!-- Header -->
     <header class="app-header">
@@ -18,43 +19,49 @@
         <h1 class="logo-text">Page<span class="highlight">Snap</span></h1>
       </div>
       <div class="header-actions">
+        <label id="btn-launch-inspector" class="header-inspect-btn" title="Inspect any UI component on page to open Studio, copy styles, animations, or AI prompt" data-feature="regionSelect">
+          <input type="checkbox" id="btn-toggle-select-region" style="display: none;">
+          <span>🎯 Inspect ↗</span>
+        </label>
+        <button id="btn-refresh" class="icon-btn" title="Re-extract Page">↻</button>
         <button id="btn-settings" class="icon-btn" title="Settings">⚙️</button>
       </div>
     </header>
 
     <!-- Main Content Area -->
     <main class="app-main">
-      <!-- Toolbar controls -->
-      <div class="app-toolbar">
-        <label class="toggle-switch compact-toggle" title="Extract full page body without skipping elements">
-          <input type="checkbox" id="btn-toggle-raw-mode">
-          <span class="slider"></span>
-          <span class="label-text">📄 Full Page</span>
-        </label>
+      <!-- Tabs Segment -->
+      <div class="tabs-header">
+        <button id="tab-md" class="tab-btn active">📝 Markdown</button>
+        <button id="tab-html" class="tab-btn" data-feature="htmlClone">🌐 HTML Snapshot</button>
+      </div>
 
-        <label class="toggle-switch compact-toggle" title="Inspect any UI component on page to open Studio, copy styles, animations, or AI prompt" data-feature="regionSelect">
-          <input type="checkbox" id="btn-toggle-select-region">
-          <span class="slider"></span>
-          <span class="label-text">🎯 Inspect & Studio</span>
-        </label>
+      <!-- Contextual Sub-Toolbar -->
+      <div class="sub-toolbar-wrapper">
+        <div id="md-sub-toolbar" class="sub-toolbar">
+          <span class="sub-toolbar-label">Extraction Mode:</span>
+          <div class="mode-pill-group">
+            <button type="button" id="mode-clean" class="mode-pill active" title="Clean article content via Mozilla Readability">✨ Clean Article</button>
+            <button type="button" id="mode-raw" class="mode-pill" title="Full raw DOM content without filtering">📄 Full DOM</button>
+            <input type="checkbox" id="btn-toggle-raw-mode" style="display: none;">
+          </div>
+        </div>
+        <div id="html-sub-toolbar" class="sub-toolbar hidden" data-feature="htmlClone">
+          <span class="sub-toolbar-desc">🌐 Standalone Offline Single-File Archive</span>
+        </div>
       </div>
 
       <!-- Preview Box -->
       <div class="preview-container">
-        <div class="preview-header">
-          <div class="tabs-header">
-            <button id="tab-md" class="tab-btn active">Markdown</button>
-            <button id="tab-html" class="tab-btn" data-feature="htmlClone">HTML Snapshot</button>
-          </div>
-        </div>
-          <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click 'Extract' or navigate to a web page."></textarea>
+        <div class="preview-viewport">
+          <textarea id="markdown-preview" readonly placeholder="No content extracted yet. Click refresh or navigate to a web page."></textarea>
           <div id="html-preview-wrapper" class="hidden" data-feature="htmlClone">
             <iframe id="html-preview-frame" sandbox="allow-same-origin"></iframe>
           </div>
         </div>
         <!-- Status Bar -->
         <div class="preview-status-bar">
-          <span id="preview-mode" class="status-mode">🟢 Local Extraction</span>
+          <span id="preview-mode" class="status-mode">🟢 Article Extraction</span>
           <span class="status-stats">
             <span id="char-count">0</span> chars &bull; <span id="token-count">0</span> tokens
           </span>
@@ -63,13 +70,11 @@
 
       <!-- Actions Footer -->
       <div class="actions-footer">
-        <button id="btn-extract" class="primary-btn">
-          <span class="btn-icon">⚡</span> Extract Page
-        </button>
+        <button id="btn-extract" style="display: none;"></button>
         <div class="actions-grid">
-          <button id="btn-copy" class="secondary-btn" disabled>📋 Copy Markdown</button>
-          <button id="btn-download" class="secondary-btn" disabled>💾 Download .MD</button>
-          <button id="btn-download-zip" class="secondary-btn" disabled data-feature="htmlClone">📦 ZIP Package</button>
+          <button id="btn-copy" class="action-btn primary-action-btn">📋 Copy Markdown</button>
+          <button id="btn-download" class="action-btn secondary-action-btn">💾 Download .MD</button>
+          <button id="btn-download-zip" class="action-btn secondary-action-btn" style="display: none;" data-feature="htmlClone">📦 ZIP Package</button>
         </div>
       </div>
     </main>
@@ -129,4 +134,5 @@
   <script src="src/content/markdown/extractor.js"></script>
 
   <script type="module" src="src/popup/index.js"></script>
+</body>
 </html>

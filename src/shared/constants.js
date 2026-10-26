@@ -30,8 +30,8 @@ export const ACTIONS = {
   FETCH_EXTERNAL_STYLESHEET: 'fetchExternalStyleSheet',
   FETCH_EXTERNAL_SCRIPT: 'fetchExternalScript',
   FETCH_ASSET_AS_BASE64: 'fetchAssetAsBase64',
+// plan-exempt — drop unused download actions; only TRIGGER_DOWNLOAD is still used
   TRIGGER_DOWNLOAD: 'triggerDownload',
-// plan-exempt — prune pagination actions and bundles
   // injection
   ENSURE_INJECTED: 'ensureInjected'
 };
@@ -53,6 +53,8 @@ export const CONTENT_BUNDLE = [
   'src/content/style-extractor/style-extractor.js',
 // plan-exempt — clean bundle registration with inspector modules
   'src/content/markdown/handlers.js',
+// plan-exempt — motion sniffer must load before the inspector UI that starts it
+  'src/content/inspector/motion-sniffer.js',
   'src/content/inspector/studio-modal.js',
   'src/content/inspector/overlay.js',
   'src/content/html-clone/serializer.js',

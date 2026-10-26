@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to studio-2 for auto-invalidation
+// plan-exempt — bump buildId to 20261026-v2 so open tabs re-inject cleanly without top-level let collision
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261024-studio-2') {
+        if (!pingRes || pingRes.buildId !== '20261026-v2') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
