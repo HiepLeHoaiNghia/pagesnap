@@ -282,40 +282,41 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const allCanvasElements = [wrapper, ...Array.from(wrapper.querySelectorAll('*'))];
       const revertedActions = [];
 
-      // 1. Apply true recorded SVG path morphs from samples
-      if (componentData.jsMotion && componentData.jsMotion.samples) {
-        componentData.jsMotion.samples.forEach(s => {
-          if (s.attribute === 'd' && s.after && s.before) {
-            const targetEl = allCanvasElements[s.elIndex] || wrapper.querySelector(s.path);
-            if (targetEl && targetEl.tagName.toLowerCase() === 'path') {
-              const origD = targetEl.getAttribute('d');
-              targetEl.setAttribute('d', s.after);
-              revertedActions.push(() => targetEl.setAttribute('d', origD || s.before));
-            }
+      // plan-exempt — universal recorded path morph and interactive state preview in canvas using ps-el- selectors
+      const paths = (componentData.jsMotion && (componentData.jsMotion.morphedPaths || componentData.jsMotion.samples)) || [];
+      paths.forEach(s => {
+        if (s.attribute === 'd' && s.after) {
+          const targetEl = wrapper.querySelector('.ps-el-' + s.elIndex) || allCanvasElements[s.elIndex];
+          if (targetEl && targetEl.tagName.toLowerCase() === 'path') {
+            const origD = targetEl.getAttribute('d');
+            targetEl.setAttribute('d', s.afterFull || s.after);
+            revertedActions.push(() => targetEl.setAttribute('d', origD || s.beforeFull || s.before));
           }
-        });
-      }
+        }
+      });
 
       // 2. Apply true recorded interactive state toggles (transforms, classes, strokes)
       if (componentData.jsMotion && componentData.jsMotion.interactiveStates) {
         componentData.jsMotion.interactiveStates.forEach(st => {
-          const targetEl = allCanvasElements[st.elIndex] || wrapper.querySelector(st.path);
+          const targetEl = wrapper.querySelector('.ps-el-' + st.elIndex) || allCanvasElements[st.elIndex];
           if (targetEl) {
-            if (st.attribute === 'class') {
-              st.after.split(/\s+/).forEach(c => { if (c) targetEl.classList.add(c); });
-              revertedActions.push(() => {
-                st.after.split(/\s+/).forEach(c => { if (c && !st.before.includes(c)) targetEl.classList.remove(c); });
-              });
-            } else if (st.attribute === 'stroke' || st.attribute === 'fill') {
-              const origVal = targetEl.getAttribute(st.attribute);
-              targetEl.setAttribute(st.attribute, st.after);
-              revertedActions.push(() => targetEl.setAttribute(st.attribute, origVal || st.before));
-            } else if (st.transformDelta) {
+            if (st.transformDelta) {
               const origT = targetEl.style.transform;
               targetEl.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
               targetEl.style.transform = `translate(${st.transformDelta.x || 0}px, ${st.transformDelta.y || 0}px)`;
               revertedActions.push(() => {
                 targetEl.style.transform = origT || 'none';
+              });
+            }
+            if (st.attribute === 'stroke' || st.attribute === 'fill') {
+              const origVal = targetEl.getAttribute(st.attribute);
+              targetEl.setAttribute(st.attribute, st.after);
+              revertedActions.push(() => targetEl.setAttribute(st.attribute, origVal || st.before));
+            }
+            if (st.attribute === 'class') {
+              st.after.split(/\s+/).forEach(c => { if (c) targetEl.classList.add(c); });
+              revertedActions.push(() => {
+                st.after.split(/\s+/).forEach(c => { if (c && !st.before.includes(c)) targetEl.classList.remove(c); });
               });
             }
           }
