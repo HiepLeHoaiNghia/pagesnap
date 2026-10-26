@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v0.5.0...pagesnap-extension-v1.0.0) (2026-10-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **governance:** Removed <all_urls> from host_permissions, enforced Conventional Commit breaking change gate, and migrated legacy region-select actions to unified inspector.
+
+### Features
+
+* **download,snapshot,studio:** fix download naming, restore HTML snapshot styles, and capture JS motion ([#13](https://github.com/HiepLeHoaiNghia/pagesnap/issues/13)) ([11aca29](https://github.com/HiepLeHoaiNghia/pagesnap/commit/11aca297177408661b436dcc4d78f540529b8d32))
+* **governance:** implement standard commitlint breaking change gate and resolve review findings ([#12](https://github.com/HiepLeHoaiNghia/pagesnap/issues/12)) ([68b1d3f](https://github.com/HiepLeHoaiNghia/pagesnap/commit/68b1d3f80a1b9c0e01831502bb8c99d86839e773))
+* **studio:** add component style extractor, live studio sandbox, modular code exports, and component ZIP ([#11](https://github.com/HiepLeHoaiNghia/pagesnap/issues/11)) ([2eeb96f](https://github.com/HiepLeHoaiNghia/pagesnap/commit/2eeb96f8a42b329d11901d89c232be8741f99d5f))
+
 ## [0.5.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v0.4.0...pagesnap-extension-v0.5.0) (2026-10-23)
 
 
