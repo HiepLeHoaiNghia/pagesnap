@@ -11,11 +11,12 @@
  * Usage: npm run test:e2e:download     (override the binary with CHROME_BIN=/path/to/chrome)
  * If no Chrome is installed the test prints SKIP and exits 0 (it cannot run, it did not pass).
  */
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CANDIDATES = [
@@ -103,7 +104,8 @@ try {
   };
   await evalPage(`globalThis.U = (p) => chrome.runtime.getURL(p); true`);
   await evalPage(`(async()=>{ for (const f of ['src/content/core/namespace.js','src/content/style-extractor/style-extractor.js']) await new Promise((res,rej)=>{const s=document.createElement('script');s.src=chrome.runtime.getURL(f);s.onload=res;s.onerror=()=>rej(new Error('load '+f));document.head.appendChild(s)}); return true })()`);
-  await evalPage(`window.DATA={tagName:'div',width:1260,height:360,indexHtml:'<div>'+'x'.repeat(42000)+'</div>',cssOnly:'a{}'.repeat(104000),reactJsx:'j'.repeat(46000),tokensJson:'{}'.repeat(1300),promptMarkdown:'p'.repeat(87000),readmeMd:'# r'};
+  // plan-exempt — generate real component data from document.body to exercise true extraction and packaging quality
+  await evalPage(`window.DATA = PageSnap.extractComponentStyleAndMotion(document.body);
     window.race=(p,ms)=>{const t0=performance.now();return Promise.race([p.then(v=>({status:'resolved',ms:Math.round(performance.now()-t0)}),e=>({status:'rejected',err:String(e.message||e)})),new Promise(r=>setTimeout(()=>r({status:'PENDING_FOREVER'}),ms))])}; true`);
 
   for (const c of CASES) { c.out = await evalPage(`(async()=>{ return await (${c.run}) })()`); await sleep(c.bytes && c.bytes > 1e6 ? 3500 : 2000); }
@@ -125,7 +127,46 @@ try {
     if (onDisk.includes(c.file)) {
       const buf = fs.readFileSync(path.join(outDir, c.file));
       if (c.bytes != null) check(buf.length === c.bytes, `${c.file}: byte size ${buf.length} === expected ${c.bytes}`);
-      if (c.file.endsWith('.zip') && c.bytes == null) check(buf.subarray(0, 2).toString() === 'PK', `${c.file}: valid ZIP signature`);
+      if (c.file.endsWith('.zip') && c.bytes == null) {
+        check(buf.subarray(0, 2).toString() === 'PK', `${c.file}: valid ZIP signature`);
+        // plan-exempt — deep ZIP package content, quality, and format verification via system unzip
+        try {
+          const zipPath = path.join(outDir, c.file);
+          const listOutput = execSync(`unzip -l "${zipPath}"`).toString();
+
+          if (c.file === 'component-stale-context.zip') {
+            const required = ['index.html', 'styles.css', 'Component.jsx', 'tokens.json', 'AI-PROMPT.md', 'README.md'];
+            check(required.every((f) => listOutput.includes(f)), `${c.file}: contains all 6 required files (${required.join(', ')})`);
+
+            const indexHtml = execSync(`unzip -p "${zipPath}" index.html`).toString();
+            check(indexHtml && indexHtml.includes('styles.css') && !indexHtml.includes('pagesnap-region-highlighted'), `${c.file}: index.html is styled and clean of highlight classes`);
+
+            // plan-exempt — clean duplicate lines in test
+            const stylesCss = execSync(`unzip -p "${zipPath}" styles.css`).toString();
+            check(stylesCss && stylesCss.length > 50, `${c.file}: styles.css is non-empty and contains CSS rules`);
+
+            const compJsx = execSync(`unzip -p "${zipPath}" Component.jsx`).toString();
+            check(compJsx && compJsx.includes('export default function ExtractedComponent') && compJsx.includes('className='), `${c.file}: Component.jsx exports clean React component with className`);
+
+            const tokensRaw = execSync(`unzip -p "${zipPath}" tokens.json`).toString();
+            let tokensJson = null;
+            try { tokensJson = JSON.parse(tokensRaw); } catch {}
+            check(tokensJson && tokensJson.element && tokensJson.element.tagName.toLowerCase() === 'body', `${c.file}: tokens.json is valid structured JSON with correct body element metadata`);
+
+            const aiPrompt = execSync(`unzip -p "${zipPath}" AI-PROMPT.md`).toString();
+            check(aiPrompt && aiPrompt.includes('## 1. Visual & Layout Overview') && aiPrompt.includes('## 5. Instruction for AI Agent'), `${c.file}: AI-PROMPT.md contains full reverse-engineering specification`);
+
+            const readme = execSync(`unzip -p "${zipPath}" README.md`).toString();
+            check(readme && readme.includes('## How to Use') && readme.includes('## File Inventory'), `${c.file}: README.md contains concise usage guide`);
+          } else if (c.file === 'package-small.zip') {
+            check(listOutput.includes('index.html') && listOutput.includes('README.md'), `${c.file}: contains index.html and README.md`);
+            const indexHtml = execSync(`unzip -p "${zipPath}" index.html`).toString();
+            check(indexHtml && indexHtml.length >= 10, `${c.file}: index.html is non-empty`);
+          }
+        } catch (zipErr) {
+          check(false, `${c.file}: failed to unpack or verify ZIP: ${zipErr.message}`);
+        }
+      }
     }
   }
   const leftovers = onDisk.filter((f) => f.startsWith('.com.google.Chrome.') || f.endsWith('.crdownload'));
