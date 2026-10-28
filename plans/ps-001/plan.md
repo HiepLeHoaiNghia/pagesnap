@@ -90,6 +90,20 @@ status: completed (2026-10-23) — all static checks (10/10) and Chromium E2E (4
 - Wire auto-sweep probing into `overlay.js` on selection so peak motion is captured without requiring manual user hover.
 - Update `style-extractor.js` to embed Dual-State (Resting vs Peak Hover) geometry and vision comparisons in `AI-PROMPT.md`.
 
+### Phase 11: Real Reverse Engineering for Web Motion (3 Exploration Paths) (Planned 2026-10-27)
+- **Goal:** Permanently solve the animation reverse-engineering bottleneck by moving beyond lossy dual-state AI guessing. Iteratively explore all three foundational mechanical paradigms until production fidelity is achieved.
+- **Path 1: React Fiber & Framework Runtime Introspection (Source-Level Extraction)**
+  - Inspect `el.__reactFiber$*` to traverse internal component fiber tree.
+  - Directly capture Framer Motion / GSAP `memoizedProps` (`variants`, `whileHover`, `initial`, `transition: { type: "spring", stiffness, damping, mass }`) as authored by developers.
+- **Path 2: Native WAAPI Extraction (Engine-Level Extraction)**
+  - Query `element.getAnimations({ subtree: true })` from Chromium's C++ rendering engine.
+  - Extract exact `KeyframeEffect` frames, timings, and `cubic-bezier` easing without parsing stylesheets.
+- **Path 3: Trajectory Stream & Damped Harmonic Oscillator Fitting (Physics Discovery)**
+  - Capture high-frequency 60fps frame trajectory streams ($t_0 \rightarrow t_n$) for custom `requestAnimationFrame` SVG/canvas mutations.
+  - *Sub-path 3A (Lossless Baking):* Compile frame streams directly into pure Lottie JSON or multi-stop Framer Motion keyframe arrays.
+  - *Sub-path 3B (Physics Curve Fitting):* Fit displacement curves to damped harmonic oscillation equations to calculate exact `stiffness` and `damping` coefficients.
+
 ## Changelog
 - 2026-10-26: Phase 10 initiated — Auto-Sweep Probing & Dual-State Architecture.
 - 2026-10-26: Phase 9 completed — Parametric Motion Engine and production-grade Framer Motion synthesis.
+- 2026-10-27: Phase 11 planned — Real Reverse Engineering for Web Motion (3 Exploration Paths).

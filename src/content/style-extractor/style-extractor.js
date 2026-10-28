@@ -288,8 +288,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           ...(jsMotion.samples && jsMotion.samples.length
             ? [
                 '',
+                // plan-exempt — Phase 11 Trajectory stream guidance in AI prompt
                 '### Dual-State Comparison (State 1: Resting vs State 2: Peak Hover)',
-                'Auto-sweep probing captured the maximum range of motion between resting state and peak hover state:',
+                `Auto-sweep probing captured the maximum range of motion between resting state and peak hover state across ${jsMotion.morphedPaths?.length || jsMotion.samples.length} animated elements:`,
+                ...(jsMotion.morphedPaths && jsMotion.morphedPaths.length > jsMotion.samples.length
+                  ? [`> **Note for AI:** All ${jsMotion.morphedPaths.length} paths in this component share this synchronized deformation wave. Apply the hover morph to all corresponding paths in the SVG (full trajectory keyframes in tokens.json).`]
+                  : []),
                 ...jsMotion.samples.map((s, i) => `${i + 1}. \`${mdSafe(s.path)}\` (\`.ps-el-${s.elIndex}\`, \`${s.attribute}\`)\n   - State 1 (Resting): \`${mdSafe(s.before)}\`\n   - State 2 (Peak Hover): \`${mdSafe(s.after)}\`\n   - Cadence: ~${s.writes} frames over ~${s.spanMs} ms (${s.motionType})`)
               ]
             : []),

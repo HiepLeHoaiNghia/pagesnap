@@ -283,19 +283,23 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const revertedActions = [];
 
       // plan-exempt — universal recorded path morph and interactive state preview in canvas using ps-el- selectors
+      // plan-exempt — Phase 11 60fps trajectory stream playback across all recorded paths
       const paths = (componentData.jsMotion && (componentData.jsMotion.morphedPaths || componentData.jsMotion.samples)) || [];
+      const targetMap = [];
       paths.forEach(s => {
-        if (s.attribute === 'd' && s.after) {
+        if (s.attribute === 'd') {
           const targetEl = wrapper.querySelector('.ps-el-' + s.elIndex) || allCanvasElements[s.elIndex];
           if (targetEl && targetEl.tagName.toLowerCase() === 'path') {
             const origD = targetEl.getAttribute('d');
-            targetEl.setAttribute('d', s.afterFull || s.after);
-            revertedActions.push(() => targetEl.setAttribute('d', origD || s.beforeFull || s.before));
+            const frames = (s.trajectory && s.trajectory.length > 1)
+              ? s.trajectory
+              : [{ t: 0, val: s.beforeFull || s.before }, { t: s.spanMs || 500, val: s.afterFull || s.after }];
+            targetMap.push({ targetEl, origD, frames, maxT: frames[frames.length - 1].t || s.spanMs || 500 });
           }
         }
       });
 
-      // 2. Apply true recorded interactive state toggles (transforms, classes, strokes)
+      // 2. Apply interactive state toggles (transforms, classes, strokes)
       if (componentData.jsMotion && componentData.jsMotion.interactiveStates) {
         componentData.jsMotion.interactiveStates.forEach(st => {
           const targetEl = wrapper.querySelector('.ps-el-' + st.elIndex) || allCanvasElements[st.elIndex];
@@ -323,14 +327,60 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         });
       }
 
-      // Rewind after 1.2s to resting state
-      setTimeout(() => {
-        revertedActions.forEach(fn => fn());
-        setTimeout(() => {
-          isPlayingDemo = false;
-          syncMotionButton();
-        }, 700);
-      }, 1200);
+      // Render frame by progress (0 = start, 1 = peak)
+      function renderProgress(p) {
+        targetMap.forEach(item => {
+          const targetT = p * item.maxT;
+          // Find closest frame in trajectory
+          let closest = item.frames[0];
+          let minDiff = Infinity;
+          for (let i = 0; i < item.frames.length; i++) {
+            const diff = Math.abs(item.frames[i].t - targetT);
+            if (diff < minDiff) { minDiff = diff; closest = item.frames[i]; }
+          }
+          if (closest && closest.val) item.targetEl.setAttribute('d', closest.val);
+        });
+      }
+
+      // Play forward over 600ms, hold 800ms, rewind over 400ms
+      const animDuration = 600;
+      const startTime = performance.now();
+
+      function playForward(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / animDuration);
+        // Ease out cubic
+        const easedP = 1 - Math.pow(1 - p, 3);
+        renderProgress(easedP);
+
+        if (p < 1) {
+          requestAnimationFrame(playForward);
+        } else {
+          // Hold at peak for 800ms then rewind
+          setTimeout(() => {
+            const rewindStart = performance.now();
+            const rewindDuration = 450;
+            function playRewind(rNow) {
+              const rElapsed = rNow - rewindStart;
+              const rP = Math.min(1, rElapsed / rewindDuration);
+              const easedRP = 1 - rP;
+              renderProgress(easedRP);
+              if (rP < 1) {
+                requestAnimationFrame(playRewind);
+              } else {
+                // Fully reset to original resting state
+                targetMap.forEach(item => { if (item.origD) item.targetEl.setAttribute('d', item.origD); });
+                revertedActions.forEach(fn => fn());
+                isPlayingDemo = false;
+                syncMotionButton();
+              }
+            }
+            requestAnimationFrame(playRewind);
+          }, 800);
+        }
+      }
+
+      requestAnimationFrame(playForward);
     }
 
     function syncMotionButton() {

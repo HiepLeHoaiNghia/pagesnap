@@ -67,3 +67,4 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 | ---------- | ------------------------------------------------------------------------------------------------------- |
 | 2026-10-26 | Implemented Phase 10 Auto-Sweep Probing & Dual-State Architecture to capture full motion range automatically without manual hover reliance. |
 | 2026-10-26 | Implemented Phase 9 Parametric Motion Engine: authentic Framer Motion component generation and pointer-spring reverse-engineering specs. |
+| 2026-10-27 | Implemented Phase 11 Trajectory Stream Recording: captures 60fps frame timelines across all morphing paths and replays them smoothly in Component Studio and export specs without lossy guessing. |

@@ -58,9 +58,22 @@
 
       let rec = records.get(el);
       if (!rec) { rec = {}; records.set(el, rec); }
-      // plan-exempt — Phase 8 clean motion spec without frame bloat
+      // plan-exempt — Phase 11 record trajectory stream frames with throttle
       let a = rec[name];
-      if (!a) { a = rec[name] = { count: 0, first: m.oldValue || el.getAttribute(name), peak: null, maxDelta: 0, tFirst: now, tLast: now, lastBatch: -1, gaps: [] }; }
+      if (!a) {
+        a = rec[name] = {
+          count: 0,
+          first: m.oldValue || el.getAttribute(name),
+          peak: null,
+          maxDelta: 0,
+          tFirst: now,
+          tLast: now,
+          lastBatch: -1,
+          gaps: [],
+          frames: [],
+          lastFrameTime: -1
+        };
+      }
       a.count++;
       if (a.lastBatch !== now) {
         if (a.lastBatch >= 0 && a.gaps.length < MAX_GAP_SAMPLES) a.gaps.push(now - a.lastBatch);
@@ -73,6 +86,10 @@
         if (delta > (a.maxDelta || 0)) {
           a.maxDelta = delta;
           a.peak = val;
+        }
+        if (a.frames.length < 40 && (now - a.lastFrameTime >= 16 || a.frames.length === 0)) {
+          a.frames.push({ t: Math.round(now - a.tFirst), val });
+          a.lastFrameTime = now;
         }
       }
       if (name === 'class' || name === 'style' || name === 'transform') {
@@ -197,6 +214,9 @@
           const maxDelta = measureMaxNumericDelta(a.first, afterVal);
           // Enforce minimum amplitude gate: reject 0.0004px sub-pixel noise, only accept real geometric morphs >= 3.0px
           if (a.count >= MIN_MOTION_WRITES && (name !== 'd' || maxDelta >= 3.0)) {
+            const traj = (a.frames && a.frames.length)
+              ? a.frames
+              : [{ t: 0, val: a.first }, { t: spanMs, val: afterVal }];
             samples.push({
               elIndex,
               path: relativePath(root, el),
@@ -206,6 +226,9 @@
               maxDelta,
               before: clip(a.first),
               after: clip(afterVal),
+              beforeFull: a.first,
+              afterFull: afterVal,
+              trajectory: traj,
               motionType: name === 'd' ? 'svg-path-morph' : (name === 'transform' ? 'transform-tween' : 'attribute-tween')
             });
             // plan-exempt — fix else if branch in motion-sniffer.js
@@ -255,6 +278,7 @@
         totalWrites,
         attributes,
         samples: samples.slice(0, MAX_SAMPLES),
+        morphedPaths: samples.filter(s => s.attribute === 'd'),
         interactiveStates: interactiveStates.slice(0, MAX_SAMPLES),
         annotatedElements
       };
