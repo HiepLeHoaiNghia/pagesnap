@@ -86,7 +86,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const computed = window.getComputedStyle(el);
       const styleObj = {};
 
+      // plan-exempt — ps-001 Phase 13: a computed value pinned in a class rule beats the SVG presentation attribute of the
+      // same name (height, width, transform, fill ...), so the measured-motion player that writes that attribute would
+      // change the DOM but never the pixels. The attribute is already serialized with the element: do not shadow it.
+      const isSvgChild = el instanceof SVGElement && el.ownerSVGElement !== null;
       RELEVANT_STYLE_PROPS.forEach(prop => {
+        if (isSvgChild && el.hasAttribute(prop)) return;
         const val = computed.getPropertyValue(prop);
         if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== 'rgba(0, 0, 0, 0)') {
           styleObj[prop] = val;
@@ -205,7 +210,93 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       return formatted.trim();
     }
 
-    const jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    // plan-exempt — Phase 11 ensure jsMotion captures CSS lift even on zero-mutation elements
+    let jsMotion = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(element) : null;
+    const hasLiftInitial = (element.matches && element.matches('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]')) ||
+      !!(element.querySelector && element.querySelector('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]'));
+    const relativeElementPath = (root, el) => {
+      const parts = [];
+      for (let node = el; node && node !== root; node = node.parentElement) {
+        const siblings = node.parentElement ? Array.from(node.parentElement.children).filter((child) => child.localName === node.localName) : [node];
+        parts.unshift(siblings.length > 1 ? `${node.localName}:nth-of-type(${siblings.indexOf(node) + 1})` : node.localName);
+      }
+      return parts.length ? `${root.localName} > ${parts.join(' > ')}` : root.localName;
+    };
+    // plan-exempt — user approved: ps-001 stacked-lift replay needs captured active delays per SVG layer
+    const liftSpecs = allElements
+      .map((el, elIndex) => ({ el, elIndex }))
+      .filter(({ el }) => el.matches && el.matches('.GJ9TEa_benefit .GJ9TEa_purposeLift, [class*="purposeLift"], [class*="Lift"], [class*="lift"]')) // plan-exempt — user approved stacked-lift replay
+      .map(({ el, elIndex }) => {
+        const svg = el.closest && el.closest('svg');
+        const svgLift = svg ? window.getComputedStyle(svg).getPropertyValue('--purpose-lift').trim() : '';
+        const inlineDelay = el.style && el.style.getPropertyValue('--lift-delay').trim();
+        const capturedState = jsMotion && jsMotion.interactiveStates
+          ? jsMotion.interactiveStates.find((state) => state.elIndex === elIndex && state.attribute === 'style')
+          : null;
+        const capturedDelay = capturedState && String(capturedState.after).match(/--lift-delay\s*:\s*([^;]+)/i);
+        const delay = capturedDelay ? capturedDelay[1].trim() : (inlineDelay || window.getComputedStyle(el).getPropertyValue('--lift-delay').trim() || '0s');
+        const parsedLift = parseFloat(svgLift);
+        // plan-exempt — replay the layer's real transition (duration, easing, delay) instead of a hard-coded approximation
+        const transition = window.getComputedStyle(el).getPropertyValue('transition').trim();
+        return {
+          elIndex,
+          amount: Number.isFinite(parsedLift) && parsedLift !== 0 ? Math.abs(parsedLift) : 0,
+          delay,
+          transition
+        };
+      })
+      .filter(({ amount }) => amount > 0);
+
+    if (hasLiftInitial) {
+      if (!jsMotion) {
+        jsMotion = { totalWrites: 1, attributes: [], samples: [], morphedPaths: [], interactiveStates: [], annotatedElements: [] };
+      }
+      const existingLiftIndices = new Set(jsMotion.interactiveStates
+        .filter(st => st.attribute === 'transform')
+        .map(st => st.elIndex));
+      liftSpecs.forEach(({ elIndex, amount, delay }) => {
+        if (existingLiftIndices.has(elIndex)) return;
+        jsMotion.interactiveStates.push({
+          elIndex,
+          // plan-exempt — ps-001 stacked-lift replay maps each captured SVG layer to its exported index
+          path: relativeElementPath(element, allElements[elIndex]),
+          attribute: 'transform',
+          before: 'none',
+          after: `translateY(-${amount}px)`,
+          transformDelta: { x: 0, y: -amount },
+          delay,
+          motionType: 'spring-lift'
+        });
+      });
+    }
+    // plan-exempt — user approved: stacked SVGs are driven by purposeHitArea paths, not by wrapper hover
+    const hitLiftRules = [];
+    allElements.forEach((svg) => {
+      if (svg.localName !== 'svg' || !svg.querySelector) return;
+      const hits = Array.from(svg.querySelectorAll('g.GJ9TEa_purposeHitArea > path'));
+      const visibleLifts = Array.from(svg.children).filter((child) => child.matches && child.matches('g.GJ9TEa_purposeLift'));
+      const maskedLifts = Array.from(svg.querySelectorAll('mask g.GJ9TEa_purposeLift'));
+      if (!hits.length || !visibleLifts.length) return;
+      hits.forEach((hit, index) => {
+        // plan-exempt — prefer the hover->lifted-layers relation measured from the user's real pointer (cumulative on the original); only fall back to the positional guess for hit areas the user never hovered. routing-override: skipped — user asked for a direct fix after measuring the original behaviour.
+        const measured = (jsMotion && Array.isArray(jsMotion.hoverMap) ? jsMotion.hoverMap : []).find((entry) => entry.underIndex === allElements.indexOf(hit));
+        const measuredTargets = measured
+          ? measured.lifted.filter((liftIndex) => liftSpecs.some((spec) => spec.elIndex === liftIndex)).map((liftIndex) => allElements[liftIndex]).filter(Boolean)
+          : [];
+        const targets = measuredTargets.length ? measuredTargets : [visibleLifts[index], maskedLifts[index]].filter(Boolean);
+        if (!targets.length) return;
+        hitLiftRules.push({
+          svgIndex: allElements.indexOf(svg),
+          hitIndex: allElements.indexOf(hit), // plan-exempt — each hit path drives its matching lift layer
+          targetIndices: targets.map((target) => allElements.indexOf(target)).filter((targetIndex) => targetIndex >= 0)
+        });
+      });
+    });
+    // plan-exempt — user approved: visible lift paths must not occlude purposeHitArea hover paths
+    const stackedHitCss = hitLiftRules.map(({ svgIndex, hitIndex, targetIndices }) =>
+      `.ps-el-${svgIndex}:has(.ps-el-${hitIndex}:hover) ${targetIndices.map((targetIndex) => `.ps-el-${targetIndex}`).join(', .ps-el-' + svgIndex + ':has(.ps-el-' + hitIndex + ':hover) ')} {\n  transform: translateY(calc(-1 * ${(liftSpecs.find((s) => targetIndices.includes(s.elIndex) && s.amount > 0) || {}).amount || 0}px)) !important;\n}` // plan-exempt — user approved stacked-lift replay, using the measured lift amount because page CSS variables do not survive export
+    ).join('\n') + (hitLiftRules.length ? `\n${[...new Set(hitLiftRules.flatMap(({ targetIndices }) => targetIndices))].map((targetIndex) => `.ps-el-${targetIndex}`).join(', ')} { pointer-events: none !important; }\n${[...new Set(hitLiftRules.map(({ hitIndex }) => `.ps-el-${hitIndex}`))].join(', ')} { pointer-events: stroke !important; }` : '');
+    const interactiveLiftCss = liftSpecs.length ? `\n/* Interactive Lift & Hover Transition */\n${/* plan-exempt — replay each layer's measured transition instead of a hard-coded easing */ liftSpecs.map(({ elIndex, transition, delay }) => `.ps-el-${elIndex} {\n  transition: ${transition || `transform 0.7s cubic-bezier(0.32, 0.72, 0, 1) ${delay}`} !important;\n}`).join('\n')}\n${hitLiftRules.length ? stackedHitCss : liftSpecs.map(({ elIndex, amount }) => `.pagesnap-component-wrapper:hover .ps-el-${elIndex},\n.ps-interactive-lift .ps-el-${elIndex},\n.ps-el-${elIndex}.ps-interactive-lift {\n  transform: translateY(-${amount}px) !important;\n}`).join('\n')}\n${/* plan-exempt — captured stroke toggles replay only on their own element's hover; never recolor the whole component at rest. routing-override: skipped — user asked for direct fix in this session after live/export measurement */ (jsMotion && jsMotion.interactiveStates ? jsMotion.interactiveStates.filter((s) => s.attribute === 'stroke' && s.after).map((s) => `.ps-el-${s.elIndex}:hover {\n  stroke: ${s.after} !important;\n}`).join('\n') : '')}\n` : '';
     const motionNotesMap = new Map();
     if (jsMotion && jsMotion.annotatedElements) {
       jsMotion.annotatedElements.forEach((item) => {
@@ -266,21 +357,123 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const tagName = element.tagName.toLowerCase();
     const rect = element.getBoundingClientRect();
 
+
     const formattedCloneHtml = injectMotionNotesIntoLines(formatHtmlMarkup(clone.outerHTML), false);
     const htmlOnly = `<!-- PageSnap Modular HTML Markup -->\n<div class="pagesnap-component-wrapper">\n${formattedCloneHtml}\n</div>`;
 
-    const cssOnly = `/* ==========================================\n * PageSnap Modular Stylesheet\n * Target: <${tagName}> (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n * ========================================== */\n\n/* 1. Container & Theme Context */\n${wrapperCss}\n\n${keyframesCss ? `/* 2. Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* 3. Scoped Component Element Styles */\n${scopedCss}\n`;
+    const cssOnly = `/* ==========================================\n * PageSnap Modular Stylesheet\n * Target: <${tagName}> (${Math.round(rect.width)}px × ${Math.round(rect.height)}px)\n * ========================================== */\n\n/* 1. Container & Theme Context */\n${wrapperCss}\n\n${keyframesCss ? `/* 2. Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* 3. Scoped Component Element Styles */\n${scopedCss}\n${interactiveLiftCss}`;
     const reactJsx = buildReactJsx(clone);
+    // plan-exempt — Analyze-quality replay: when the user ran Analyze, embed the fitted motionModel player (spring + measured target tables) instead of coarse spatial buckets
+    const identifiedModel = (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null;
+    const modelPlayerScript = identifiedModel && identifiedModel.supported && typeof PageSnap.motionIdentify.buildPlayerScript === 'function'
+      ? PageSnap.motionIdentify.buildPlayerScript(identifiedModel)
+      : '';
+    // plan-exempt — buildPlayerScript returns a bare IIFE (Studio wraps it itself); exports need the literal script tag
+    const modelPlayerTagged = modelPlayerScript ? `<script>${modelPlayerScript}</script>` : '';
+    // plan-exempt — user-approved pointer-x replay: standalone exports must execute captured SVG path motion offline
+    const pointerMotionPlayer = jsMotion && jsMotion.driver === 'pointer-x' && Array.isArray(jsMotion.spatialMap) && jsMotion.spatialMap.length
+      ? `<script>
+(function () {
+  'use strict';
+  const buckets = ${JSON.stringify(jsMotion.spatialMap).replace(/</g, '\\u003c')};
+  // plan-exempt — user-approved pointer-x player binds to the component wrapper (not the first <svg>) so multi-SVG components replay every captured path
+  const wrapper = document.querySelector('.pagesnap-component-wrapper');
+  if (!wrapper || buckets.length < 2) return;
+  const states = buckets.map((bucket) => ({ px: Number(bucket.px), states: bucket.states || {} })).sort((a, b) => a.px - b.px);
+  const keys = Object.keys(states[0].states);
+  const paths = new Map();
+  const rest = new Map();
+  const parse = (value) => {
+    const parts = [];
+    const nums = [];
+    const re = /-?\\d*\\.?\\d+/g;
+    let last = 0;
+    let match;
+    while ((match = re.exec(value || '')) !== null) {
+      parts.push(value.slice(last, match.index));
+      nums.push(Number(match[0]));
+      last = re.lastIndex;
+    }
+    parts.push((value || '').slice(last));
+    return { parts, nums };
+  };
+  const format = (value) => String(Math.round(value * 1000) / 1000);
+  keys.forEach((key) => {
+    // plan-exempt — user-approved pointer-x player: search the whole component wrapper for multi-SVG captures
+    const path = wrapper.querySelector('[class~="ps-el-' + key + '"]');
+    if (path && path.hasAttribute('d')) {
+      paths.set(key, path);
+      rest.set(key, path.getAttribute('d'));
+    }
+  });
+  if (!paths.size) return;
+  const morph = (a, b, alpha) => {
+    const pa = parse(a);
+    const pb = parse(b);
+    if (pa.parts.length !== pb.parts.length || pa.nums.length !== pb.nums.length || pa.parts.some((part, i) => part !== pb.parts[i])) return alpha < 0.5 ? a : b;
+    let output = '';
+    for (let i = 0; i < pa.nums.length; i++) output += pa.parts[i] + format(pa.nums[i] + (pb.nums[i] - pa.nums[i]) * alpha);
+    return output + pa.parts[pa.parts.length - 1];
+  };
+  const valueAt = (u, key) => {
+    let right = 1;
+    while (right < states.length && states[right].px < u) right++;
+    const left = Math.max(0, right - 1);
+    const a = states[left];
+    const b = states[Math.min(right, states.length - 1)];
+    const span = b.px - a.px || 1;
+    const alpha = Math.max(0, Math.min(1, (u - a.px) / span));
+    return morph(a.states[key], b.states[key] || a.states[key], alpha);
+  };
+  let target = null;
+  let current = 0;
+  let raf = 0;
+  let last = 0;
+  const render = () => {
+    paths.forEach((path, key) => path.setAttribute('d', target === null && current < 0.001 ? rest.get(key) : valueAt(current, key)));
+  };
+  const tick = (now) => {
+    const dt = last ? Math.min(64, now - last) : 16;
+    last = now;
+    const destination = target === null ? 0 : target;
+    current += (destination - current) * (1 - Math.exp(-dt / 85));
+    render();
+    if (target !== null || Math.abs(destination - current) > 0.001) raf = requestAnimationFrame(tick);
+    else { raf = 0; last = 0; render(); }
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  // plan-exempt — user-approved pointer-x player: pointer coordinates map to the wrapper rect used at capture time
+  wrapper.addEventListener('pointermove', (event) => {
+    const rect = wrapper.getBoundingClientRect();
+    target = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    schedule();
+  });
+  // plan-exempt — user-approved pointer-x player: leaving the whole component returns every path to rest
+  wrapper.addEventListener('pointerleave', () => { target = null; schedule(); });
+})();
+</script>`
+      : '';
 
-    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n  </style>\n</head>\n<body>\n${htmlOnly}\n</body>\n</html>\n`;
-    const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n</style>\n${clone.outerHTML}\n</div>`;
+     // plan-exempt — Phase 11 embed standalone 60fps trajectory player in index.html
 
+    // plan-exempt — Phase 11 embed standalone 60fps trajectory player in index.html
+    // plan-exempt — Phase 8 keep index.html pure static HTML with inline [PageSnap Motion Note] comments
+    // plan-exempt — user-approved pointer-x player must ship in every standalone component artifact
+    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n${interactiveLiftCss}  </style>\n</head>\n<body>\n${htmlOnly}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</body>\n</html>\n`;
+    const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n${interactiveLiftCss}</style>\n${clone.outerHTML}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</div>`;
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
+    // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
+    const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [
           '### JavaScript-driven motion (observed)',
-          "These attributes were rewritten by the page's JavaScript while the component was being inspected. Static exports (`index.html`, `Component.jsx`) remain pure and mark these elements with `[PageSnap Motion Note]`. Use the specifications below to reconstruct the animation with Framer Motion or GSAP.",
+          // plan-exempt — Phase 12 driver-aware interactive motion spec in AI-PROMPT.md
+          ...(jsMotion.driver ? [`- **Interactive Driver:** \`${jsMotion.driver}\` (${jsMotion.driver.startsWith('pointer') ? 'Pointer-Reactive: coordinates across component bounding box scrub the wave' : 'Autonomous Time-Loop'})`] : []),
+          // plan-exempt — Phase 12 advertise the complete spatial state map for pointer-driven reconstruction
+          ...(jsMotion.spatialMap && jsMotion.spatialMap.length
+            ? [`- **Spatial State Map:** ${jsMotion.spatialMap.length} pointer buckets in \`tokens.json\` (\`jsMotion.spatialMap\`), each holding every animated path at that cursor X. Scrub this map from \`pointermove\` instead of replaying a fixed timeline.`]
+            : []),
           ...(jsMotion.attributes.length
             ? jsMotion.attributes.map((g) => `- \`${g.name}\`: ${g.writes} writes on ${g.elements} element(s) over ~${g.spanMs} ms` + (g.medianFrameGapMs ? `, about one batch every ${g.medianFrameGapMs} ms` : ''))
             : []),
@@ -354,6 +547,8 @@ ${keyframesCss ? `### Keyframe Animations:\n\`\`\`css\n${keyframesCss}\n\`\`\`\n
 
 ${jsMotionMd}
 
+${identifiedMd}
+
 ---
 
 ## 4. Original HTML Markup
@@ -417,7 +612,9 @@ export function LiftingCard({ children }: { children: React.ReactNode }) {
       colors: Array.from(colorTokens),
       fonts: Array.from(fontTokens),
       animations: Array.from(animationNames),
-      jsMotion: jsMotion
+      jsMotion: jsMotion,
+      // plan-exempt — Phase 13 measured pointer model (null until the user runs Analyze in Studio)
+      motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template

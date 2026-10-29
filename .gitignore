@@ -28,3 +28,4 @@ logs/
 # Temporary user scratch files
 test.html
 test.md
+.gstack/

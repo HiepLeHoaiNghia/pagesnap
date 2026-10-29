@@ -1,0 +1,15 @@
+<!doctype html><meta charset=utf-8><style>@import url(_common.css);</style>
+<div id="stage"><svg id="svg" width="420" height="300" viewBox="0 0 420 300"></svg></div>
+<script>
+const svg=document.getElementById('svg'),stage=document.getElementById('stage'),N=12,bars=[],H=[],V=[],T=[];
+for(let i=0;i<N;i++){const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',20+i*32);r.setAttribute('width',24);r.setAttribute('fill','#38bdf8');r.setAttribute('y',250);r.setAttribute('height',30);svg.appendChild(r);bars.push(r);H.push(30);V.push(0);T.push(30)}
+let mx=Infinity;
+stage.addEventListener('mousemove',e=>{const b=stage.getBoundingClientRect();mx=e.clientX-b.left});
+stage.addEventListener('mouseleave',()=>{mx=Infinity});
+let last=performance.now();
+(function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;
+ for(let i=0;i<N;i++){const cx=32+i*32;const d=Math.abs(mx-cx);T[i]=!isFinite(mx)?30:d<=20?200:d<=100?200-(d-20)/80*150:50;
+  const a=-120*(H[i]-T[i])-16*V[i];V[i]+=a*dt;H[i]+=V[i]*dt;
+  bars[i].setAttribute('height',H[i].toFixed(3));bars[i].setAttribute('y',(280-H[i]).toFixed(3))}
+ requestAnimationFrame(loop)})(performance.now());
+</script>

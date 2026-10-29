@@ -1,0 +1,5 @@
+<!doctype html><meta charset=utf-8><style>@import url(_common.css);</style>
+<div id="stage"><svg width="420" height="300"><rect id="r" x="20" y="130" width="40" height="40" fill="#a78bfa"/></svg></div>
+<script>let x=20;const s=document.getElementById('stage'),r=document.getElementById('r');let px=null;
+s.addEventListener('mousemove',e=>{if(px!==null){x=Math.max(20,Math.min(360,x+(e.clientX-px)*0.5));r.setAttribute('x',x)}px=e.clientX});
+s.addEventListener('mouseleave',()=>{px=null})</script>

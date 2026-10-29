@@ -1,0 +1,5 @@
+<!doctype html><meta charset=utf-8><style>@import url(_common.css);#t{position:absolute;left:110px;top:70px;width:200px;height:140px;background:#fb923c;border-radius:14px}</style>
+<div id="stage"><div id="t"></div></div>
+<script>const s=document.getElementById('stage'),t=document.getElementById('t');
+s.addEventListener('mousemove',e=>{const b=s.getBoundingClientRect();const u=(e.clientX-b.left)/b.width-.5,v=(e.clientY-b.top)/b.height-.5;t.style.transform='perspective(600px) rotateY('+(u*30).toFixed(3)+'deg) rotateX('+(-v*30).toFixed(3)+'deg)'});
+s.addEventListener('mouseleave',()=>{t.style.transform='none'})</script>

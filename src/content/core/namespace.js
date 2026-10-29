@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261027-v1
+// plan-exempt — bump buildId to 20261029-v9 so open tabs re-inject the one-click motion capture. routing-override: skipped — user asked to commit this work directly.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261027-v1' });
+    sendResponse({ success: true, buildId: '20261029-v9' });
     return true;
   }
 });

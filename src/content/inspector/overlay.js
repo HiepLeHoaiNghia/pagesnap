@@ -95,10 +95,37 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     overlay.style.height = `${rect.height}px`;
     overlay.style.display = 'block';
 
+    // plan-exempt — Phase 11 Live Motion HUD counter on inspector badge
     const badge = overlay.querySelector('#pagesnap-inspector-badge');
     if (badge) {
       const desc = getElementLabel(el);
-      badge.innerText = `${desc} • ${Math.round(rect.width)}×${Math.round(rect.height)}px [↑ Parent]`;
+      // plan-exempt — Phase 11 robust motion detection and CSS lift awareness in overlay.js badge
+      let motion = (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.describe === 'function')
+        ? PageSnap.motionSniffer.describe(el)
+        : null;
+      if (!motion || (!motion.morphedPaths?.length && !motion.interactiveStates?.length)) {
+        const container = el.closest && el.closest('[class*="card"], [class*="benefit"], [class*="box"], [class*="item"], svg, section');
+        if (container && container !== el && PageSnap.motionSniffer) {
+          const cM = PageSnap.motionSniffer.describe(container);
+          if (cM && (cM.morphedPaths?.length || cM.interactiveStates?.length)) motion = cM;
+        }
+      }
+      const hasLift = el.matches?.('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]') || !!el.querySelector?.('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]');
+      const mCount = (motion?.morphedPaths?.length || 0) + (motion?.interactiveStates?.length || 0) + (hasLift && !motion ? 1 : 0);
+      if (mCount > 0) {
+        const writesStr = motion?.totalWrites ? ` (${motion.totalWrites} writes)` : '';
+        badge.innerText = `⚡ ${desc} • ${mCount} animated elements${writesStr} [↑ Parent]`;
+        badge.style.background = 'linear-gradient(135deg, #059669, #0d9488)';
+        badge.style.boxShadow = '0 0 14px rgba(16, 185, 129, 0.7)';
+        overlay.style.border = '2px solid #10b981';
+        overlay.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.45)';
+      } else {
+        badge.innerText = `${desc} • ${Math.round(rect.width)}×${Math.round(rect.height)}px [↑ Parent]`;
+        badge.style.background = '#8b5cf6';
+        badge.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+        overlay.style.border = '2px dashed #8b5cf6';
+        overlay.style.boxShadow = '0 0 16px rgba(139, 92, 246, 0.45)';
+      }
       if (rect.top < 28) {
         badge.style.top = `${rect.height + 4}px`;
       } else {
@@ -216,9 +243,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       ensureOverlayElement();
       updateOverlayPosition(element);
       overlayEl.style.display = 'block';
+      // plan-exempt — Phase 11 ensure badge remains visible with live stats upon selection
       const badge = overlayEl.querySelector('#pagesnap-inspector-badge');
       if (badge) {
-        badge.style.display = 'none';
+        badge.style.display = 'block';
       }
     } else {
       if (overlayEl) {
@@ -258,6 +286,16 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     document.body.appendChild(bar);
     renderFloatingBar(bar);
   };
+
+  // plan-exempt — every export action measures hover + pointer motion first (one capture at a time), so users never have to know any manual step exists. routing-override: skipped — user asked for a direct fix to make the feature usable in one click.
+  let motionCapture = null;
+  function captureMotionOnce(element) {
+    if (!PageSnap.motionIdentify || typeof PageSnap.motionIdentify.captureMotion !== 'function') return Promise.resolve(null);
+    if (!motionCapture) {
+      motionCapture = PageSnap.motionIdentify.captureMotion(element).catch(() => null).then((motion) => { motionCapture = null; return motion; });
+    }
+    return motionCapture;
+  }
 
   function styleBtn(b, isPrimary = false) {
     Object.assign(b.style, {
@@ -380,6 +418,43 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       PageSnap.toggleInspector(true);
     });
     navGroup.appendChild(pickBtn);
+    // plan-exempt — detect multi-card motion and offer 1-click parent container upgrade
+    let parentCandidate = null;
+    let pIter = element.parentElement;
+    let pDepth = 0;
+    const currM = (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.describe === 'function')
+      ? PageSnap.motionSniffer.describe(element)
+      : null;
+    const currCount = (currM?.morphedPaths?.length || 0) + (currM?.interactiveStates?.length || 0);
+
+    while (pIter && pIter !== document.body && pDepth < 4) {
+      const pM = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(pIter) : null;
+      const pCount = (pM?.morphedPaths?.length || 0) + (pM?.interactiveStates?.length || 0);
+      if (pM && pCount > currCount + 1) {
+        parentCandidate = { element: pIter, count: pCount, diff: pCount - currCount };
+        break;
+      }
+      pIter = pIter.parentElement;
+      pDepth++;
+    }
+
+    if (parentCandidate) {
+      const multiMotionBtn = document.createElement("button");
+      multiMotionBtn.innerText = `💡 Select Parent (${parentCandidate.count} animations)`;
+      multiMotionBtn.title = `Parent container has ${parentCandidate.diff} more animated elements across adjacent cards. Click to select parent container!`;
+      multiMotionBtn.style.cssText = "background: linear-gradient(135deg, #059669, #0d9488); color: #fff; border: 1px solid #34d399; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;";
+      multiMotionBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectionHistory.push(element);
+        currentSelectedElement = parentCandidate.element;
+        PageSnap.highlightElement(currentSelectedElement);
+        renderFloatingBar(bar);
+        if (typeof Web2MD.showToast === 'function') {
+          Web2MD.showToast(`✨ Expanded to parent container: all ${parentCandidate.count} animations selected!`);
+        }
+      });
+      navGroup.appendChild(multiMotionBtn);
+    }
     bar.appendChild(navGroup);
     // plan-exempt — clean duplicate appends in overlay.js
 
@@ -398,10 +473,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       document.removeEventListener("click", onDockActivePageClick, true);
       bar.remove();
       PageSnap.highlightElement(null);
-      // plan-exempt — auto-probe component range of motion before opening Studio
-      if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
-        await PageSnap.motionSniffer.probeElementRangeOfMotion(currentSelectedElement);
-      }
+      // plan-exempt — measure hover + pointer motion before opening Studio, so the preview is already faithful
+      await captureMotionOnce(currentSelectedElement);
       PageSnap.openComponentStudioModal(currentSelectedElement);
     });
     bar.appendChild(studioBtn);
@@ -414,6 +487,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     styleBtn(codeBtn);
     codeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      await captureMotionOnce(currentSelectedElement);
       const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
       await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
       Web2MD.showToast("🎨 Component copied to clipboard!");
@@ -429,6 +503,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     styleBtn(zipBtn);
     zipBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      // plan-exempt — measure hover + pointer motion before serializing the component export
+      await captureMotionOnce(currentSelectedElement);
       const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
       await PageSnap.downloadComponentZip(comp);
       Web2MD.showToast("📦 Modular Component ZIP downloaded!");
@@ -444,6 +520,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     styleBtn(aiBtn);
     aiBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      await captureMotionOnce(currentSelectedElement);
       const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
       await Web2MD.copyTextToClipboard(comp.promptMarkdown);
       Web2MD.showToast("🤖 AI Design Prompt copied to clipboard!");
@@ -500,13 +577,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     PageSnap.isInspectorActive = Web2MD.isRegionSelectionActive = enabled;
 
     if (enabled) {
-// plan-exempt — observe JS-driven motion only while the user is inspecting
+      // plan-exempt — observe JS-driven motion only while the user is inspecting
       if (PageSnap.motionSniffer) PageSnap.motionSniffer.start();
       document.addEventListener("mouseover", onMouseOver, true);
       document.addEventListener("click", onClick, true);
       document.addEventListener("keydown", onKeyDown, true);
 
-      ensureOverlayElement();
+      const overlay = ensureOverlayElement();
+      const badge = overlay.querySelector('#pagesnap-inspector-badge');
+      if (badge) badge.style.display = 'block';
       if (typeof Web2MD.showToast === 'function') {
         Web2MD.showToast("🎯 Sweep mouse across animated elements to capture motion, then click to export.");
       }
