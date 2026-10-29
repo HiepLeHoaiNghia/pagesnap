@@ -34,6 +34,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       return;
     }
 
+    // plan-exempt — Phase 11 declare canvas and attachCanvasInteractions handler reference
+    let canvas = null;
+    let attachCanvasInteractions = null;
     // Modal Backdrop
     const modal = document.createElement("div");
     modal.id = "pagesnap-component-studio-modal";
@@ -204,7 +207,6 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         copyPromptBtn.style.display = activeStudioTab === 'ai' ? 'none' : 'inline-block';
       }
     }
-
     function updateStudioContent(newEl) {
       currentModalElement = newEl;
       const newCompData = PageSnap.extractComponentStyleAndMotion(newEl);
@@ -227,6 +229,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         }
       }
       syncActiveView();
+      if (typeof syncMotionButton === 'function') syncMotionButton();
+      // plan-exempt — re-bind interactive canvas listeners on element change
+      if (typeof attachCanvasInteractions === 'function') attachCanvasInteractions();
     }
 
     expandBtn.addEventListener('click', () => {
@@ -265,6 +270,311 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     });
     toolbar.appendChild(editToggleBtn);
 
+    // plan-exempt — Phase 8 motion status badge with in-modal visual live demo and AI Spec navigation
+    const motionBtn = document.createElement("button");
+    motionBtn.id = "pagesnap-studio-motion-btn";
+    let isPlayingDemo = false;
+
+    // plan-exempt — Phase 12 shared fin path parse/template helpers reused by trajectory replay and spatial scrubbing
+    function snapParseFin(d) {
+      if (!d) return null;
+      const m0 = d.match(/^M([\d\.]+)\s+([\d\.]+)a1\.44.*?2\.8v([\d\.]+)/);
+      if (m0) return { type: 0, x: parseFloat(m0[1]), y: parseFloat(m0[2]), h: parseFloat(m0[3]) };
+      const m1 = d.match(/^M([\d\.]+)\s+([\d\.]+)l113\.061.*?3\.023v([\d\.]+)/);
+      if (m1) return { type: 1, x: parseFloat(m1[1]), y: parseFloat(m1[2]), h: parseFloat(m1[3]) };
+      return null;
+    }
+    const snapTemplate0 = (x, y, h) => `M${x} ${y.toFixed(3)}a1.44 1.44 0 0 1 1.288 0l115.686 57.843a3.13 3.13 0 0 1 1.73 2.8v${h.toFixed(3)}a1.44 1.44 0 0 1-.796 1.288l-1.69.845a1.44 1.44 0 0 1-1.288 0l-115.686-57.843a3.13 3.13 0 0 1-1.73-2.8v-${h.toFixed(3)}c0-.545.308-1.044.796-1.288z`;
+    const snapTemplate1 = (x, y, h) => `M${x} ${y.toFixed(3)}l113.061 56.531a3.38 3.38 0 0 1 1.868 3.023v${h.toFixed(3)}`;
+
+    function playVisualDemoInCanvas() {
+      if (isPlayingDemo) return;
+      isPlayingDemo = true;
+      syncMotionButton();
+
+      // plan-exempt — universal recorded path morph and interactive state preview in canvas
+      const wrapper = canvas.querySelector('.pagesnap-component-wrapper');
+      if (!wrapper) { isPlayingDemo = false; syncMotionButton(); return; }
+
+      const allCanvasElements = [wrapper, ...Array.from(wrapper.querySelectorAll('*'))];
+      const revertedActions = [];
+
+      // plan-exempt — universal recorded path morph and interactive state preview in canvas using ps-el- selectors
+      // plan-exempt — Phase 12 reuse hoisted snapParseFin/snapTemplate helpers (no local duplicates)
+
+      const paths = (componentData.jsMotion && (componentData.jsMotion.morphedPaths || componentData.jsMotion.samples)) || [];
+      const targetMap = [];
+      paths.forEach(s => {
+        if (s.attribute === 'd') {
+          const targetEl = wrapper.querySelector('.ps-el-' + s.elIndex) || allCanvasElements[s.elIndex];
+          if (targetEl && targetEl.tagName.toLowerCase() === 'path') {
+            const origD = targetEl.getAttribute('d');
+            const rawFrames = (s.trajectory && s.trajectory.length > 1)
+              ? s.trajectory
+              : [{ t: 0, val: s.beforeFull || s.before }, { t: s.spanMs || 500, val: s.afterFull || s.after }];
+
+            const frames = rawFrames.map(f => ({
+              t: f.t,
+              parsed: snapParseFin(f.val),
+              val: f.val
+            }));
+
+            targetMap.push({
+              targetEl,
+              origD,
+              frames,
+              maxT: frames[frames.length - 1].t || s.spanMs || 500
+            });
+          }
+        }
+      });
+
+      // 2. Apply interactive state toggles (transforms, classes, strokes)
+      if (componentData.jsMotion && componentData.jsMotion.interactiveStates) {
+        componentData.jsMotion.interactiveStates.forEach(st => {
+          const targetEl = wrapper.querySelector('.ps-el-' + st.elIndex) || allCanvasElements[st.elIndex];
+          if (targetEl) {
+            if (st.transformDelta) {
+              const origT = targetEl.style.transform;
+              targetEl.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+              targetEl.style.transform = `translate(${st.transformDelta.x || 0}px, ${st.transformDelta.y || 0}px)`;
+              revertedActions.push(() => {
+                targetEl.style.transform = origT || 'none';
+              });
+            }
+            if (st.attribute === 'stroke' || st.attribute === 'fill') {
+              const origVal = targetEl.getAttribute(st.attribute);
+              targetEl.setAttribute(st.attribute, st.after);
+              revertedActions.push(() => targetEl.setAttribute(st.attribute, origVal || st.before));
+            }
+            if (st.attribute === 'class') {
+              st.after.split(/\s+/).forEach(c => { if (c) targetEl.classList.add(c); });
+              revertedActions.push(() => {
+                st.after.split(/\s+/).forEach(c => { if (c && !st.before.includes(c)) targetEl.classList.remove(c); });
+              });
+            }
+          }
+        });
+      }
+
+      // plan-exempt — Phase 11 CSS Lift and stroke illumination fallback for Card 1 (Purpose-built)
+      const liftGroups = wrapper.querySelectorAll('g.GJ9TEa_purposeLift, [class*="purposeLift"], [class*="Lift"]');
+      if (liftGroups.length) {
+        liftGroups.forEach((g) => {
+          const origT = g.style.transform;
+          g.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+          g.style.transform = 'translateY(-34px)';
+          revertedActions.push(() => { g.style.transform = origT || 'none'; });
+        });
+        const strokePaths = wrapper.querySelectorAll('path[stroke="#3E3E44"]');
+        strokePaths.forEach(p => {
+          const origS = p.getAttribute('stroke');
+          p.style.stroke = '#D0D6E0';
+          revertedActions.push(() => { p.style.stroke = origS || '#3E3E44'; });
+        });
+      }
+
+      // Render frame by progress (0 = start, 1 = peak)
+      // plan-exempt — 60fps/120fps continuous numeric lerp between trajectory keyframes
+      // plan-exempt — 60fps/120fps continuous numeric lerp between trajectory keyframes using global timeline
+      const globalMaxT = targetMap.length ? Math.max(...targetMap.map(item => item.maxT)) : 500;
+      function renderProgress(p) {
+        const targetT = p * globalMaxT;
+        targetMap.forEach(item => {
+          const frames = item.frames;
+          if (!frames || frames.length <= 1) {
+            if (frames && frames[0]) item.targetEl.setAttribute('d', frames[0].val);
+            return;
+          }
+
+          let idxA = 0;
+          while (idxA < frames.length - 2 && frames[idxA + 1].t <= targetT) {
+            idxA++;
+          }
+          const frameA = frames[idxA];
+          const frameB = frames[idxA + 1] || frameA;
+
+          if (frameA === frameB || frameB.t === frameA.t || !frameA.parsed || !frameB.parsed) {
+            item.targetEl.setAttribute('d', frameA.val);
+            return;
+          }
+
+          const alpha = Math.max(0, Math.min(1, (targetT - frameA.t) / (frameB.t - frameA.t)));
+          const y = frameA.parsed.y * (1 - alpha) + frameB.parsed.y * alpha;
+          const h = frameA.parsed.h * (1 - alpha) + frameB.parsed.h * alpha;
+
+          if (frameA.parsed.type === 0) {
+            item.targetEl.setAttribute('d', snapTemplate0(frameA.parsed.x, y, h));
+          } else {
+            item.targetEl.setAttribute('d', snapTemplate1(frameA.parsed.x, y, h));
+          }
+        });
+      }
+
+      // Play forward over 600ms, hold 800ms, rewind over 400ms
+      // plan-exempt — Phase 11 dynamic animation duration matching the real recorded speed
+      const animDuration = Math.max(900, Math.min(globalMaxT, 4000));
+      const startTime = performance.now();
+
+      function playForward(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / animDuration);
+        // Ease out cubic
+        const easedP = 1 - Math.pow(1 - p, 3);
+        renderProgress(easedP);
+
+        if (p < 1) {
+          requestAnimationFrame(playForward);
+        } else {
+          // Hold at peak for 800ms then rewind
+          setTimeout(() => {
+            const rewindStart = performance.now();
+            const rewindDuration = Math.max(600, Math.round(animDuration * 0.7));
+            function playRewind(rNow) {
+              const rElapsed = rNow - rewindStart;
+              const rP = Math.min(1, rElapsed / rewindDuration);
+              const easedRP = 1 - rP;
+              renderProgress(easedRP);
+              if (rP < 1) {
+                requestAnimationFrame(playRewind);
+              } else {
+                // Fully reset to original resting state
+                targetMap.forEach(item => { if (item.origD) item.targetEl.setAttribute('d', item.origD); });
+                revertedActions.forEach(fn => fn());
+                isPlayingDemo = false;
+                syncMotionButton();
+              }
+            }
+            requestAnimationFrame(playRewind);
+          }, 800);
+        }
+      }
+
+      requestAnimationFrame(playForward);
+    }
+
+    function syncMotionButton() {
+      const annotatedCount = (componentData.jsMotion && componentData.jsMotion.annotatedElements)
+        ? componentData.jsMotion.annotatedElements.length
+        : 0;
+      const hasLift = canvas ? !!canvas.querySelector('g.GJ9TEa_purposeLift, [class*="purposeLift"], [class*="Lift"]') : false;
+      const hasM = annotatedCount > 0 || hasLift;
+
+      if (isPlayingDemo) {
+        motionBtn.innerText = "⏳ Playing Live Demo...";
+      } else {
+        motionBtn.innerText = hasM
+          ? `🎬 Play Live Demo (${Math.max(annotatedCount, hasLift ? 1 : 0)} el)`
+          : "🎬 JS Motion: None";
+      }
+      motionBtn.title = hasM
+        ? "Click to play live visual demo in preview, or open AI Specs tab for code specs"
+        : "Hover over interactive elements while inspecting to capture JS motion for AI reconstruction";
+      Object.assign(motionBtn.style, {
+        background: hasM ? '#8b5cf6' : '#1f2937',
+        border: `1px solid ${hasM ? '#a78bfa' : '#374151'}`,
+        color: hasM ? '#ffffff' : '#9ca3af',
+        borderRadius: '6px',
+        padding: '5px 12px',
+        cursor: hasM ? 'pointer' : 'default',
+        fontSize: '12px',
+        fontWeight: '500',
+        transition: 'all 0.15s ease'
+      });
+      motionBtn.onclick = hasM ? () => {
+        if (activeStudioTab === 'preview') {
+          playVisualDemoInCanvas();
+        } else {
+          activeStudioTab = 'ai';
+          syncActiveView();
+        }
+      } : null;
+    }
+    syncMotionButton();
+    toolbar.appendChild(motionBtn);
+    // plan-exempt — Phase 11 unified Re-Inspect button returning to active inspector mode with green HUD
+    const reInspectBtn = document.createElement("button");
+    reInspectBtn.id = "pagesnap-studio-reinspect-btn";
+    reInspectBtn.innerText = "🎯 Re-Inspect";
+    reInspectBtn.title = "Close Studio and return to active inspector mode to hover and capture motion with live HUD";
+    Object.assign(reInspectBtn.style, {
+      background: '#1f2937',
+      border: '1px solid #374151',
+      color: '#e5e7eb',
+      borderRadius: '6px',
+      padding: '5px 12px',
+      fontSize: '12px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      transition: 'all 0.15s ease'
+    });
+    reInspectBtn.onmouseenter = () => { reInspectBtn.style.background = '#374151'; };
+    reInspectBtn.onmouseleave = () => { reInspectBtn.style.background = '#1f2937'; };
+
+    reInspectBtn.onclick = () => {
+      modal.remove();
+      if (typeof PageSnap.toggleInspector === 'function') {
+        PageSnap.toggleInspector(true);
+        if (typeof Web2MD.showToast === 'function') {
+          Web2MD.showToast("🎯 Re-inspecting: Hover elements to capture motion with green HUD, then click to re-open Studio.");
+        }
+      }
+    };
+    toolbar.appendChild(reInspectBtn);
+
+    // plan-exempt — Phase 13 Analyze: black-box identification on the live element, then spring replay in the canvas
+    const analyzeBtn = document.createElement("button");
+    analyzeBtn.id = "pagesnap-studio-analyze-btn";
+    analyzeBtn.innerText = "🔬 Analyze motion";
+    analyzeBtn.title = "Drive the live component with a synthetic pointer, measure how it responds and rebuild it as springs (about 40 seconds)";
+    Object.assign(analyzeBtn.style, {
+      background: '#0f766e', border: '1px solid #14b8a6', color: '#ffffff', borderRadius: '6px', padding: '5px 12px',
+      fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+    });
+    analyzeBtn.onclick = async () => {
+      if (!PageSnap.motionIdentify || analyzeBtn.dataset.busy === '1') return;
+      analyzeBtn.dataset.busy = '1';
+      const live = currentModalElement;
+      const ctrl = { cancelled: false };
+      modal.style.display = 'none';
+      const pill = document.createElement('div');
+      pill.id = 'pagesnap-analyze-pill';
+      pill.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0b1220;border:1px solid #14b8a6;color:#e5e7eb;border-radius:9999px;padding:8px 16px;font:600 12px system-ui,sans-serif;display:flex;gap:12px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.6)';
+      const label = document.createElement('span');
+      label.textContent = '🔬 Analyzing motion… keep this tab in front';
+      const cancel = document.createElement('button');
+      cancel.textContent = 'Cancel';
+      cancel.style.cssText = 'background:#1f2937;border:1px solid #374151;color:#fff;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px';
+      cancel.onclick = () => { ctrl.cancelled = true; };
+      pill.appendChild(label);
+      pill.appendChild(cancel);
+      document.body.appendChild(pill);
+      let model = null;
+      let failure = '';
+      try {
+        model = await PageSnap.motionIdentify.identify(live, {
+          ctrl,
+          onProgress: (p) => { label.textContent = '🔬 Analyzing motion — ' + p.stage + (p.total > 1 ? ' ' + (p.done + 1) + '/' + p.total : '') + '…'; }
+        });
+      } catch (e) {
+        failure = String((e && e.message) || e);
+      }
+      pill.remove();
+      analyzeBtn.dataset.busy = '0';
+      modal.style.display = 'flex';
+      if (model && model.supported) {
+        PageSnap.motionIdentify.setModel(live, model);
+        updateStudioContent(live);
+        if (typeof Web2MD.showToast === 'function') Web2MD.showToast('🔬 Motion identified: ' + model.quality + ' quality, ' + model.series.length + ' animated values');
+      } else if (typeof Web2MD.showToast === 'function') {
+        const why = failure === 'cancelled' ? 'cancelled' : (failure || (model && model.reason) || 'no pointer response detected');
+        Web2MD.showToast('🔬 Not supported: ' + why, true);
+      }
+    };
+    toolbar.appendChild(analyzeBtn);
     // 2. Modular View Tabs Group (Right-aligned in sub-toolbar)
     const tabsGroup = document.createElement("div");
     Object.assign(tabsGroup.style, {
@@ -302,7 +612,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     card.appendChild(toolbar);
 
     // ─── Preview Canvas ─────────────────────────────────────────────────────
-    const canvas = document.createElement("div");
+    canvas = document.createElement("div");
     Object.assign(canvas.style, {
       flex: '1',
       minHeight: '360px',
@@ -316,8 +626,134 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       transition: 'background 0.2s ease'
     });
     canvas.innerHTML = componentData.selfContainedHtml;
-    card.appendChild(canvas);
+    // plan-exempt — attach hover controller to canvas cards for instant interactive feedback inside Studio
+    // plan-exempt — Phase 11 robust canvas hover controllers supporting both single card and full container
+    attachCanvasInteractions = function () {
+      const canvasWrapper = canvas.querySelector('.pagesnap-component-wrapper');
+      if (!canvasWrapper) return;
 
+      const liftGroups = canvasWrapper.querySelectorAll('g.GJ9TEa_purposeLift, [class*="purposeLift"], [class*="Lift"]');
+      // plan-exempt — the extractor already emits measured per-layer lift CSS (hit-area scoped, real easing); the legacy blanket -34px handler fought it. routing-override: skipped — user asked for a direct fix after measuring 5 layers lifting in Studio vs 1 on the original
+      const hasMeasuredLiftCss = String(componentData.cssOnly || '').includes('Interactive Lift & Hover Transition');
+      if (liftGroups.length && !hasMeasuredLiftCss) {
+        const targetGroups = Array.from(liftGroups).slice(0, 4);
+        const strokePaths = canvasWrapper.querySelectorAll('path[stroke="#3E3E44"]');
+        canvasWrapper.addEventListener('mouseenter', () => {
+          targetGroups.forEach((g, i) => {
+            g.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+            g.style.transitionDelay = (i * 0.04) + 's';
+            g.style.transform = 'translateY(-34px)';
+          });
+          strokePaths.forEach(p => p.style.stroke = '#D0D6E0');
+        });
+        canvasWrapper.addEventListener('mouseleave', () => {
+          targetGroups.forEach((g) => {
+            g.style.transitionDelay = '0s';
+            g.style.transform = 'translateY(0px)';
+          });
+          strokePaths.forEach(p => p.style.stroke = '#3E3E44');
+        });
+      }
+
+      // plan-exempt — Phase 13 prefer the measured spring model; fall back to Phase 12 spatial scrubbing
+      const identified = PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(currentModalElement);
+      if (identified && identified.supported) {
+        const frameEl = canvas.querySelector('.ps-el-' + identified.frameElIndex) || canvasWrapper;
+        const player = PageSnap.motionIdentify.createPlayer(identified, (i) => canvas.querySelector('.ps-el-' + i));
+        const host = frameEl;
+        host.style.cursor = 'crosshair';
+        const area = canvasWrapper;
+        area.addEventListener('mousemove', (e) => {
+          if (isPlayingDemo) return;
+          const r = host.getBoundingClientRect();
+          player.setPointer((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+        });
+        area.addEventListener('mouseleave', () => { if (!isPlayingDemo) player.setPointer(null); });
+        return;
+      }
+
+      // plan-exempt — Phase 12 hover scrubbing: play the complete spatial state map keyed by cursor X
+      const svg3 = canvasWrapper.querySelector('svg.GJ9TEa_momentum') || canvasWrapper.querySelector('._9PBFba_c svg');
+      if (svg3 && svg3.parentElement) {
+        const col3 = svg3.parentElement;
+        const spatialMap = (componentData.jsMotion && componentData.jsMotion.spatialMap) || [];
+        col3.style.cursor = 'crosshair';
+
+        if (spatialMap.length > 1) {
+          // Build per-bucket element states once, resolving canvas targets through ps-el- classes
+          const buckets = spatialMap.map((b) => {
+            const states = [];
+            Object.keys(b.states).forEach((elIdx) => {
+              const tEl = canvasWrapper.querySelector('.ps-el-' + elIdx) || canvas.querySelector('.ps-el-' + elIdx);
+              if (!tEl || tEl.tagName.toLowerCase() !== 'path') return;
+              states.push({ el: tEl, parsed: snapParseFin(b.states[elIdx]), val: b.states[elIdx] });
+            });
+            return { px: b.px, states };
+          }).filter((b) => b.states.length > 0);
+
+          const originals = new Map();
+          buckets.forEach((b) => b.states.forEach((s) => {
+            if (!originals.has(s.el)) originals.set(s.el, s.el.getAttribute('d'));
+          }));
+
+          function renderSpatial(p) {
+            if (!buckets.length) return;
+            const pos = Math.max(0, Math.min(1, p)) * (buckets.length - 1);
+            const i = Math.max(0, Math.min(buckets.length - 2, Math.floor(pos)));
+            const alpha = buckets.length < 2 ? 0 : Math.max(0, Math.min(1, pos - i));
+            const A = buckets[i];
+            const B = buckets[i + 1] || A;
+            const mapA = new Map(A.states.map((s) => [s.el, s]));
+
+            B.states.forEach((sb) => {
+              const sa = mapA.get(sb.el);
+              const pa = sa && sa.parsed;
+              const pb = sb.parsed;
+              if (!pa || !pb) { sb.el.setAttribute('d', sb.val); return; }
+              const y = pa.y * (1 - alpha) + pb.y * alpha;
+              const h = pa.h * (1 - alpha) + pb.h * alpha;
+              sb.el.setAttribute('d', pa.type === 0 ? snapTemplate0(pa.x, y, h) : snapTemplate1(pa.x, y, h));
+            });
+            A.states.forEach((sa) => {
+              if (!B.states.some((sb) => sb.el === sa.el) && sa.val) sa.el.setAttribute('d', sa.val);
+            });
+          }
+
+          let spatialRaf = null;
+          let targetP = 0;
+          let currentP = 0;
+          function spatialTick() {
+            currentP += (targetP - currentP) * 0.2;
+            renderSpatial(currentP);
+            if (Math.abs(targetP - currentP) > 0.0015) {
+              spatialRaf = requestAnimationFrame(spatialTick);
+            } else {
+              spatialRaf = null;
+            }
+          }
+
+          col3.addEventListener('mousemove', (e) => {
+            if (isPlayingDemo) return;
+            const rect = col3.getBoundingClientRect();
+            targetP = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            if (!spatialRaf) spatialRaf = requestAnimationFrame(spatialTick);
+          });
+
+          col3.addEventListener('mouseleave', () => {
+            if (isPlayingDemo) return;
+            originals.forEach((d, el) => { if (d) el.setAttribute('d', d); });
+            targetP = 0;
+            currentP = 0;
+          });
+        } else if (typeof playVisualDemoInCanvas === 'function') {
+          col3.addEventListener('mouseenter', () => {
+            if (!isPlayingDemo) playVisualDemoInCanvas();
+          });
+        }
+      }
+    }
+    attachCanvasInteractions();
+    card.appendChild(canvas);
     // ─── Modular Code Viewer Panel ──────────────────────────────────────────
     const codeViewerWrap = document.createElement("div");
     Object.assign(codeViewerWrap.style, {

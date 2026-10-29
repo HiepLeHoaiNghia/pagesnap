@@ -55,6 +55,8 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/handlers.js',
 // plan-exempt — motion sniffer must load before the inspector UI that starts it
   'src/content/inspector/motion-sniffer.js',
+// plan-exempt — Phase 13 black-box motion identification must load before the Studio that triggers it
+  'src/content/inspector/motion-identify.js',
   'src/content/inspector/studio-modal.js',
   'src/content/inspector/overlay.js',
   'src/content/html-clone/serializer.js',

@@ -1,0 +1,5 @@
+<!doctype html><meta charset=utf-8><style>@import url(_common.css);</style>
+<div id="stage"><canvas id="cv" width="420" height="300"></canvas></div>
+<script>const cv=document.getElementById('cv'),g=cv.getContext('2d');let mx=210;
+document.getElementById('stage').addEventListener('mousemove',e=>{mx=e.clientX-cv.getBoundingClientRect().left});
+(function f(){g.clearRect(0,0,420,300);for(let i=0;i<20;i++){const h=40+160*Math.exp(-Math.pow((mx-(20+i*20))/60,2));g.fillStyle='#34d399';g.fillRect(20+i*20,280-h,14,h)}requestAnimationFrame(f)})()</script>

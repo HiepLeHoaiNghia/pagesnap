@@ -643,7 +643,9 @@ async function runE2E() {
       const writesAfter = (S.motionSniffer.describe(document.getElementById('js-card')) || { attributes: [] }).attributes.find((a) => a.name === 'd')?.writes ?? 0;
 
       return {
+// plan-exempt — verify live motion player embedded in JSX, index.html, and tokens.json
         js: js.jsMotion, jsPrompt: js.promptMarkdown, jsTokens: JSON.parse(js.tokensJson),
+        jsReactJsx: js.reactJsx, jsIndexHtml: js.indexHtml,
         cssMotion: css.jsMotion, cssPrompt: css.promptMarkdown,
         outlineMotion: outline.jsMotion, tween: tween.jsMotion,
         writesBefore, writesAfter, active: S.motionSniffer.isActive()
@@ -665,6 +667,13 @@ async function runE2E() {
     assert.ok(motionResult.tween && motionResult.tween.attributes.some((a) => a.name === 'style' && a.writes === 10), 'A real inline-style tween must be detected');
     assert.equal(motionResult.active, false, 'stop() must disconnect the observer');
     assert.equal(motionResult.writesAfter, motionResult.writesBefore, 'No mutations may be recorded after stop()');
+    // plan-exempt — Phase 8 verify clean static JSX/HTML with inline [PageSnap Motion Note] annotations and no setTimeout bloat
+    assert.ok(!motionResult.jsReactJsx.includes('MOTION_STEPS'), 'Component.jsx must remain pure static JSX without synthetic MOTION_STEPS bloat');
+    assert.ok(motionResult.jsReactJsx.includes('[PageSnap Motion Note]'), 'Component.jsx must annotate JS-animated elements with [PageSnap Motion Note]');
+    assert.ok(!motionResult.jsIndexHtml.includes('<script>'), 'index.html must remain pure static HTML without synthetic player script bloat');
+    assert.ok(motionResult.jsIndexHtml.includes('[PageSnap Motion Note]'), 'index.html must annotate JS-animated elements with [PageSnap Motion Note]');
+    assert.ok(motionResult.jsTokens.jsMotion.annotatedElements && motionResult.jsTokens.jsMotion.annotatedElements.length === 2, 'tokens.json must carry annotatedElements metadata');
+    console.log('  ✓ Clean static export verified: [PageSnap Motion Note] in index.html & Component.jsx, zero setTimeout bloat');
     console.log(`  ✓ JS motion captured: ${dAttr.writes} path writes on ${dAttr.elements} elements, before/after states quoted in the AI prompt`);
     console.log('  ✓ CSS-only animation and PageSnap\'s own outline changes are not misreported; stop() really stops');
 
