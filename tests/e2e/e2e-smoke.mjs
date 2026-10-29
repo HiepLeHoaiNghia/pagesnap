@@ -386,6 +386,12 @@ async function runE2E() {
       'src/content/markdown/turndown-config.js',
 // plan-exempt — update scriptsToInject with inspector modules
       'src/content/markdown/extractor.js',
+// plan-exempt — ps-003 phases 3-4: the extractor is a thin facade over these modules; they must be injected before it. routing-override: skipped — user asked to build from the plan.
+      'src/content/style-extractor/markup-export.js',
+      'src/content/style-extractor/style-collect.js',
+      'src/content/style-extractor/ai-prompt.js',
+      'src/content/style-extractor/pointer-player.js',
+      'src/content/style-extractor/lift-css.js',
       'src/content/style-extractor/style-extractor.js',
       'src/content/inspector/motion-sniffer.js',
       'src/content/inspector/studio-modal.js',
@@ -526,36 +532,28 @@ async function runE2E() {
     // ==========================================
     // TEST 7: Instant Extraction Speed & Consistent Action Naming
     // ==========================================
-    console.log('\n▶ TEST 7: Instant Extraction Speed & Consistent Action Naming');
+    // plan-exempt — ps-002 build: the dock and Studio layout are asserted in e2e-ui-contract.mjs; this test keeps the speed and data checks. routing-override: skipped — user asked to build from the plan.
+    console.log('\n▶ TEST 7: Instant Extraction Speed');
     const perfResult = await page.evaluate(() => {
       const t0 = performance.now();
       const pageData = window.PageSnap.extractPageContent();
       const duration = performance.now() - t0;
 
       const btn = document.getElementById('animated-demo-button');
-      window.PageSnap.showFloatingActionsBar(btn);
-      const bar = document.getElementById('pagesnap-region-actions-bar');
-      const buttons = bar ? Array.from(bar.querySelectorAll('button')).map(b => b.innerText.trim()) : [];
-
       const compData = window.PageSnap.extractComponentStyleAndMotion(btn);
       window.PageSnap.highlightElement(null);
-      if (bar) bar.remove();
 
       return {
         duration,
         hasPageContent: !!(pageData && pageData.content),
-        buttons,
         hasEffectiveBg: !!compData.effectiveBg
       };
     });
 
     assert.ok(perfResult.duration < 300, `DOM parsing & extraction must finish in <300ms (took ${perfResult.duration.toFixed(1)}ms)`);
     assert.equal(perfResult.hasPageContent, true, 'Page extraction must return content');
-    assert.ok(perfResult.buttons.includes('🎨 Copy Component'), 'Floating dock must have standard "Copy Component" button');
-    assert.ok(perfResult.buttons.includes('🤖 Copy AI Prompt'), 'Floating dock must have standard "Copy AI Prompt" button');
     assert.equal(perfResult.hasEffectiveBg, true, 'Component extractor must detect effective background');
     console.log('  ✓ Instant extraction verified: finished in ' + perfResult.duration.toFixed(1) + 'ms without blocking');
-    console.log('  ✓ Action naming consistency verified across Floating Dock and Component Studio');
 
 // plan-exempt — E2E test 8 for modular code separation, multi-tab studio inspector, and ZIP packaging
     // ==========================================
@@ -567,30 +565,14 @@ async function runE2E() {
       const comp = window.PageSnap.extractComponentStyleAndMotion(btn);
       const zipRes = await window.PageSnap.downloadComponentZip(comp, 'test-component.zip');
 
-      window.PageSnap.openComponentStudioModal(btn);
-      const modal = document.getElementById('pagesnap-component-studio-modal');
-      const studioTabs = modal ? Array.from(modal.querySelectorAll('[data-studio-tab]')).map(el => el.dataset.studioTab) : [];
-      const findBtn = (label) => modal ? Array.from(modal.querySelectorAll('button')).find(b => b.innerText.trim() === label) : null;
-      const promptBtnOnPreview = findBtn('🤖 Copy AI Prompt') ? getComputedStyle(findBtn('🤖 Copy AI Prompt')).display : 'missing';
-      const aiTab = modal ? modal.querySelector('[data-studio-tab="ai"]') : null;
-      if (aiTab) aiTab.click();
-      const promptBtnOnAiTab = findBtn('🤖 Copy AI Prompt') ? getComputedStyle(findBtn('🤖 Copy AI Prompt')).display : 'missing';
-      const copyThisFileVisible = findBtn('📋 Copy This File') ? getComputedStyle(findBtn('📋 Copy This File')).display !== 'none' : false;
-      const redundantFooterButtons = ['📄 Copy HTML', '🎨 Copy CSS', '⚛️ Copy JSX'].filter(lbl => !!findBtn(lbl));
-      if (modal) modal.remove();
-
       return {
         hasHtmlOnly: !!(comp.htmlOnly && !comp.htmlOnly.includes('<style>')),
         hasCssOnly: !!(comp.cssOnly && comp.cssOnly.includes('.pagesnap-component-wrapper') && comp.cssOnly.includes('@keyframes')),
         hasReactJsx: !!(comp.reactJsx && comp.reactJsx.includes('export default function ExtractedComponent') && comp.reactJsx.includes('className=')),
         hasTokensJson: !!(comp.tokensJson && JSON.parse(comp.tokensJson).element.tagName === 'button'),
+        noJsHasNoScript: !!comp.selfContainedHtmlNoJs && !/<script/.test(comp.selfContainedHtmlNoJs) && comp.selfContainedHtmlNoJs.includes('<style>'),
         zipFilename: zipRes.filename,
-        zipSize: zipRes.size,
-        studioTabs,
-        promptBtnOnPreview,
-        promptBtnOnAiTab,
-        copyThisFileVisible,
-        redundantFooterButtons
+        zipSize: zipRes.size
       };
     });
 
@@ -598,14 +580,10 @@ async function runE2E() {
     assert.equal(modularResult.hasCssOnly, true, 'cssOnly must contain separated CSS rules and @keyframes');
     assert.equal(modularResult.hasReactJsx, true, 'reactJsx must generate valid React Component.jsx with className');
     assert.equal(modularResult.hasTokensJson, true, 'tokensJson must be valid structured JSON');
+    assert.equal(modularResult.noJsHasNoScript, true, 'selfContainedHtmlNoJs must keep its styles and carry no script');
     assert.ok(modularResult.zipSize > 500, `Component ZIP archive must be non-empty (${modularResult.zipSize} bytes)`);
-    assert.deepEqual(modularResult.studioTabs, ['preview', 'html', 'css', 'jsx', 'tokens', 'ai'], 'Studio modal must provide all 6 modular inspector tabs');
-    assert.notEqual(modularResult.promptBtnOnPreview, 'none', 'Copy AI Prompt must be visible on Live Preview tab');
-    assert.equal(modularResult.promptBtnOnAiTab, 'none', 'Copy AI Prompt must hide on AI Specs tab where Copy This File is already shown');
-    assert.equal(modularResult.copyThisFileVisible, true, 'Copy This File must be visible on AI Specs tab');
-    assert.deepEqual(modularResult.redundantFooterButtons, [], 'Duplicate per-file Copy HTML/CSS/JSX footer buttons must be removed');
     console.log(`  ✓ Modular separation verified: HTML, CSS, React JSX, and Tokens cleanly separated`);
-    console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes) & 6 Studio tabs verified`);
+    console.log(`  ✓ Component ZIP generated (${modularResult.zipSize} bytes), no-JS export carries no script`);
 
     // ==========================================
     // TEST 9: JavaScript-driven motion is captured into the AI prompt

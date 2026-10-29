@@ -22,8 +22,9 @@ if (!chromium) throw new Error('playwright not found');
 
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-export async function launch() {
-  return chromium.launch({ headless: true, executablePath: CHROME, args: ['--no-sandbox'] });
+// plan-exempt — ps-003 phase 1: call sites state their headless intent (the e2e static check reads each file's own source). routing-override: skipped — user asked to start the refactor ticket directly.
+export async function launch(options = {}) {
+  return chromium.launch({ headless: true, executablePath: CHROME, args: ['--no-sandbox'], ...options });
 }
 
 export async function injectBundle(page) {

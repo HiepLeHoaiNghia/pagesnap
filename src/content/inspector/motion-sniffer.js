@@ -21,6 +21,17 @@
 
   // plan-exempt — Phase 9 pointer tracking and computed style diffing
   let records = new WeakMap();
+  // plan-exempt — ps-003 phase 3: lift layers are MEASURED, not recognised by class name. When a class toggles we remember the element's translation at that instant (the start of its transition); after the hover settles the sweep reads it again and keeps the difference. routing-override: skipped — user asked to build from the plan.
+  const restTransform = new WeakMap(); // el -> {x, y} translation when its class first changed
+  const liftDelta = new WeakMap();     // el -> {x, y} settled translation minus rest (only if it actually moved)
+  let toggledSinceMark = new Set();    // elements whose class changed since the sweep last cleared it
+  const translationOf = (el) => {
+    const t = String(getComputedStyle(el).transform);
+    const m = t.match(/matrix(3d)?\(([^)]+)\)/);
+    if (!m) return { x: 0, y: 0 };
+    const v = m[2].split(',').map(Number);
+    return m[1] ? { x: v[12] || 0, y: v[13] || 0 } : { x: v[4] || 0, y: v[5] || 0 };
+  };
   let observer = null;
   let autoStopTimer = null;
   let pointerActivity = { lastX: 0, lastY: 0, movesCount: 0 };
@@ -91,6 +102,11 @@
       if (!el || !el.getAttribute) continue;
       if (name === 'style' && withoutOutline(m.oldValue) === withoutOutline(el.getAttribute('style'))) continue;
       if (el.closest && el.closest(OWN_UI)) continue;
+      // plan-exempt — ps-003 phase 3: remember the rest translation the first time a class changes (the transition has just started, so the computed value is still the start value)
+      if (name === 'class') {
+        if (!restTransform.has(el)) { try { restTransform.set(el, translationOf(el)); } catch (e) {} }
+        toggledSinceMark.add(el);
+      }
 
       let rec = records.get(el);
       if (!rec) { rec = {}; records.set(el, rec); }
@@ -213,6 +229,11 @@
       if (!root || typeof root.getBoundingClientRect !== 'function') return 0;
       if (!this.isActive()) this.start();
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      // plan-exempt — ps-003 phase 3: let transitions that are still running (an earlier hover, the user's own pointer) finish first, so the rest position we record is a real rest. routing-override: skipped — user asked to build from the plan.
+      try {
+        const running = root.getAnimations({ subtree: true }).filter((an) => an.transitionProperty === 'transform');
+        if (running.length) await Promise.race([Promise.allSettled(running.map((an) => an.finished)), sleep(1500)]);
+      } catch (e) { /* getAnimations unavailable: measure anyway */ }
       const savedScroll = { x: window.scrollX, y: window.scrollY };
       let rect = root.getBoundingClientRect();
       if (rect.top < 0 || rect.left < 0 || rect.bottom > window.innerHeight || rect.right > window.innerWidth) {
@@ -252,9 +273,11 @@
         return new C(type, { clientX: x, clientY: y, screenX: x, screenY: y, bubbles: true, cancelable: true, composed: true, relatedTarget: related || null, pointerId: 1, pointerType: 'mouse', isPrimary: true });
       };
       let prev = null;
+      let settleBudget = 8000; // ms of extra waiting for transitions across the whole sweep
       for (let i = 0; i < targets.length; i++) {
         if (o.ctrl.cancelled) break;
         const t = targets[i];
+        toggledSinceMark = new Set();
         pointerActivity.lastX = t.x;
         pointerActivity.lastY = t.y;
         if (prev && prev !== t.el) {
@@ -270,6 +293,25 @@
         prev = t.el;
         if (o.onProgress) { try { o.onProgress({ stage: 'hover', done: i, total: targets.length }); } catch (e) {} }
         await sleep(o.dwellMs);
+        // plan-exempt — ps-003 phase 3: let the layers this hover lifted finish moving, then keep how far each one went. Layers already measured are skipped, so a cumulative stack waits once per new layer, not once per hover.
+        if (toggledSinceMark.size && settleBudget > 0) {
+          const pending = Array.from(toggledSinceMark).filter((el) => root.contains(el) && !liftDelta.has(el));
+          const moving = [];
+          pending.forEach((el) => { try { el.getAnimations().forEach((an) => { if (an.transitionProperty === 'transform') moving.push(an); }); } catch (e) {} });
+          if (moving.length) {
+            const waited = performance.now();
+            await Promise.race([Promise.allSettled(moving.map((an) => an.finished)), sleep(1500)]);
+            settleBudget -= performance.now() - waited;
+          }
+          pending.forEach((el) => {
+            try {
+              const rest = restTransform.get(el) || { x: 0, y: 0 };
+              const now = translationOf(el);
+              const d = { x: Math.round((now.x - rest.x) * 1000) / 1000, y: Math.round((now.y - rest.y) * 1000) / 1000 };
+              if (Math.abs(d.x) > 0.5 || Math.abs(d.y) > 0.5) liftDelta.set(el, d);
+            } catch (e) {}
+          });
+        }
       }
       if (prev) {
         prev.dispatchEvent(make('pointerout', -1, -1, null));
@@ -414,7 +456,10 @@
             medianFrameGapMs: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)]) : null
           };
         });
-      if (!attributes.length && !interactiveStates.length) return null;
+      // plan-exempt — ps-003 phase 3: layers that settled somewhere else after a class toggle (measured by sweepHover); also keeps describe() from returning null when the only motion is a CSS-transition lift
+      const liftLayers = [];
+      allRootElements.forEach((el, elIndex) => { const d = liftDelta.get(el); if (d) liftLayers.push({ elIndex, dx: d.x, dy: d.y }); });
+      if (!attributes.length && !interactiveStates.length && !liftLayers.length) return null;
 
       // plan-exempt — Phase 12 classify motion driver: pointer-driven vs autonomous time-loop
       const allPx = [];
@@ -499,6 +544,7 @@
         attributes,
         driver,
         hoverMap,
+        liftLayers,
         // plan-exempt — Phase 12 expose the completed spatial state map to Studio and token exports
         spatialMap,
         samples: samples.slice(0, MAX_SAMPLES),

@@ -10,7 +10,9 @@
     "test:e2e": "node tests/e2e/e2e-smoke.mjs",
     "package": "node scripts/package.mjs",
     "release": "./scripts/release/full-release.sh",
-    "test:e2e:download": "node tests/e2e/e2e-download.mjs"
+    "test:e2e:download": "node tests/e2e/e2e-download.mjs",
+    "test:e2e:motion": "node tests/e2e/e2e-motion-export.mjs",
+    "test:e2e:ui": "node tests/e2e/e2e-ui-contract.mjs"
   },
   "keywords": [
     "pagesnap",

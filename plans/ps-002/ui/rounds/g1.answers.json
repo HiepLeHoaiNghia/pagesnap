@@ -1,0 +1,33 @@
+{
+  "round": "g1-ps002",
+  "status": "answered",
+  "updatedAt": "2026-10-29T17:24:33.157Z",
+  "answers": [
+    {
+      "round": "g1-ps002",
+      "item": "V-1",
+      "answer": "three",
+      "label": "Ba mức: Animated (JS) / CSS motion / Markup only",
+      "note": "",
+      "timestamp": "2026-10-29T17:23:50.827Z"
+    },
+    {
+      "round": "g1-ps002",
+      "item": "V-2",
+      "answer": "grouped",
+      "label": "B · Chia hai nhóm có tiêu đề",
+      "note": "nội dung nên là tiếng Anh hết ",
+      "timestamp": "2026-10-29T17:24:20.308Z"
+    },
+    {
+      "round": "g1-ps002",
+      "item": "V-3",
+      "answer": "three-tabs",
+      "label": "Dùng bản 3 tab như hình",
+      "note": "",
+      "timestamp": "2026-10-29T17:24:33.156Z"
+    }
+  ],
+  "unanswered": [],
+  "problems": []
+}

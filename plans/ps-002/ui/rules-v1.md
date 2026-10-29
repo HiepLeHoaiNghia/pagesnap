@@ -1,0 +1,20 @@
+# ps-002 · rule ledger v1
+
+Every owner decision becomes a row: a checkable sentence, how it is enforced, its scope. `none yet` needs a reason.
+
+| Mã | Quyết định (chủ, 2026-10-30) | Rule (kiểm được) | Cách ép | Phạm vi |
+|---|---|---|---|---|
+| G0-1 | Năm câu hỏi giao diện Q1-Q5 đúng | Mockup được duyệt phải trả lời được Q1-Q5 (nhãn motion, đúng một hành động chính, dòng "chứa gì" cho mỗi tệp, trong giới hạn, trạng thái chờ có Skip) | none yet: kiểm bằng QA bước 9 so mockup với brief; chưa có kiểm máy | repo |
+| G0-2 | Giới hạn Studio đếm cả tab (≤ 8); ✕ và ⋯ không tính | Studio, ở mọi tab, có tối đa 8 điều khiển nhìn thấy không kể ✕ và ⋯ | Đỏ-trước: thêm E2E đếm nút nhìn thấy trong `#pagesnap-component-studio-modal` ở mọi tab, hiện đỏ (17, 18) và xanh khi dựng xong | repo, `tests/e2e` |
+| G0-2b | Dock tối đa 5 nút nhìn thấy, không kể ✕ và ⋯ | `#pagesnap-region-actions-bar` có tối đa 5 nút nhìn thấy không kể ✕ và ⋯ | Cùng bài E2E ở trên, đỏ hiện tại (9) | repo, `tests/e2e` |
+| G0-3 | Copy Selection MD luôn là nút nhìn thấy trên dock (giữ UI-1) | Dock có nút "Copy Selection MD" nhìn thấy, không nằm trong ⋯ | Cùng bài E2E ở trên | repo, `tests/e2e` |
+| G0-5 | Phạm vi: dock, Studio, nhãn tab HTML của popup; thiết kế trước, code sau; tổ chức lại code là ticket riêng trước khi dựng | Không đổi bố cục popup (UI-4); không thêm quyền manifest | Hợp đồng `tests/contract-integrity.test.mjs` đã có cho quyền; bố cục popup: none yet (chỉ prose) | repo |
+| W-1 | Không mở vòng chỉ có chữ lên board; mục lên board phải đổi một hình giao diện thật | (quy tắc quy trình, không phải rule code) | none yet: là phán đoán khi soạn vòng, máy không kiểm được; đã ghi thành R20 chờ duyệt ở skill spec | quy trình |
+| V-1 | Nhãn motion ba mức: Animated (JS) / CSS motion / Markup only (G1, 2026-10-30) | Mỗi tệp trong menu Code của Studio và mỗi nút xuất trên dock có đúng một nhãn thuộc ba mức này (thêm Data cho tokens.json, Spec for AI cho AI Specs) | none yet: bài E2E đỏ-trước sẽ kiểm văn bản nhãn khi dựng | repo, `tests/e2e` |
+| V-2 | Dock và footer Studio chia hai nhóm có tiêu đề "Animated (JS)" và "No JS"; mọi chữ trong giao diện là tiếng Anh (G1, ghi chú của chủ) | Dock có hai nhóm với đúng hai tiêu đề đó; không có ký tự tiếng Việt trong `src/` | Chữ tiếng Anh: **đã ép** bởi `tests/static-checks.mjs` ("repository source files in src/ are 100% English"); hai nhóm: cùng bài E2E | repo |
+| V-3 | Studio có 3 tab: Preview, Code ▾, AI Specs; Expand/Shrink/Direct Text Edit/Re-Inspect nằm trong ⋯ (G1) | Studio có đúng 3 tab; không còn nút "Analyze motion" và nhãn "JS Motion: None" | Bài E2E đỏ-trước: không tìm thấy hai chuỗi đó trong `#pagesnap-component-studio-modal`; đếm tab = 3 | repo, `tests/e2e` |
+| D-1 | Dock đúng như hình G2: 5 nút + ⋯ + ✕, nút chính "Copy animated" nổi bật (G2, 2026-10-30) | Dock có nút nổi bật duy nhất là "Copy animated"; "Copy AI Prompt", Expand, Shrink, Pick nằm trong ⋯ | Cùng bài E2E đếm nút (đỏ hiện tại: 9) | repo |
+| S-1 | Studio tab Preview có thanh trạng thái motion thay cho "JS Motion: None" và nút Analyze; footer 5 hành động chia hai nhóm (G2) | Thanh trạng thái hiện kết quả đo thật (kiểu spring, số giá trị, số vùng hover), không phải chuỗi cố định | none yet: số liệu phải đọc từ kết quả `captureMotion`, bài kiểm tra khi dựng | repo |
+| S-2 | Tab Code: menu "Files in the export", mỗi tệp một nhãn và một dòng "chứa gì" (G2). **Câu trả lời chọn "Xem tệp styles.css" là một lựa chọn xem, không phải duyệt: chờ chủ xác nhận** | Dòng "chứa gì" của từng tệp lấy số thật (vd 75 @keyframes, 28 luật hover), không gõ cứng | none yet: chờ xác nhận S-2 | repo |
+| W-1 | Thanh chờ: "Measuring motion… N%", mô tả "hover sweep, then spring fit · about 40 s", nút Skip (G2) | Thanh chờ có phần trăm và nút Skip trong mọi giai đoạn | none yet: kiểm bằng smoke khi dựng | repo |
+| W-2 | Số token tốn cho vòng board quá cao (chủ, 2026-10-30) | Vòng board chỉ dùng cho quyết định nhìn thấy; mục còn lại hỏi trong chat; tự kiểm bằng số đo, một ảnh cuối | none yet: phán đoán quy trình, ghi R20 ở skill spec | quy trình |
