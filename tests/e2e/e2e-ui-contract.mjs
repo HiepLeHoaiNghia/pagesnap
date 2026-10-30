@@ -1,11 +1,14 @@
 // plan-exempt — ps-002 build: contract of the approved dock and Studio (plans/ps-002/ui/rules-v1.md). routing-override: skipped — user asked to build from the plan.
 /**
- * What the owner approved on the review board, as checks a machine can repeat:
- *   - dock: at most 5 visible buttons (the close button and the "more" button do not count), two labelled groups;
+ * What the owner approved (board answers G0-G2, then the owner's feedback of 2026-10-30), as checks a machine can repeat:
+ *   - dock: one flat row; Expand, Shrink, Pick (and Select parent) outside any menu; at most 6 other export buttons; no "more" menu;
+ *     the whole dock stays inside the window; the group names "Animated (JS)" and "No JS" are in the tooltips;
  *   - Studio: 3 tabs, at most 8 visible buttons on every tab, no "Analyze motion" button and no "JS Motion: None" label;
+ *     footer = Copy animated, Download ZIP and an "Other formats" menu;
  *   - every file in the Code menu carries one motion label (Animated (JS) / CSS motion / Markup only / Data);
  *   - the wait pill shows a percentage and a Skip button;
- *   - "Copy animated" carries the motion script, "Copy code · no JS" does not.
+ *   - "Copy animated" carries the motion script, "Copy code · no JS" does not;
+ *   - "Select parent" shows up once the motion probe has measured more motion in the parent.
  * All checks run, then every failure is listed, so one run shows how far the UI is from the contract.
  */
 import assert from 'node:assert/strict';

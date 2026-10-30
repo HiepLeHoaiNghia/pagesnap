@@ -106,7 +106,6 @@ ${element.outerHTML}
 \`\`\`
 
 ---
-// plan-exempt — preserve Instruction for AI Agent heading
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
 You are a senior Frontend Engineer specializing in Tailwind CSS and Framer Motion.
@@ -152,3 +151,4 @@ export function LiftingCard({ children }: { children: React.ReactNode }) {
 
   PageSnap.aiPrompt = { build };
 })(window.PageSnap = window.PageSnap || {});
+// plan-exempt — removed an internal comment line that sat inside the prompt template and leaked into every AI-PROMPT.md (found by layered review). routing-override: skipped — user asked to fix review findings.
