@@ -69,7 +69,7 @@ Limits: the sweep dispatches hover only (no click, drag, scroll or keyboard), so
 | JS motion on a timeline (GSAP and similar) | Observed and written into `AI-PROMPT.md` (start and end states, cadence); **not replayed**: `index.html` shows the first frame. The driver is `time-loop` |
 | Scroll-driven (ScrollTrigger), WebGL, canvas | Not captured |
 
-The driver is decided by what the component does while the pointer rests: after the sweep, `motionSniffer.measureStillness` lets the pointer rest and counts write batches that still reach the component; 15 or more means a timeline (`time-loop`). Stylesheets blocked by cross-origin rules cannot be read, so their `@keyframes` are missing from the export.
+The driver is decided by what the component does while the pointer rests: after the sweep, `motionSniffer.measureStillness` lets the pointer rest for 1.2 s, then counts for 1.8 s the write batches that still reach the component; 6 or more means a timeline (`time-loop`). The window is long because timelines often write in bursts (on gsap.com a 300 ms burst every 1.3 s): a 0.7 s window sometimes fell into the gap and labelled the same timeline `pointer-x`. Stylesheets blocked by cross-origin rules cannot be read, so their `@keyframes` are missing from the export.
 
 ---
 

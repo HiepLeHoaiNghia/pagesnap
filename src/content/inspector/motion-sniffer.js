@@ -42,7 +42,8 @@
   let stillRoot = null;
   let stillCount = 0;
   const stillnessByRoot = new WeakMap();
-  const STILL_MIN_BATCHES = 15;
+  // plan-exempt — layered timelines write in bursts (a 300 ms burst every 1.3 s on gsap.com): the window must span more than one gap and the threshold must be satisfied by a single burst. routing-override: skipped — user asked to fix what the before/after comparison exposed.
+  const STILL_MIN_BATCHES = 6;
   // plan-exempt — Phase 11 global sniffer start timestamp to preserve multi-element traveling wave timing
   let snifferStartTime = 0;
 
@@ -220,7 +221,7 @@
      * Lets the pointer rest, then counts the write batches that still reach `root`. A motion that needs the pointer
      * settles within a moment; a timeline keeps writing. The result decides the driver in describe().
      */
-    async measureStillness(root, { settleMs = 1000, windowMs = 700 } = {}) {
+    async measureStillness(root, { settleMs = 1200, windowMs = 1800 } = {}) {
       if (!observer || !root) return null;
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       await sleep(settleMs);

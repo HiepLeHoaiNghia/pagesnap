@@ -216,7 +216,7 @@ try {
       const driver = await page.evaluate(async () => {
         const sniffer = window.PageSnap.motionSniffer;
         const host = document.getElementById('host');
-        if (typeof sniffer.measureStillness === 'function') await sniffer.measureStillness(host, { settleMs: 900, windowMs: 700 });
+        if (typeof sniffer.measureStillness === 'function') await sniffer.measureStillness(host);
         const d = sniffer.describe(host);
         return d && d.driver;
       });

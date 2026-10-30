@@ -41,3 +41,4 @@ Run from the extension folder. Browser tests are headless. Sites need network.
 ## Changelog
 
 - 2026-10-30: fixes built with tests written first; verified on cursor.com (36/36 animations replay), gsap.com (`time-loop`), and Linear (stack table identical, fan replay 16.3 → 133.3).
+- 2026-10-30 (before/after check): comparing `develop` with this branch on gsap.com showed one run still labelled `pointer-x` (3848 writes), so the first stillness window (0.7 s, 15 batches) was unreliable on bursty timelines. Now 1.2 s rest + 1.8 s window, 6 batches. gsap.com: 3 of 3 runs `time-loop` (310, 328, 394 writes); one earlier run before this change was `pointer-x`, so reliability is shown by 4 runs only, not proven. Linear unchanged (stack identical, fan 16.3 → 133.3). cursor.com before/after: 0 → 4 keyframes, 0 → 36 of 36 animations replay.
