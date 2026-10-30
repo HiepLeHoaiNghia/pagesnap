@@ -117,6 +117,102 @@
     return v.includes('var(') ? null : v;
   }
 
+  // plan-exempt — ps-007: an agent that rebuilt dogstudio.co from the export said "styles.css has no :hover rules, I invented them". The page's own :hover/:focus/:active rules are read and mapped onto the .ps-el-N classes. routing-override: skipped — user asked to export the page's own hover/focus rules so agents do not have to guess.
+  const STATE_RE = /:(hover|focus-visible|focus-within|focus|active)(?![\w-])/g;
+  const STATE_ANY = /:(hover|focus-visible|focus-within|focus|active)(?![\w-])/;
+
+  /** split a complex selector into compounds with the combinator that precedes each one ('' for the first) */
+  function splitCompounds(sel) {
+    const parts = [];
+    let cur = '';
+    let depth = 0;
+    let quote = '';
+    let comb = '';
+    const push = () => { if (cur.trim()) { parts.push({ compound: cur.trim(), comb }); cur = ''; comb = ''; } };
+    for (const ch of sel) {
+      if (quote) { cur += ch; if (ch === quote) quote = ''; continue; }
+      if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+      if (ch === '(' || ch === '[') depth++;
+      else if (ch === ')' || ch === ']') depth--;
+      if (depth === 0 && (ch === '>' || ch === '+' || ch === '~')) { push(); comb = ch; continue; }
+      if (depth === 0 && /\s/.test(ch)) { if (cur.trim()) { push(); comb = ' '; } continue; }
+      cur += ch;
+    }
+    push();
+    return parts;
+  }
+
+  function absolutizeUrls(value, rule) {
+    return value.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/g, (all, q, u) => {
+      if (/^(data:|https?:|blob:|#)/i.test(u)) return all;
+      try { return `url("${new URL(u, (rule.parentStyleSheet && rule.parentStyleSheet.href) || document.baseURI).href}")`; } catch (e) { return all; }
+    });
+  }
+
+  /**
+   * The page's :hover / :focus / :active rules for the elements of the component, as `.ps-el-N:hover { ... }`.
+   * A hovered ancestor inside the component is supported (`.card:hover .title`); a hovered element outside it, sibling
+   * combinators and pseudo-elements are skipped.
+   * @returns {{text:string, layer:number, spec:number, order:number}[]}
+   */
+  function stateRules(elements, records) {
+    const out = [];
+    const root = elements[0];
+    for (const rec of records) {
+      const text = rec.rule.selectorText || '';
+      if (!STATE_ANY.test(text)) continue;
+      const style = rec.rule.style;
+      for (const part of splitSelectors(text)) {
+        if (!STATE_ANY.test(part) || part.includes('::')) continue;
+        const comps = splitCompounds(part);
+        if (!comps.length) continue;
+        const plain = comps.map((c) => ({ comb: c.comb, compound: c.compound.replace(STATE_RE, '') || '*' }));
+        const stripped = plain.map((c) => (c.comb && c.comb !== ' ' ? ` ${c.comb} ` : c.comb) + c.compound).join('');
+        if (!safeMatchesAny(root, stripped)) continue;
+        const states = (c) => (c.match(STATE_RE) || []).join('');
+        const subjectStates = states(comps[comps.length - 1].compound);
+        const statefulAncestors = [];
+        comps.forEach((c, k) => { if (k < comps.length - 1 && STATE_ANY.test(c.compound)) statefulAncestors.push(k); });
+        if (statefulAncestors.length > 1) continue;
+        const k = statefulAncestors.length ? statefulAncestors[0] : -1;
+        if (k >= 0 && comps.slice(k + 1).some((c) => c.comb === '+' || c.comb === '~')) continue;
+        const spec = specificity(part);
+        elements.forEach((el, i) => {
+          if (!safeMatches(el, stripped)) return;
+          let selectors;
+          if (k < 0) {
+            selectors = [`.ps-el-${i}${subjectStates}`];
+          } else {
+            const ancestorStates = states(comps[k].compound);
+            selectors = [];
+            elements.forEach((a, j) => {
+              if (j === i || !a.contains(el) || !safeMatches(a, plain[k].compound)) return;
+              selectors.push(`.ps-el-${j}${ancestorStates} .ps-el-${i}${subjectStates}`);
+            });
+          }
+          if (!selectors.length) return;
+          const inline = el.style || { getPropertyValue: () => '' };
+          const lines = [];
+          for (let n = 0; n < style.length; n++) {
+            const prop = style[n];
+            if (prop.startsWith('--')) continue;
+            const important = style.getPropertyPriority(prop) === 'important';
+            if (inline.getPropertyValue(prop) && !important) continue;
+            let value = style.getPropertyValue(prop).trim();
+            if (value.includes('var(')) value = resolveVars(value, el);
+            if (!value) continue;
+            lines.push(`${prop}: ${absolutizeUrls(value, rec.rule)}${important ? ' !important' : ''}`);
+          }
+          if (!lines.length) return;
+          let css = `${selectors.join(', ')} { ${lines.join('; ')}; }`;
+          for (let c = rec.conds.length - 1; c >= 0; c--) css = `${rec.conds[c].head} { ${css} }`;
+          out.push({ text: css, layer: rec.layer, spec, order: rec.order });
+        });
+      }
+    }
+    return out.sort((a, b) => (a.layer - b.layer) || (a.spec - b.spec) || (a.order - b.order));
+  }
+
   /**
    * @param {Element[]} elements the component root first, then its descendants (index = ps-el-N)
    * @returns {string} CSS to append after the pinned rules
@@ -238,6 +334,8 @@
         emit(text);
       }
     });
+
+    stateRules(elements, records).forEach((r) => emit(r.text));
     probeStyle.remove();
 
     PageSnap.authoredCss.lastStats = { rulesInPage: records.length, relevantRules: relevant.length, blocks: blocks.length, chars, unreadableSheets: unreadable, capped: chars >= MAX_CSS_CHARS };

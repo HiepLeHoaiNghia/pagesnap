@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261030-v14 so open tabs re-inject authored-css.js. routing-override: skipped — user asked to check the improvement on complex sites and fix what the numbers show.
+// plan-exempt — bump buildId to 20261031-v15 so open tabs re-inject authored-css.js. routing-override: skipped — user approved the hover export work ("ok làm đi").
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261030-v14' });
+    sendResponse({ success: true, buildId: '20261031-v15' });
     return true;
   }
 });
