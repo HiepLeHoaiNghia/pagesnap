@@ -15,7 +15,8 @@
     "test:e2e:ui": "node tests/e2e/e2e-ui-contract.mjs",
     "test:e2e:responsive": "node tests/e2e/e2e-responsive-export.mjs",
     "test:e2e:style": "node tests/e2e/e2e-style-fidelity.mjs",
-    "test:e2e:hover": "node tests/e2e/e2e-hover-export.mjs"
+    "test:e2e:hover": "node tests/e2e/e2e-hover-export.mjs",
+    "test:e2e:surfaces": "node tests/e2e/e2e-render-surfaces.mjs"
   },
   "keywords": [
     "pagesnap",

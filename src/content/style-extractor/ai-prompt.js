@@ -9,10 +9,12 @@
   'use strict';
 
   /** @returns {string} the markdown document */
-  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel }) {
+  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces }) {
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
     const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
+    // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
+    const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [
@@ -97,6 +99,8 @@ ${keyframesCss ? `### Keyframe Animations:\n\`\`\`css\n${keyframesCss}\n\`\`\`\n
 ${jsMotionMd}
 
 ${identifiedMd}
+
+${renderSurfacesMd}
 
 ---
 

@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v15: authored-css.js exports :hover/:focus/:active rules, open tabs must re-inject. routing-override: skipped — user approved the hover export work ("ok làm đi").
+// plan-exempt — bump buildId to 20261031-v16: render-surfaces.js joins the content bundle, open tabs must re-inject. routing-override: skipped — user approved the canvas warning work in chat.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v15') {
+        if (!pingRes || pingRes.buildId !== '20261031-v16') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

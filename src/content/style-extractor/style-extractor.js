@@ -70,7 +70,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const playerHtml = modelPlayerTagged || pointerMotionPlayer;
     const selfContainedHtmlNoJs = playerHtml ? selfContainedHtml.replace(playerHtml, () => '') : selfContainedHtml;
     // plan-exempt — ps-003 phase 4: AI-PROMPT.md is assembled by ai-prompt.js (moved unchanged). routing-override: skipped — user asked to build from the plan.
-    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel });
+    // plan-exempt — ps-007 part B: canvas/video/iframe/3D-asset facts go to the prompt, tokens.json and the result. routing-override: skipped — user approved the canvas warning work in chat.
+    const renderSurfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [] };
+    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
       sourceUrl: window.location.href,
@@ -86,7 +88,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       animations: Array.from(animationNames),
       jsMotion: jsMotion,
       // plan-exempt — Phase 13 measured pointer model (null until the user runs Analyze in Studio)
-      motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null
+      motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null,
+      renderSurfaces: renderSurfaces
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -110,7 +113,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       colorTokens: Array.from(colorTokens),
       fontTokens: Array.from(fontTokens),
       animationNames: Array.from(animationNames),
-      jsMotion: jsMotion
+      jsMotion: jsMotion,
+      renderSurfaces: renderSurfaces
     };
   };
 

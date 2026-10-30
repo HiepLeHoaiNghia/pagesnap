@@ -9,7 +9,8 @@
  *   - conditional rules (@media, @supports, @container), wrapped in their own condition.
  * Elements whose size no readable rule sets lose their pinned width/height (so they flow again). Everything is mapped onto
  * the `.ps-el-N` classes that style-collect.js gives the clone, so the index of an element is its position in `elements`.
- *
+ * The page's `:hover` / `:focus` / `:active` rules are added too, mapped onto the same classes (see stateRules). plan-exempt — ps-007 header note only. routing-override: skipped — user approved the hover export work in chat.
+ * State rules skip pseudo-elements, hovered elements outside the component and sibling combinators. plan-exempt — ps-007 header note. routing-override: skipped — user approved the hover export work.
  * Limits: stylesheets the page does not let us read (cross-origin) are skipped, and when one exists nothing is unpinned;
  * the cascade is approximated (specificity, layer, source order, !important); a `var()` that cannot be resolved drops its declaration.
  */

@@ -340,6 +340,17 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     return line;
   }
 
+  // plan-exempt — ps-007 part B: a notice, not a button, for what the export cannot carry. routing-override: skipped — user approved the canvas warning work in chat.
+  /** A one-line notice in the dock row (not clickable). */
+  function dockNotice(text, title) {
+    const n = document.createElement('span');
+    n.dataset.notice = 'render-surface';
+    n.textContent = text;
+    n.title = title;
+    Object.assign(n.style, { whiteSpace: 'nowrap', color: '#fbbf24', fontSize: '12px', fontWeight: '500', padding: '6px 4px', cursor: 'help' });
+    return n;
+  }
+
 // plan-exempt — position floating bar and sync on scroll
   function positionFloatingBar(bar, element) {
     if (!bar || !element) return;
@@ -441,6 +452,11 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       }));
     }
 
+    // plan-exempt — ps-007 part B: say it when the region is partly drawn by a canvas, video or iframe. routing-override: skipped — user approved the canvas warning work in chat.
+    const surfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : null;
+    if (surfaces && surfaces.any) {
+      bar.appendChild(dockNotice(PageSnap.renderSurfaces.badge(surfaces), `This region is partly drawn by: ${PageSnap.renderSurfaces.describe(surfaces)}. The export cannot contain it, so that area comes out blank. AI-PROMPT.md lists what the page loaded (3D files, libraries) so an agent can rebuild it.`));
+    }
     bar.appendChild(dockDivider());
 
     // ✨ Live Studio

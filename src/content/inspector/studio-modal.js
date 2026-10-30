@@ -198,10 +198,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const keyframes = countOf(componentData.cssOnly, /@keyframes/g);
       if (keyframes) parts.push(`${keyframes} CSS @keyframes`);
       // plan-exempt — owner feedback 2026-10-30: the status line sits in the footer between the two export groups; the tooltip keeps the full text when it is cut short. routing-override: skipped — user asked for this change directly.
-      statusLine.textContent = parts.length
+      // plan-exempt — ps-007 part B: the footer also says what the export cannot carry (canvas, video, iframe). routing-override: skipped — user approved the canvas warning work in chat.
+      const surfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.describe(componentData.renderSurfaces) : '';
+      const motionText = parts.length
         ? 'Motion measured · ' + parts.join(' · ')
         : 'No motion detected · CSS transitions and hover rules are still exported.';
-      statusLine.title = statusLine.textContent;
+      statusLine.textContent = surfaces ? `⚠ Not exported: ${surfaces} · ${motionText}` : motionText;
+      statusLine.title = statusLine.textContent + (surfaces ? ' — AI-PROMPT.md lists what the page loaded so an agent can rebuild it.' : '');
     }
 
     function renderFileMenu() {
