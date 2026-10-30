@@ -34,7 +34,15 @@
   };
   let observer = null;
   let autoStopTimer = null;
-  let pointerActivity = { lastX: 0, lastY: 0, movesCount: 0 };
+  let pointerActivity = { lastX: 0, lastY: 0, movesCount: 0, lastMoveAt: 0 };
+  // plan-exempt — found on gsap.com: the hover sweep itself moves the pointer, so "the pointer moved" says nothing about what drives a motion. What does: do the writes keep coming while the pointer rests? routing-override: skipped — user asked to fix what the compatibility test found.
+  const AUTONOMOUS_IDLE_MS = 1000;
+  let writeTiming = { batches: 0, autonomous: 0 };
+  // plan-exempt — stillness probe: how many style-write batches land on the component while the pointer rests. routing-override: skipped — user asked to fix what the compatibility test found.
+  let stillRoot = null;
+  let stillCount = 0;
+  const stillnessByRoot = new WeakMap();
+  const STILL_MIN_BATCHES = 15;
   // plan-exempt — Phase 11 global sniffer start timestamp to preserve multi-element traveling wave timing
   let snifferStartTime = 0;
 
@@ -43,6 +51,7 @@
     pointerActivity.lastX = e.clientX;
     pointerActivity.lastY = e.clientY;
     pointerActivity.movesCount++;
+    pointerActivity.lastMoveAt = performance.now();
 
     const target = e.target;
     if (!target || (target.closest && target.closest(OWN_UI))) return;
@@ -96,6 +105,11 @@
 
   function onMutations(list) {
     const now = performance.now();
+    writeTiming.batches++;
+    if (pointerActivity.movesCount > 0 && now - pointerActivity.lastMoveAt > AUTONOMOUS_IDLE_MS) writeTiming.autonomous++;
+    if (stillRoot) {
+      for (const m of list) { if (m.target && stillRoot.contains(m.target)) { stillCount++; break; } }
+    }
     for (const m of list) {
       const el = m.target;
       const name = m.attributeName;
@@ -202,12 +216,31 @@
   PageSnap.motionSniffer = {
     isActive() { return !!observer; },
 
+    /**
+     * Lets the pointer rest, then counts the write batches that still reach `root`. A motion that needs the pointer
+     * settles within a moment; a timeline keeps writing. The result decides the driver in describe().
+     */
+    async measureStillness(root, { settleMs = 1000, windowMs = 700 } = {}) {
+      if (!observer || !root) return null;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      await sleep(settleMs);
+      stillRoot = root;
+      stillCount = 0;
+      await sleep(windowMs);
+      const batches = stillCount;
+      stillRoot = null;
+      stillCount = 0;
+      stillnessByRoot.set(root, batches);
+      return batches;
+    },
+
     start() {
       if (typeof MutationObserver === 'undefined') return;
       this.stop();
       // plan-exempt — preserve records across re-inspect cycles in the same session
       if (!records) records = new WeakMap();
-      pointerActivity = { lastX: 0, lastY: 0, movesCount: 0 };
+      pointerActivity = { lastX: 0, lastY: 0, movesCount: 0, lastMoveAt: 0 };
+      writeTiming = { batches: 0, autonomous: 0 };
       if (!snifferStartTime) snifferStartTime = performance.now();
       document.addEventListener('pointermove', onPointerTrack, { passive: true, capture: true });
       observer = new MutationObserver(onMutations);
@@ -470,7 +503,11 @@
           });
         }
       });
-      const isPointerX = pointerActivity.movesCount > 4 && allPx.length > 5 && (Math.max(...allPx) - Math.min(...allPx) > 0.15);
+      // a pointer-driven motion writes right after the pointer moves and goes quiet when it rests; a timeline keeps writing
+      const autonomousShare = writeTiming.batches ? writeTiming.autonomous / writeTiming.batches : 0;
+      const stillBatches = stillnessByRoot.has(root) ? stillnessByRoot.get(root) : null;
+      const keepsWriting = (stillBatches !== null && stillBatches >= STILL_MIN_BATCHES) || autonomousShare >= 0.3;
+      const isPointerX = pointerActivity.movesCount > 4 && allPx.length > 5 && (Math.max(...allPx) - Math.min(...allPx) > 0.15) && !keepsWriting;
       const driver = isPointerX ? 'pointer-x' : 'time-loop';
 
       // plan-exempt — Phase 12 build a complete spatial state map so hovering reproduces the original motion

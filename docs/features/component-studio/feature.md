@@ -60,6 +60,17 @@ Some effects (SVG path morphs, inline-style tweens, carousels) are produced by p
 
 Limits: the sweep dispatches hover only (no click, drag, scroll or keyboard), so motion that depends on those or on history is not reproduced. The component is scrolled into view during the sweep and the scroll position is restored.
 
+**What is and is not replayed (compatibility, measured 2026-10-30).**
+
+| Animation kind | Export |
+| --- | --- |
+| CSS `@keyframes`, transitions (including `@keyframes` inside `@layer`, `@media`, `@supports`, `@container`, and adopted stylesheets) | Replayed from `styles.css` |
+| JS motion that follows the pointer (springs) | Replayed by the fitted player |
+| JS motion on a timeline (GSAP and similar) | Observed and written into `AI-PROMPT.md` (start and end states, cadence); **not replayed**: `index.html` shows the first frame. The driver is `time-loop` |
+| Scroll-driven (ScrollTrigger), WebGL, canvas | Not captured |
+
+The driver is decided by what the component does while the pointer rests: after the sweep, `motionSniffer.measureStillness` lets the pointer rest and counts write batches that still reach the component; 15 or more means a timeline (`time-loop`). Stylesheets blocked by cross-origin rules cannot be read, so their `@keyframes` are missing from the export.
+
 ---
 
 ### Studio layout
@@ -87,3 +98,4 @@ Three tabs share the title row: **Preview**, **Code ▾** and **AI Specs**. The 
 | 2026-10-29 | One-click motion capture: every export action sweeps hover and, for pointer-driven motion, measures springs automatically (progress pill with Skip). Stack hover is rebuilt from a measured hover map (cumulative lift groups match the original), lift transitions replay the measured easing, and the Studio preview no longer applies a blanket lift. Fixed the motion model deleting the `ps-el-N` scoping classes, which stopped the bottom plate from lifting after Analyze. |
 | 2026-10-30 | Redesigned dock and Studio: flat dock (navigation, Live Studio, Copy animated, Download ZIP, Copy code · no JS, Copy Selection MD, Copy AI Prompt) that stays inside the window and redraws when the motion probe finishes; Studio with tabs in the title row, a Code file menu, a status line and a footer with one main action plus an Other formats menu; new "Copy code · no JS" export; wait pill shows a percentage. Removed every site-specific literal from `src/` (hover and lift are measured) and split `style-extractor.js` into six modules. |
 | 2026-10-30 | Content-script `buildId` is now `20261030-v10`, so tabs opened before the update re-inject the split extractor modules. The wait pill's percentage never goes backwards (the `outside` identify stage now has its own range). `npm run test:e2e:download` loads the split extractor modules. |
+| 2026-10-30 | Compatibility fixes found by testing real sites: `@keyframes` nested in `@layer`/`@media`/`@supports`/`@container` and in adopted stylesheets are now exported (cursor.com: 0 → 4 keyframes, 36 of 36 animations replay); a timeline is no longer labelled pointer-driven (gsap.com: `time-loop`, no pointless spring fit); Studio says "time-driven JS motion … not replayed" instead of "spring fitted (0 animated values)"; the AI prompt says the export holds the first frame only. |

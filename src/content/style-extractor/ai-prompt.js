@@ -18,7 +18,7 @@
       ? [
           '### JavaScript-driven motion (observed)',
           // plan-exempt — Phase 12 driver-aware interactive motion spec in AI-PROMPT.md
-          ...(jsMotion.driver ? [`- **Interactive Driver:** \`${jsMotion.driver}\` (${jsMotion.driver.startsWith('pointer') ? 'Pointer-Reactive: coordinates across component bounding box scrub the wave' : 'Autonomous Time-Loop'})`] : []),
+          ...(jsMotion.driver ? [`- **Interactive Driver:** \`${jsMotion.driver}\` (${jsMotion.driver.startsWith('pointer') ? 'Pointer-Reactive: coordinates across component bounding box scrub the wave' : 'Autonomous Time-Loop: runs on its own, not tied to the pointer. The exported HTML shows the first frame only; rebuild the timeline from the states and cadence listed below'})`] : []),
           // plan-exempt — Phase 12 advertise the complete spatial state map for pointer-driven reconstruction
           ...(jsMotion.spatialMap && jsMotion.spatialMap.length
             ? [`- **Spatial State Map:** ${jsMotion.spatialMap.length} pointer buckets in \`tokens.json\` (\`jsMotion.spatialMap\`), each holding every animated path at that cursor X. Scrub this map from \`pointermove\` instead of replaying a fixed timeline.`]

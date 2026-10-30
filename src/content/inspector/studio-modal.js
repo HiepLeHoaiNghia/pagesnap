@@ -188,7 +188,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const m = componentData.jsMotion || {};
       const model = PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(currentModalElement);
       const parts = [];
-      if (model && model.supported) parts.push(`spring fitted (${model.quality} quality, ${model.series.length} animated values)`);
+      // plan-exempt — found on gsap.com: a fit with 0 animated values is not a spring, and time-driven JS motion is described but not replayed; say so. routing-override: skipped — user asked to fix what the compatibility test found.
+      if (model && model.supported && model.series && model.series.length) parts.push(`spring fitted (${model.quality} quality, ${model.series.length} animated values)`);
+      if (m.driver === 'time-loop' && (m.attributes || []).length) parts.push(`time-driven JS motion (${m.totalWrites || 0} writes) · described in AI Specs, not replayed`);
       if ((m.spatialMap || []).length > 1) parts.push(`pointer motion (${m.spatialMap.length} positions)`);
       if ((m.hoverMap || []).length) parts.push(`${m.hoverMap.length} hover zones`);
       if ((m.liftLayers || []).length) parts.push(`${m.liftLayers.length} lift layers`);

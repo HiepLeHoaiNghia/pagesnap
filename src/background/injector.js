@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261030-v10: CONTENT_BUNDLE gained the extractor modules, so open tabs must re-inject. routing-override: skipped — user asked to fix review findings.
+// plan-exempt — bump buildId to 20261030-v11: the content scripts changed again (keyframes scan, driver rule), open tabs must re-inject. routing-override: skipped — user asked to fix what the compatibility test found.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261030-v10') {
+        if (!pingRes || pingRes.buildId !== '20261030-v11') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

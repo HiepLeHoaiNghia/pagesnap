@@ -172,6 +172,59 @@ try {
     await page.close();
     await exportPage.close();
   }
+
+  // plan-exempt — found on cursor.com: modern CSS keeps @keyframes inside @layer / @media / @supports, and those animations were missing from the export. routing-override: skipped — user asked to test compatibility and fix what it finds.
+  {
+    const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    await page.setContent(`<!DOCTYPE html><html><head><style>
+      @layer base { @keyframes layered-fade { from { opacity: .2 } to { opacity: 1 } } }
+      @media (min-width: 1px) { @keyframes media-fade { from { opacity: .5 } to { opacity: 1 } } }
+      @supports (display: grid) { @keyframes supports-fade { from { opacity: 0 } to { opacity: 1 } } }
+      @layer a { @media (min-width: 1px) { @keyframes deep-fade { from { opacity: .1 } to { opacity: 1 } } } }
+      .a { animation: layered-fade 1s infinite alternate } .b { animation: media-fade 1s infinite alternate }
+      .c { animation: supports-fade 1s infinite alternate } .d { animation: deep-fade 1s infinite alternate }
+    </style></head><body><div id="host"><div class="a">a</div><div class="b">b</div><div class="c">c</div><div class="d">d</div></div></body></html>`);
+    await injectBundle(page);
+    const css = await page.evaluate(() => window.PageSnap.extractComponentStyleAndMotion(document.getElementById('host')).cssOnly);
+    for (const name of ['layered-fade', 'media-fade', 'supports-fade', 'deep-fade']) {
+      assert.ok(css.includes('@keyframes ' + name), `@keyframes ${name} (nested in a grouping rule) must be exported`);
+    }
+    console.log('  ✓ [nested keyframes] @keyframes inside @layer, @media, @supports and a layered media block are exported');
+    await page.close();
+  }
+
+  // plan-exempt — found on gsap.com: a time-driven timeline was labelled pointer-driven because the hover sweep itself moves the pointer. The driver must follow when the writes happen, not whether a pointer moved. routing-override: skipped — user asked to fix what the compatibility test found.
+  {
+    const CASES = [
+      { name: 'time-driven (writes continue while the pointer is still)', mode: 'time', expect: 'time-loop' },
+      { name: 'pointer-driven (writes only follow pointer moves)', mode: 'pointer', expect: 'pointer-x' }
+    ];
+    for (const c of CASES) {
+      const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+      await page.setContent(`<div id="host" style="width:600px;height:200px"><svg width="600" height="200"><path id="p" d="M0 0 L10 10" stroke="#fff" fill="none"></path></svg></div>`);
+      await injectBundle(page);
+      await page.evaluate((mode) => {
+        window.PageSnap.motionSniffer.start();
+        const p = document.getElementById('p');
+        let i = 0;
+        if (mode === 'time') setInterval(() => { i += 1; p.setAttribute('d', `M0 0 L600 200 M${10 + (i % 200)} ${10 + (i % 90)} L${20 + (i % 200)} ${30 + (i % 90)}`); }, 16);
+        else document.addEventListener('pointermove', (e) => { for (let k = 0; k < 20; k++) setTimeout(() => p.setAttribute('d', `M0 0 L600 200 M${Math.round(e.clientX / 3) + k} ${Math.round(e.clientY / 3)} L${Math.round(e.clientX / 3) + k + 9} ${Math.round(e.clientY / 3) + 9}`), k * 16); });
+      }, c.mode);
+      // the sweep moves the pointer for a while, then it rests; a time-driven animation keeps writing while it rests
+      for (let k = 0; k < 8; k++) { await page.mouse.move(60 + k * 60, 80 + (k % 3) * 20); await page.waitForTimeout(250); }
+      // the real flow reads the result right after the sweep, then checks stillness: no long idle stretch exists to look at
+      const driver = await page.evaluate(async () => {
+        const sniffer = window.PageSnap.motionSniffer;
+        const host = document.getElementById('host');
+        if (typeof sniffer.measureStillness === 'function') await sniffer.measureStillness(host, { settleMs: 900, windowMs: 700 });
+        const d = sniffer.describe(host);
+        return d && d.driver;
+      });
+      assert.equal(driver, c.expect, `${c.name}: driver was ${driver}`);
+      console.log(`  ✓ [driver] ${c.name} → ${driver}`);
+      await page.close();
+    }
+  }
   console.log('\nmotion export characterization passed');
 } catch (err) {
   console.error('\nmotion export characterization FAILED:', err.message);

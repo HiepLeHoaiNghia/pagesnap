@@ -42,22 +42,25 @@
     let extractedRules = [];
     const foundNames = new Set();
 
-    for (let i = 0; i < document.styleSheets.length; i++) {
-      try {
-        const sheet = document.styleSheets[i];
-        const rules = sheet.cssRules || sheet.rules;
-        if (!rules) continue;
-
-        for (let j = 0; j < rules.length; j++) {
-          const rule = rules[j];
-          // CSSRule.KEYFRAMES_RULE === 7
-          if (rule.type === 7 || rule.constructor.name === 'CSSKeyframesRule') {
-            if (animationNames.has(rule.name) && !foundNames.has(rule.name)) {
-              foundNames.add(rule.name);
-              extractedRules.push(rule.cssText);
-            }
+    // plan-exempt — found on cursor.com: @keyframes live inside @layer / @media / @supports / @container on modern sites, and adopted stylesheets hold more; both were skipped. routing-override: skipped — user asked to test compatibility and fix what it finds.
+    const visit = (rules) => {
+      for (const rule of Array.from(rules)) {
+        // CSSRule.KEYFRAMES_RULE === 7
+        if (rule.type === 7 || rule.constructor.name === 'CSSKeyframesRule') {
+          if (animationNames.has(rule.name) && !foundNames.has(rule.name)) {
+            foundNames.add(rule.name);
+            extractedRules.push(rule.cssText);
           }
+        } else if (rule.cssRules && rule.cssRules.length) {
+          visit(rule.cssRules);
         }
+      }
+    };
+    const sheets = [...Array.from(document.styleSheets), ...Array.from(document.adoptedStyleSheets || [])];
+    for (const sheet of sheets) {
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        if (rules) visit(rules);
       } catch (e) {
         // Cross-origin stylesheet access might throw, ignore
       }
