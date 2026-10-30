@@ -388,6 +388,7 @@ async function runE2E() {
       'src/content/markdown/extractor.js',
 // plan-exempt — ps-003 phases 3-4: the extractor is a thin facade over these modules; they must be injected before it. routing-override: skipped — user asked to build from the plan.
       'src/content/style-extractor/markup-export.js',
+      'src/content/style-extractor/authored-css.js',
       'src/content/style-extractor/style-collect.js',
       'src/content/style-extractor/ai-prompt.js',
       'src/content/style-extractor/pointer-player.js',

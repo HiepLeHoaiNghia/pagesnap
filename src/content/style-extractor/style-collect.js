@@ -136,12 +136,16 @@
     const keyframesCss = extractKeyframeRules(animationNames);
 
     // Build scoped CSS rules string
-    const scopedCss = componentStyles.map(item => {
+    // plan-exempt — ps-006: after the pinned (computed) rules, add the page's own layout rules so the export keeps responding to the window. routing-override: skipped — user asked to learn from ui-clone-skills and improve the repo.
+    const pinnedCss = componentStyles.map(item => {
       const decls = Object.entries(item.styles)
         .map(([prop, val]) => `  ${prop}: ${val};`)
         .join('\n');
       return `${item.selector} {\n${decls}\n}`;
     }).join('\n\n');
+    let authoredCss = '';
+    try { authoredCss = PageSnap.authoredCss ? PageSnap.authoredCss.build(allElements) : ''; } catch (e) { authoredCss = ''; }
+    const scopedCss = authoredCss ? `${pinnedCss}\n\n/* Layout rules of the original page (responsive behaviour) */\n${authoredCss}` : pinnedCss;
 
     // Clone element and add scoped classes for self-contained reproduction
 // plan-exempt — strip extension highlight classes before adding scoped classes
