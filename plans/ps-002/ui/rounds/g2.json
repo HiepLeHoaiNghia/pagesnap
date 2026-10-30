@@ -1,0 +1,206 @@
+{
+  "id": "g2-ps002",
+  "title": "ps-002 · G2 · Giao diện thật: dock, Studio, thanh chờ (hi-fi, nội dung tiếng Anh)",
+  "how": "Mỗi mục: bấm \"Show me\" để xem, chọn một đáp án; cả màn hình đổi theo (không phải một mảnh). Ảnh nền là bản chụp linear.app, mã trong tab Code là trích từ ZIP bạn đã tải. Không có đáp án nào chọn sẵn; \"Không có ý kiến\" cũng là một đáp án. Đáp án lưu ở g2.answers.json.",
+  "noPreference": "Không có ý kiến",
+  "groups": [
+    {
+      "id": "dock",
+      "label": "Dock trên trang",
+      "how": "Cái hiện ngay khi bạn chọn một component."
+    },
+    {
+      "id": "studio",
+      "label": "Component Studio",
+      "how": "Cửa sổ lớn: Preview, Code, AI Specs."
+    },
+    {
+      "id": "wait",
+      "label": "Lúc chờ đo motion",
+      "how": "Khoảng 40 giây lần đầu."
+    }
+  ],
+  "items": [
+    {
+      "id": "D-1",
+      "group": "dock",
+      "effect": "D1",
+      "question": "Dock mới (5 nút + ⋯ + ✕, chia hai nhóm \"Animated (JS)\" và \"No JS\") có đạt không?",
+      "why": "Đây là bản hi-fi của lựa chọn B bạn đã chọn ở G1, với màu và kích cỡ thật của extension. So với hôm nay dock giảm từ 9 xuống 5 nút + ⋯ + ✕, và nút chính \"▶ Copy animated\" tô tím đậm. Nó thua ở chỗ rộng hơn (khoảng 1100 px so với khoảng 1000 px hôm nay) nên ở cửa sổ hẹp có thể phải xuống hàng. Câu hỏi: dùng như hình, hay cần đổi.",
+      "where": "Dock phía trên component được chọn",
+      "target": "#screen",
+      "example": "Chọn khối Fig 0.1-0.3 của Linear: bên trái \"Animated (JS)\" có Copy animated và Download ZIP; bên phải \"No JS\" có Copy code · no JS và Copy Selection MD.",
+      "onScreen": "Toàn bộ trang Linear mô phỏng với dock mới. \"Mở menu ⋯\" hiện các mục bị đẩy vào menu.",
+      "options": [
+        {
+          "value": "ok",
+          "label": "Dùng đúng như hình",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"sel\"></div>\n  <div id=\"dock-hi\" class=\"dock\">\n    <span class=\"tag\">[div.GJ9TEa_benefits]</span>\n    <button class=\"studio-btn\" style=\"flex-direction:row\">✨ Live Studio</button>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\">\n      <button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button>\n      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button></div></div>\n    <div class=\"grp\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\">\n      <button>Copy code · no JS<small>HTML + CSS only</small></button>\n      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button>\n  </div><div id=\"dock-menu\" class=\"menu\" style=\"left:1090px;top:236px;display:none\"></div></div>"
+            }
+          ]
+        },
+        {
+          "value": "menu",
+          "label": "Dùng như hình và xem thêm menu ⋯ đã mở",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"sel\"></div>\n  <div id=\"dock-hi\" class=\"dock\">\n    <span class=\"tag\">[div.GJ9TEa_benefits]</span>\n    <button class=\"studio-btn\" style=\"flex-direction:row\">✨ Live Studio</button>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\">\n      <button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button>\n      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button><div class=\"menu\" style=\"left:1090px;top:236px\"><div class=\"hd\">More</div><div class=\"item\"><span>🤖 Copy AI Prompt</span></div><div class=\"item\"><span>🔼 Expand to parent</span></div><div class=\"item\"><span>🔽 Shrink to child</span></div><div class=\"item\"><span>🎯 Pick another</span></div></div></div>\n    <div class=\"grp\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\">\n      <button>Copy code · no JS<small>HTML + CSS only</small></button>\n      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button>\n  </div><div id=\"dock-menu\" class=\"menu\" style=\"left:1090px;top:236px;display:block\"></div></div>"
+            }
+          ]
+        },
+        {
+          "value": "change",
+          "label": "Cần đổi (ghi chỗ nào)",
+          "needsNote": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"sel\"></div>\n  <div id=\"dock-hi\" class=\"dock\">\n    <span class=\"tag\">[div.GJ9TEa_benefits]</span>\n    <button class=\"studio-btn\" style=\"flex-direction:row\">✨ Live Studio</button>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\">\n      <button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button>\n      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button></div></div>\n    <div class=\"grp\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\">\n      <button>Copy code · no JS<small>HTML + CSS only</small></button>\n      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button>\n  </div><div id=\"dock-menu\" class=\"menu\" style=\"left:1090px;top:236px;display:none\"></div></div>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S-1",
+      "group": "studio",
+      "effect": "S1",
+      "question": "Studio ở tab Preview: thanh trạng thái motion và footer chia hai nhóm có đạt không?",
+      "why": "Thanh \"Motion measured. Pointer-driven spring · 30 animated values · 5 hover zones\" thay cho nhãn lỗi thời \"JS Motion: None\" và nút Analyze. Footer có đúng 5 hành động, cùng nhóm với dock (UI-3). Tổng đếm: 3 tab + 5 hành động = 8. Nó thua ở chỗ 12 điều khiển cũ (Expand, Shrink, Direct Text Edit, Re-Inspect…) nằm sau ⋯ nên mất một cú bấm.",
+      "where": "Toàn bộ cửa sổ Studio, tab Preview",
+      "target": "#screen",
+      "example": "Mở Studio cho cùng khối Linear: thanh xanh báo đã đo motion; bấm \"▶ Copy animated\" là xong.",
+      "onScreen": "Màn hình đổi sang Studio tab Preview đã mở, nền là trang Linear mờ.",
+      "options": [
+        {
+          "value": "ok",
+          "label": "Dùng đúng như hình",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab on\">👁 Preview</button>\n    <button class=\"tab \">⟨⟩ Code ▾</button>\n    <button class=\"tab \">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"m-body\"><img src=\"/mockups/assets/component.png\" alt=\"Linear component snapshot\"></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div></div>"
+            }
+          ]
+        },
+        {
+          "value": "change",
+          "label": "Cần đổi (ghi chỗ nào)",
+          "needsNote": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab on\">👁 Preview</button>\n    <button class=\"tab \">⟨⟩ Code ▾</button>\n    <button class=\"tab \">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"m-body\"><img src=\"/mockups/assets/component.png\" alt=\"Linear component snapshot\"></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div></div>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S-2",
+      "group": "studio",
+      "effect": "S2",
+      "question": "Tab Code có menu chọn tệp, mỗi tệp một nhãn, có đạt không?",
+      "why": "HTML, CSS, React JSX, Tokens gộp vào một tab Code với menu \"Files in the export\"; mỗi tệp có nhãn Animated (JS) / CSS motion / Markup only / Data và một dòng nói nó chứa gì. Hình đầu là index.html (Animated), hình kia là styles.css (CSS motion) và AI Specs. Nó thua ở chỗ hôm nay xem CSS là 1 cú bấm, với bản này là 2.",
+      "where": "Studio, tab Code và tab AI Specs",
+      "target": "#screen",
+      "example": "Bấm Code, rồi chọn styles.css: nhãn \"CSS motion\" và dòng \"75 @keyframes and 28 hover rules. No JavaScript.\"",
+      "onScreen": "Màn hình đổi giữa index.html, styles.css và AI Specs. Menu chọn tệp được vẽ mở.",
+      "options": [
+        {
+          "value": "ok",
+          "label": "Dùng đúng như hình (index.html, styles.css, AI Specs)",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab \">👁 Preview</button>\n    <button class=\"tab on\">⟨⟩ Code ▾</button>\n    <button class=\"tab \">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"filebar\"><span class=\"file\">index.html</span><span class=\"chip js\">Animated (JS)</span><span style=\"color:var(--dim)\">Markup + hover CSS + a script that runs the measured motion. Needs styles.css next to it. Showing 24 of 779 lines.</span><span class=\"grow\"></span><button>📋 Copy this file</button></div>\n    <div class=\"m-body\"><pre>&lt;!DOCTYPE html&gt;\n&lt;html lang=\"en\"&gt;\n&lt;head&gt;\n  &lt;meta charset=\"UTF-8\"&gt;\n  &lt;meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"&gt;\n  &lt;title&gt;PageSnap Component — &lt;div&gt;&lt;/title&gt;\n  &lt;link rel=\"stylesheet\" href=\"styles.css\"&gt;\n  &lt;style&gt;\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: rgb(8, 9, 10);\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n\n/* Interactive Lift &amp; Hover Transition */\n.ps-el-5 {\n  transition: transform 0.7s cubic-bezier(0.32, 0.72, 0, 1) !important;\n}\n.ps-el-10 {</pre></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div><div id=\"filemenu-hi\" class=\"menu\" style=\"left:132px;top:230px;display:block\">\n    <div class=\"hd\">Files in the export</div>\n    <div class=\"item\"><span>index.html</span><span class=\"chip js\">Animated (JS)</span></div>\n    <div class=\"item\"><span>styles.css</span><span class=\"chip css\">CSS motion</span></div>\n    <div class=\"item\"><span>Component.jsx</span><span class=\"chip md\">Markup only</span></div>\n    <div class=\"item\"><span>tokens.json</span><span class=\"chip md\">Data</span></div></div></div>"
+            }
+          ]
+        },
+        {
+          "value": "css",
+          "label": "Xem tệp styles.css",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab \">👁 Preview</button>\n    <button class=\"tab on\">⟨⟩ Code ▾</button>\n    <button class=\"tab \">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"filebar\"><span class=\"file\">styles.css</span><span class=\"chip css\">CSS motion</span><span style=\"color:var(--dim)\">75 @keyframes and 28 hover rules. No JavaScript.</span><span class=\"grow\"></span><button>📋 Copy this file</button></div>\n    <div class=\"m-body\"><pre>/* PageSnap Modular Stylesheet */\n/* 1. Container & Theme Context */\n.pagesnap-component-wrapper { … }\n\n/* 2. Extracted Keyframe Animations */\n@keyframes grid-dot-0-0-upDown { … }\n…</pre></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div><div id=\"filemenu-hi\" class=\"menu\" style=\"left:132px;top:230px;display:block\">\n    <div class=\"hd\">Files in the export</div>\n    <div class=\"item\"><span>index.html</span><span class=\"chip js\">Animated (JS)</span></div>\n    <div class=\"item\"><span>styles.css</span><span class=\"chip css\">CSS motion</span></div>\n    <div class=\"item\"><span>Component.jsx</span><span class=\"chip md\">Markup only</span></div>\n    <div class=\"item\"><span>tokens.json</span><span class=\"chip md\">Data</span></div></div></div>"
+            }
+          ]
+        },
+        {
+          "value": "ai",
+          "label": "Xem tab AI Specs",
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab \">👁 Preview</button>\n    <button class=\"tab \">⟨⟩ Code ▾</button>\n    <button class=\"tab on\">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"filebar\"><span class=\"file\">AI-PROMPT.md</span><span class=\"chip md\">Spec for AI</span><span style=\"color:var(--dim)\">A written brief an AI agent can rebuild the component from.</span><span class=\"grow\"></span><button>📋 Copy this file</button></div>\n    <div class=\"m-body\"><pre># UI Component Design Specification &amp; Reverse-Engineering Prompt\n\n&gt; Extracted via PageSnap from: https://linear.app/\n&gt; Target: `&lt;div&gt;` (1344px × 468px)\n\n---\n\n## 1. Visual &amp; Layout Overview\n- **HTML Element:** `&lt;div&gt;`\n- **Dimensions:** `1344px` width × `468px` height\n- **Display &amp; Layout:** `grid`\n- **Flex/Grid Alignment:** Align: `normal`, Justify: `normal`, Gap: `0px`\n- **Box Shadow:** `none`\n- **Border Radius:** `0px`\n- **Backdrop Filter:** `none`\n\n---\n</pre></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div></div>"
+            }
+          ]
+        },
+        {
+          "value": "change",
+          "label": "Cần đổi (ghi chỗ nào)",
+          "needsNote": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"scrim\"></div>\n  <div class=\"modal\" style=\"top:70px\">\n    <div class=\"m-head\"><span style=\"font-size:15px\">✨</span><span class=\"name\">Component Studio</span><span style=\"color:var(--dim)\">div.GJ9TEa_benefits · 1344 × 468</span></div>\n    <div id=\"tabs-hi\" class=\"tabs\">\n    <button class=\"tab \">👁 Preview</button>\n    <button class=\"tab on\">⟨⟩ Code ▾</button>\n    <button class=\"tab \">🤖 AI Specs</button>\n    <span class=\"grow\"></span>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button></div><div id=\"status-hi\" class=\"status\"><span class=\"ok-dot\"></span><b>Motion measured.</b>&nbsp;Pointer-driven spring · 30 animated values · 5 hover zones. <span style=\"color:var(--dim)\">&nbsp;Exports below will run this motion.</span></div>\n    <div class=\"filebar\"><span class=\"file\">index.html</span><span class=\"chip js\">Animated (JS)</span><span style=\"color:var(--dim)\">Markup + hover CSS + a script that runs the measured motion. Needs styles.css next to it. Showing 24 of 779 lines.</span><span class=\"grow\"></span><button>📋 Copy this file</button></div>\n    <div class=\"m-body\"><pre>&lt;!DOCTYPE html&gt;\n&lt;html lang=\"en\"&gt;\n&lt;head&gt;\n  &lt;meta charset=\"UTF-8\"&gt;\n  &lt;meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"&gt;\n  &lt;title&gt;PageSnap Component — &lt;div&gt;&lt;/title&gt;\n  &lt;link rel=\"stylesheet\" href=\"styles.css\"&gt;\n  &lt;style&gt;\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: rgb(8, 9, 10);\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n\n/* Interactive Lift &amp; Hover Transition */\n.ps-el-5 {\n  transition: transform 0.7s cubic-bezier(0.32, 0.72, 0, 1) !important;\n}\n.ps-el-10 {</pre></div>\n    <div id=\"foot-hi\" class=\"m-foot\">\n    <div class=\"grp\" style=\"border-left:0;padding-left:0\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\"><button>📝 Copy Selection MD</button><button>Copy code · no JS<small>HTML + CSS only</small></button></div></div>\n    <span class=\"grow\"></span>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\"><button>📦 Download ZIP</button><button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button></div></div></div>\n  </div><div id=\"filemenu-hi\" class=\"menu\" style=\"left:132px;top:230px;display:block\">\n    <div class=\"hd\">Files in the export</div>\n    <div class=\"item\"><span>index.html</span><span class=\"chip js\">Animated (JS)</span></div>\n    <div class=\"item\"><span>styles.css</span><span class=\"chip css\">CSS motion</span></div>\n    <div class=\"item\"><span>Component.jsx</span><span class=\"chip md\">Markup only</span></div>\n    <div class=\"item\"><span>tokens.json</span><span class=\"chip md\">Data</span></div></div></div>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "W-1",
+      "group": "wait",
+      "effect": "W1",
+      "question": "Thanh chờ lúc đo motion nói rõ đang làm gì và có Skip, như vậy có đủ rõ không?",
+      "why": "Hôm nay thanh chờ ghi \"Capturing hover & motion…\" rồi \"Measuring pointer motion — coarse 3/9… (keep this tab in front; Skip uses the quick capture)\": dài và dùng từ kỹ thuật. Bản mới ngắn hơn, có phần trăm và thời gian dự kiến. Nó thua ở chỗ không nói Skip làm mất gì.",
+      "where": "Giữa phía trên cửa sổ, lúc bấm xuất lần đầu",
+      "target": "#screen",
+      "example": "Bấm \"▶ Copy animated\" lần đầu trên Linear: thanh hiện \"Measuring motion… 62%\" kèm \"hover sweep, then spring fit · about 40 s\" và nút Skip.",
+      "onScreen": "Màn hình đổi sang trạng thái đang đo, dock mờ phía dưới.",
+      "options": [
+        {
+          "value": "ok",
+          "label": "Dùng đúng như hình",
+          "recommended": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"sel\"></div>\n  <div class=\"pill\"><span>🎯 Measuring motion… 62%</span><span style=\"color:#9ca3af;font-weight:500\">hover sweep, then spring fit · about 40 s</span><button>Skip</button></div>\n  <div id=\"dock-hi\" class=\"dock\">\n    <span class=\"tag\">[div.GJ9TEa_benefits]</span>\n    <button class=\"studio-btn\" style=\"flex-direction:row\">✨ Live Studio</button>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\">\n      <button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button>\n      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button></div></div>\n    <div class=\"grp\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\">\n      <button>Copy code · no JS<small>HTML + CSS only</small></button>\n      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button>\n  </div></div>"
+            }
+          ]
+        },
+        {
+          "value": "change",
+          "label": "Cần đổi (ghi chỗ nào)",
+          "needsNote": true,
+          "ops": [
+            {
+              "op": "replaceWith",
+              "selector": "#screen",
+              "html": "\n  <div id=\"screen\" class=\"stage\"><div class=\"page\"></div><div class=\"sel\"></div>\n  <div class=\"pill\"><span>🎯 Measuring motion… 62%</span><span style=\"color:#9ca3af;font-weight:500\">hover sweep, then spring fit · about 40 s</span><button>Skip</button></div>\n  <div id=\"dock-hi\" class=\"dock\">\n    <span class=\"tag\">[div.GJ9TEa_benefits]</span>\n    <button class=\"studio-btn\" style=\"flex-direction:row\">✨ Live Studio</button>\n    <div class=\"grp\"><span class=\"gcap\"><b>Animated (JS)</b> · runs like the original</span><div class=\"row\">\n      <button class=\"primary\">▶ Copy animated<small>one file, runs offline</small></button>\n      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button></div></div>\n    <div class=\"grp\"><span class=\"gcap\"><b>No JS</b> · static code</span><div class=\"row\">\n      <button>Copy code · no JS<small>HTML + CSS only</small></button>\n      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>\n    <button class=\"ghost\" style=\"flex-direction:row\">⋯</button><button class=\"ghost\" style=\"flex-direction:row\">✕</button>\n  </div></div>"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

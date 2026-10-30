@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ps-002 · G2 · hi-fi</title><style>
+  :root{--bg:#0b0f19;--panel:#111827;--panel2:#182234;--btn:#1f2937;--line:#374151;--text:#f3f4f6;--dim:#9ca3af;--accent:#8b5cf6;--blue:#3b82f6;--cyan:#38bdf8;--ok:#10b981;--canvas:#07090a}
+  *{box-sizing:border-box}
+  body{margin:0;background:#020202;color:var(--text);font:12px/1.4 'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
+  .stage{position:relative;width:1440px;min-height:900px;margin:0 auto}
+  .page{position:absolute;inset:0;background:url(/mockups/assets/page-1440.png) top left/1440px auto no-repeat}
+  button,.btn{font:inherit;color:var(--text);background:var(--btn);border:1px solid var(--line);border-radius:6px;padding:6px 11px;cursor:default;display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;white-space:nowrap}
+  .btn small,button small{font-size:10px;font-weight:500;color:var(--dim);margin-top:1px}
+  .studio-btn{background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;font-weight:600}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}.primary small{color:#e9e1ff}
+  .ghost{background:transparent}
+  .ok-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px}
+  .row{display:flex;align-items:center;gap:8px}.grow{flex:1}
+  .tag{color:#a78bfa;font-weight:700;margin-right:4px}
+  .grp{display:flex;flex-direction:column;gap:3px;padding:0 8px;border-left:1px solid var(--line)}
+  .gcap{font-size:10px;letter-spacing:.03em;color:var(--dim);text-transform:none}
+  .gcap b{color:#c4b5fd;font-weight:600}
+  /* dock */
+  .dock{position:absolute;left:48px;top:182px;background:rgba(17,24,39,.95);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:8px 14px;display:flex;gap:8px;align-items:center;box-shadow:0 20px 25px -5px rgba(0,0,0,.5),0 10px 10px -5px rgba(0,0,0,.4);z-index:5}
+  .sel{position:absolute;left:48px;top:254px;width:1344px;height:468px;border:2px dashed #8b5cf6;background:rgba(139,92,246,.12);pointer-events:none}
+  /* studio */
+  .scrim{position:absolute;inset:0;background:rgba(2,2,2,.62);z-index:8}
+  .modal{position:absolute;left:20px;top:70px;width:1400px;background:var(--bg);border:1px solid var(--line);border-radius:16px;overflow:hidden;z-index:9;box-shadow:0 30px 60px rgba(0,0,0,.6)}
+  .m-head{display:flex;align-items:center;gap:10px;background:var(--panel2);padding:8px 14px;border-bottom:1px solid var(--line)}
+  .m-head .name{color:#c4b5fd;font-weight:700}
+  .tabs{display:flex;gap:6px;background:var(--panel);padding:8px 14px;border-bottom:1px solid var(--line);align-items:center}
+  .tab{border-radius:6px;padding:6px 14px;background:var(--btn);border:1px solid var(--line);color:var(--dim);flex-direction:row;font-weight:600}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .status{display:flex;align-items:center;gap:6px;color:#c8ccd2;padding:7px 14px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .m-body{background:var(--canvas);height:486px;overflow:hidden;position:relative}
+  .m-body img{display:block;width:1344px;height:468px;margin:6px 28px 0}
+  .m-body pre{margin:0;padding:14px 18px;color:#d1d5db;font:11.5px/1.5 'JetBrains Mono','Fira Code',monospace;height:486px;overflow:hidden;white-space:pre-wrap;word-break:break-all}
+  .filebar{display:flex;align-items:center;gap:10px;background:var(--panel);padding:7px 14px;border-bottom:1px solid var(--line)}
+  .filebar .file{font-family:'JetBrains Mono',monospace;color:var(--cyan)}
+  .chip{display:inline-block;border:1px solid #4c3a8a;color:#c4b5fd;border-radius:4px;padding:0 7px;font-size:11px;font-weight:600}
+  .chip.js{background:rgba(139,92,246,.2);border-color:var(--accent);color:#ddd6fe}.chip.css{border-color:#0d9488;color:#5eead4}.chip.md{border-color:#4b5563;color:#9ca3af}
+  .m-foot{display:flex;align-items:flex-end;gap:8px;background:var(--panel2);padding:10px 14px;border-top:1px solid var(--line)}
+  .menu{position:absolute;z-index:12;background:#111827;border:1px solid var(--line);border-radius:10px;padding:6px;min-width:230px;box-shadow:0 14px 30px rgba(0,0,0,.6)}
+  .menu .item{display:flex;justify-content:space-between;gap:16px;padding:6px 10px;border-radius:6px}.menu .item:hover{background:var(--btn)}
+  .menu .hd{padding:4px 10px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+  .menu hr{border:0;border-top:1px solid var(--line);margin:5px 0}
+  .pill{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:20;background:#0b1220;border:1px solid #14b8a6;color:#e5e7eb;border-radius:9999px;padding:8px 16px;font:600 12px system-ui,sans-serif;display:flex;gap:12px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  .pill button{padding:2px 8px;font-size:11px}
+  .toast{position:absolute;right:24px;bottom:24px;z-index:20;background:#065f46;border:1px solid #10b981;border-radius:8px;padding:8px 14px;color:#d1fae5}
+  .count{position:absolute;z-index:30;background:#000;color:#fde68a;border:1px solid #92400e;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600}
+</style><base href="../mockups/"></head><body>
+  <div id="screen" class="stage"><div class="page"></div><div class="sel"></div>
+  <div id="dock-hi" class="dock">
+    <span class="tag">[div.GJ9TEa_benefits]</span>
+    <button class="studio-btn" style="flex-direction:row">✨ Live Studio</button>
+    <div class="grp"><span class="gcap"><b>Animated (JS)</b> · runs like the original</span><div class="row">
+      <button class="primary">▶ Copy animated<small>one file, runs offline</small></button>
+      <button>📦 Download ZIP<small>index.html + styles.css + more</small></button></div></div>
+    <div class="grp"><span class="gcap"><b>No JS</b> · static code</span><div class="row">
+      <button>Copy code · no JS<small>HTML + CSS only</small></button>
+      <button>📝 Copy Selection MD<small>text as Markdown</small></button></div></div>
+    <button class="ghost" style="flex-direction:row">⋯</button><button class="ghost" style="flex-direction:row">✕</button>
+  </div><div id="dock-menu" class="menu" style="left:1090px;top:236px;display:none"></div></div><div id="spacer"></div></body></html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ps-002 · G1 · Dock và Studio (wireframe xám)</title>
+<style>
+  body{margin:0;padding:20px;background:#15171a;color:#d7dade;font:13px/1.45 system-ui,sans-serif}
+  h1{font-size:16px;margin:0 0 2px} h2{font-size:12px;margin:0 0 8px;color:#aab0b8;text-transform:uppercase;letter-spacing:.04em}
+  .note{color:#8a9099;margin:0 0 16px}
+  .panel{border:1px solid #2c3036;border-radius:8px;padding:12px 14px;background:#1b1e22;margin-bottom:14px}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .b{display:inline-flex;flex-direction:column;align-items:flex-start;border:1px solid #4a505a;border-radius:6px;padding:4px 10px;background:#22262b;font-size:12px;line-height:1.25;white-space:nowrap}
+  .b small{font-size:10px;color:#8a9099;margin-top:1px}
+  .b.primary{background:#3a3f47;border-color:#9aa1ab;font-weight:600;color:#fff}
+  .b.ghost{background:transparent}
+  .b.tab{border-radius:6px 6px 0 0}.b.tab.on{background:#3a3f47;border-color:#9aa1ab;color:#fff}
+  .tools{margin-top:6px}
+  .sep{width:1px;height:22px;background:#3a3f47;margin:0 4px}.grow{flex:1}
+  .grp{border-left:2px solid #4a505a;padding-left:8px}.gcap{display:block;font-size:10px;color:#8a9099;margin-bottom:2px}
+  .cap{color:#8a9099;margin:8px 0 0;font-size:12px}.status{margin:8px 0 0;color:#c8ccd2}
+  .muted{color:#8a9099}.warn{color:#e3cf8f;font-weight:600}
+  .chip{display:inline-block;border:1px solid #4a505a;border-radius:4px;padding:0 6px;font-size:12px}
+  .chip.strong{border-color:#9aa1ab;color:#fff}.chip.bad{border-color:#7a6a3a;color:#e3cf8f}
+  table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #2c3036;padding:5px 8px;text-align:left;vertical-align:top}th{color:#aab0b8}
+  .stage{display:flex;flex-direction:column;gap:10px}
+  .sample{width:760px;max-width:100%;height:200px;overflow:hidden;border:1px solid #2c3036;border-radius:6px;background:#0b0c0e}
+  .sample img{display:block;width:801px;margin-left:-21px;margin-top:-121px}
+  .studio{border:1px solid #3a3f47;border-radius:8px;background:#101215;max-width:900px}
+  .studio .bar{padding:8px 12px;border-bottom:1px solid #2c3036;color:#8a9099;font-size:12px}
+  .studio .sec{padding:10px 12px;border-bottom:1px solid #2c3036}
+  .studio .foot{padding:10px 12px}
+</style></head><body>
+<h1>ps-002 · G1 · Dock và Studio <span class="chip">wireframe xám, chưa phải thiết kế cuối</span></h1>
+<p class="note">Đã chốt từ G0: đếm cả tab (3 tab + 5 hành động); Copy Selection MD luôn nhìn thấy; dock tối đa 5 nút. Ảnh dưới đây bắt đầu ở <b>hiện trạng</b>; chọn đáp án để thấy bản đề xuất thay vào.</p>
+
+<div class="panel" id="sec-dock"><h2>1 · Dock trên trang (chọn ở V-2)</h2>
+  <div class="stage"><div id="dock-wire" class=""><div class="row"><span class="b ">🔼 Expand</span><span class="b ">🔽 Shrink</span><span class="b ">🎯 Pick</span><span class="sep"></span><span class="b ">✨ Live Studio</span><span class="b ">🎨 Copy Component</span><span class="b ">📦 Download ZIP</span><span class="b ">🤖 Copy AI Prompt</span><span class="b ">📝 Copy Selection MD</span><span class="b ">✕</span></div><p class="cap">Hiện trạng: <b>9</b> nút, không nút nào nói nó có motion hay không.</p></div><div class="sample"><img src="../audit/component-sample.png" alt="Component Linear mẫu"></div></div></div>
+
+<div class="panel" id="sec-studio"><h2>2 · Component Studio, tab Code (V-1 đổi bảng tệp, V-2 đổi footer)</h2>
+  <div class="studio"><div class="bar">Component Studio · div.GJ9TEa_benefits</div>
+    <div class="sec"><div id="studio-tabs-wire" class=""><div class="row"><span class="b tab">👁️ Live Preview</span><span class="b tab">📄 HTML</span><span class="b tab">🎨 CSS</span><span class="b tab">⚛️ React JSX</span><span class="b tab">🎛️ Tokens</span><span class="b tab">🤖 AI Specs</span></div><div class="row tools"><span class="b ">🔼 Expand</span><span class="b ">🔽 Shrink</span><span class="b ">✏️ Direct Text Edit (Off)</span><span class="b ">🎬 JS Motion: None</span><span class="b ">🎯 Re-Inspect</span><span class="b ">🔬 Analyze motion</span></div><p class="cap">Hiện trạng: 6 tab + 11 nút khác = <b>17</b>. "JS Motion: None" và "Analyze motion" là nhãn/nút lỗi thời.</p></div></div>
+    <div class="sec"><div id="studio-files-wire" class=""><table><tr><th>Tệp</th><th>Nhãn</th><th>Chứa gì</th></tr>
+   <tr><td>index.html (Markup Only)</td><td class="muted">không có</td><td>tab HTML ghi "Markup Only", nhưng index.html trong ZIP có cả hover CSS và script</td></tr></table></div></div>
+    <div class="foot"><div id="studio-footer-wire" class=""><div class="row"><span class="b ">📝 Copy Selection MD</span><span class="grow"></span><span class="b ">📦 Download ZIP</span><span class="b ">🎨 Copy Component</span><span class="b ">🤖 Copy AI Prompt</span></div></div></div></div></div>
+</body></html>

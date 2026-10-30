@@ -15,8 +15,10 @@ concurrency:
 
 jobs:
   lint-title:
-    if: ${{ !startsWith(github.head_ref, 'chore/backmerge-') && !startsWith(github.head_ref, 'release-please--') }}
-    runs-on: ubuntu-latest
+    # Runner switch: repository variable CI_RUNNER=local runs on the self-hosted Mac, anything else on GitHub (ubuntu-latest).
+    # Fork guard: with CI_RUNNER=local a pull request from a fork never reaches the Mac.
+    if: ${{ !startsWith(github.head_ref, 'chore/backmerge-') && !startsWith(github.head_ref, 'release-please--') && (vars.CI_RUNNER != 'local' || github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted", "macOS"]') || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

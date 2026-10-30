@@ -31,7 +31,7 @@ Related: [README](../../../README.md) · [Markdown & HTML Extraction](../markdow
 
 1. Open the popup and start region selection (inspector mode).
 2. Click the component to select it. Use the arrow keys to move to the parent or child element.
-3. Choose **Live Studio**, **Download ZIP**, **Copy Component**, or **Copy AI Prompt**. PageSnap measures the component's motion first (a progress pill with a **Skip** button shows each stage); you do not need to hover anything beforehand.
+3. Choose **Live Studio** or an export button on the dock. The dock is one flat row: **Expand**, **Shrink**, **Pick** and, when the parent holds clearly more measured motion, **Select parent (N animations)**; then **Live Studio**; then **Copy animated** (one self-contained file that runs offline) and **Download ZIP**; then **Copy code · no JS** (the same HTML and CSS without the motion script; CSS animations and hover still work), **Copy Selection MD** and **Copy AI Prompt**; then **✕**. Button tooltips say which exports belong to "Animated (JS)" and which to "No JS". The dock always stays inside the window and wraps onto a second row on a narrow one. PageSnap measures the component's motion first. A pill shows "Measuring motion… N%" with a **Skip** button; you do not need to hover anything beforehand.
 4. Keep the tab in front while the pill is visible. The first export of a pointer-driven component takes about 40 seconds; the result is cached for that element.
 
 ### Close without exporting
@@ -62,9 +62,17 @@ Limits: the sweep dispatches hover only (no click, drag, scroll or keyboard), so
 
 ---
 
+### Studio layout
+
+Three tabs share the title row: **Preview**, **Code ▾** and **AI Specs**. The Code tab opens the menu "Files in the export" (index.html, styles.css, Component.jsx, tokens.json); each file carries one label read from the data: **Animated (JS)** (the file has the motion script), **CSS motion** (keyframes or hover rules, no JavaScript), **Markup only**, or **Data**. The `⋯` menu in the header has Expand, Shrink, Direct Text Edit and Re-Inspect. The footer has **Copy animated** (the main action), **Download ZIP** and an **Other formats ▾** menu (**Copy code · no JS**, **Copy Selection MD**); between them a read-only status line summarises what was measured (spring fit, pointer positions, hover zones, lift layers, CSS `@keyframes`). **Copy AI Prompt** is on the AI Specs tab, next to Copy this file. There is no Analyze button: the spring fit runs inside the one-click measuring step.
+
+### Module layout (`src/content/style-extractor/`)
+
+`style-extractor.js` is a facade. `style-collect.js` gathers styles and tokens, `lift-css.js` builds hover CSS from measured lift layers and the hover map, `markup-export.js` formats markup and Component.jsx, `pointer-player.js` builds the spatial-map player script, `ai-prompt.js` assembles AI-PROMPT.md. No file contains a site-specific class name or variable: hover and lift come from `motion-sniffer.js` measurements.
+
 ## 4. Verification
 
-`npm run test:e2e` (headless): TEST 9 drives a fixture page with a script-morphed SVG, a CSS-only animation, an outline-only change and an inline-style tween. It asserts the exact write count, the quoted before/after states, that CSS-only and outline-only changes are not reported, and that `stop()` records nothing further.
+`npm run test:e2e` (headless): TEST 9 drives a fixture page with a script-morphed SVG, a CSS-only animation, an outline-only change and an inline-style tween. It asserts the exact write count, the quoted before/after states, that CSS-only and outline-only changes are not reported, and that `stop()` records nothing further. `npm run test:e2e:motion` replays hover against a fixture that reacts like React (cumulative lift, two naming schemes, a pointer-driven spatial map). `npm run test:e2e:ui` checks the layout: a flat dock with at most 6 export buttons besides the navigation buttons, the whole dock inside the window at three window sizes and four element positions, "Select parent" appearing after the probe, three Studio tabs with at most 8 buttons on each, no Analyze button, file labels, the wait pill percentage, the footer's Other formats menu, and that "Copy animated" carries the script while "Copy code · no JS" does not.
 
 ---
 
@@ -77,3 +85,5 @@ Limits: the sweep dispatches hover only (no click, drag, scroll or keyboard), so
 | 2026-10-27 | Implemented Phase 11 Trajectory Stream Recording: captures 60fps frame timelines across all morphing paths and replays them smoothly in Component Studio and export specs without lossy guessing. |
 | 2026-10-28 | Implemented Phase 12 Driver-Aware Kinematics Engine: correlated DOM mutations with normalized pointer vectors $(px, py)$, captured spatial cluster snapshots, and enabled live cursor scrubbing in Studio and React exports. |
 | 2026-10-29 | One-click motion capture: every export action sweeps hover and, for pointer-driven motion, measures springs automatically (progress pill with Skip). Stack hover is rebuilt from a measured hover map (cumulative lift groups match the original), lift transitions replay the measured easing, and the Studio preview no longer applies a blanket lift. Fixed the motion model deleting the `ps-el-N` scoping classes, which stopped the bottom plate from lifting after Analyze. |
+| 2026-10-30 | Redesigned dock and Studio: flat dock (navigation, Live Studio, Copy animated, Download ZIP, Copy code · no JS, Copy Selection MD, Copy AI Prompt) that stays inside the window and redraws when the motion probe finishes; Studio with tabs in the title row, a Code file menu, a status line and a footer with one main action plus an Other formats menu; new "Copy code · no JS" export; wait pill shows a percentage. Removed every site-specific literal from `src/` (hover and lift are measured) and split `style-extractor.js` into six modules. |
+| 2026-10-30 | Content-script `buildId` is now `20261030-v10`, so tabs opened before the update re-inject the split extractor modules. The wait pill's percentage never goes backwards (the `outside` identify stage now has its own range). `npm run test:e2e:download` loads the split extractor modules. |

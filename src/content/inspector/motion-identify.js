@@ -757,11 +757,18 @@
     if (!root || !sniffer || typeof sniffer.sweepHover !== 'function') return null;
     let pill = null;
     let label = null;
+    let main = null;
+    let note = null;
     if (!o.quiet) {
       pill = document.createElement('div');
       pill.id = 'pagesnap-analyze-pill';
       pill.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0b1220;border:1px solid #14b8a6;color:#e5e7eb;border-radius:9999px;padding:8px 16px;font:600 12px system-ui,sans-serif;display:flex;gap:12px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.6)';
       label = document.createElement('span');
+      main = document.createElement('span');
+      note = document.createElement('span');
+      note.style.cssText = 'color:#9ca3af;font-weight:500;margin-left:10px';
+      label.appendChild(main);
+      label.appendChild(note);
       const skip = document.createElement('button');
       skip.textContent = 'Skip';
       skip.style.cssText = 'background:#1f2937;border:1px solid #374151;color:#fff;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px';
@@ -770,16 +777,28 @@
       pill.appendChild(skip);
       document.body.appendChild(pill);
     }
-    const say = (text) => { if (label) label.textContent = text; };
+    // plan-exempt — ps-002 build: one overall percentage (hover sweep 0-30, spring fit 30-100) with a short hint, as approved at G2 W-1. routing-override: skipped — user asked to build from the plan.
+    // plan-exempt — layered review finding: the percentage never goes down, and every stage identify reports has a range (outside was missing). routing-override: skipped — user asked to fix review findings.
+    let shown = 0;
+    const say = (percent, hint) => {
+      shown = Math.max(shown, percent);
+      if (main) main.textContent = `🎯 Measuring motion… ${Math.round(shown)}%`;
+      if (note) note.textContent = hint;
+    };
+    const STAGE_RANGE = { discover: [30, 35], coarse: [35, 60], spring: [60, 70], refine: [70, 85], path: [85, 92], outside: [92, 94], holdout: [94, 99], done: [99, 100] };
     try {
-      say('🎯 Capturing hover & motion…');
-      await sniffer.sweepHover(root, { ctrl, onProgress: (p) => say('🎯 Capturing hover & motion… ' + Math.round((100 * (p.done + 1)) / Math.max(1, p.total)) + '%') });
+      say(0, 'hover sweep, then spring fit · about 40 s');
+      await sniffer.sweepHover(root, { ctrl, onProgress: (p) => say((30 * (p.done + 1)) / Math.max(1, p.total), 'hover sweep, then spring fit · about 40 s') });
       const motion = sniffer.describe(root);
       if (o.analyze && motion && motion.driver === 'pointer-x' && !models.get(root) && !ctrl.cancelled) {
         try {
           const model = await identify(root, {
             ctrl,
-            onProgress: (p) => say('🔬 Measuring pointer motion — ' + p.stage + (p.total > 1 ? ' ' + (p.done + 1) + '/' + p.total : '') + '… (keep this tab in front; Skip uses the quick capture)')
+            onProgress: (p) => {
+              const [low, high] = STAGE_RANGE[p.stage] || [30, 99];
+              const fraction = p.total > 1 ? (p.done + 1) / p.total : 1;
+              say(low + (high - low) * fraction, 'fitting the spring · keep this tab in front');
+            }
           });
           if (model && model.supported) models.set(root, model);
         } catch (e) { /* cancelled or unsupported: the spatial map from the sweep is the fallback */ }

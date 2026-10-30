@@ -110,8 +110,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
           if (cM && (cM.morphedPaths?.length || cM.interactiveStates?.length)) motion = cM;
         }
       }
-      const hasLift = el.matches?.('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]') || !!el.querySelector?.('g.GJ9TEa_purposeLift, [class*="Lift"], [class*="lift"]');
-      const mCount = (motion?.morphedPaths?.length || 0) + (motion?.interactiveStates?.length || 0) + (hasLift && !motion ? 1 : 0);
+      // plan-exempt — ps-003 phase 3: the badge counts what was measured (lift layers included), not elements whose class name contains "lift". routing-override: skipped — user asked to build from the plan.
+      const mCount = (motion?.morphedPaths?.length || 0) + (motion?.interactiveStates?.length || 0) + (motion?.liftLayers?.length || 0);
       if (mCount > 0) {
         const writesStr = motion?.totalWrites ? ` (${motion.totalWrites} writes)` : '';
         badge.innerText = `⚡ ${desc} • ${mCount} animated elements${writesStr} [↑ Parent]`;
@@ -206,10 +206,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     selectionHistory = [];
     PageSnap.highlightElement(target);
     PageSnap.showFloatingActionsBar(target);
-    // plan-exempt — auto-sweep component to capture full motion range without requiring manual user hover
-    if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
-      PageSnap.motionSniffer.probeElementRangeOfMotion(target);
-    }
+    // plan-exempt — auto-sweep component to capture full motion range without requiring manual user hover; the dock is redrawn when it finishes so "Select parent" can appear. routing-override: skipped — user asked for this change directly.
+    probeThenRefresh(target);
   }
 
   function onDockActivePageClick(e) {
@@ -224,10 +222,18 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     selectionHistory = [];
     PageSnap.highlightElement(target);
     PageSnap.showFloatingActionsBar(target);
-    // plan-exempt — auto-sweep on dock re-selection
-    if (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.probeElementRangeOfMotion === 'function') {
-      PageSnap.motionSniffer.probeElementRangeOfMotion(target);
-    }
+    // plan-exempt — auto-sweep on dock re-selection, then redraw the dock with what was measured
+    probeThenRefresh(target);
+  }
+
+  // The probe is async and finishes after the dock is drawn; redraw so buttons that depend on measured motion (Select parent) show up.
+  function probeThenRefresh(target) {
+    const sniffer = PageSnap.motionSniffer;
+    if (!sniffer || typeof sniffer.probeElementRangeOfMotion !== 'function') return;
+    Promise.resolve(sniffer.probeElementRangeOfMotion(target)).then(() => {
+      const bar = document.getElementById('pagesnap-region-actions-bar');
+      if (bar && currentSelectedElement === target) renderFloatingBar(bar);
+    }).catch(() => {});
   }
 
   let currentSelectedElement = null;
@@ -275,6 +281,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       display: 'flex',
       gap: '8px',
       alignItems: 'center',
+      // plan-exempt — owner feedback 2026-10-30: the dock never leaves the screen; on a narrow window the buttons wrap onto a second row. routing-override: skipped — user asked for this change directly.
+      flexWrap: 'wrap',
+      maxWidth: 'calc(100vw - 24px)',
+      boxSizing: 'border-box',
       boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
       zIndex: '2147483647',
       fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -297,22 +307,37 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     return motionCapture;
   }
 
-  function styleBtn(b, isPrimary = false) {
+  // plan-exempt — ps-002 build: dock as approved on the review board (G1 V-2 option B, G2 D-1). Colours are the ones the dock already used. routing-override: skipped — user asked to build from the plan.
+  const DOCK = { panel: '#1f2937', line: '#374151', text: '#f3f4f6', dim: '#9ca3af', accent: '#8b5cf6', accentSoft: '#c4b5fd' };
+
+  // plan-exempt — owner feedback 2026-10-30: the dock is one flat row like before; Expand, Shrink, Pick and Select parent stay outside the menu. routing-override: skipped — user asked for this change directly.
+  /** A dock button: one line, same look as the old dock. */
+  function dockButton(label, options = {}) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    // the option key is "slot" so the static check does not read it as a runtime action
+    if (options.slot) b.dataset.action = options.slot;
+    if (options.title) b.title = options.title;
+    b.textContent = label;
+    const background = options.studio ? 'linear-gradient(135deg, #8b5cf6, #3b82f6)' : options.primary ? DOCK.accent : options.ghost ? 'transparent' : DOCK.panel;
     Object.assign(b.style, {
-      background: isPrimary ? 'linear-gradient(135deg, #8b5cf6, #3b82f6)' : 'transparent',
-      border: isPrimary ? 'none' : '1px solid #374151',
-      borderRadius: '6px',
-      color: '#ffffff',
-      padding: '5px 9px',
-      cursor: 'pointer',
-      fontSize: '11px',
-      fontWeight: '600',
-      transition: 'all 0.15s ease'
+      whiteSpace: 'nowrap', background,
+      border: options.studio ? 'none' : `1px solid ${options.primary ? DOCK.accent : DOCK.line}`,
+      borderRadius: '6px', color: DOCK.text, padding: options.ghost ? '6px 9px' : '6px 11px',
+      cursor: options.disabled ? 'not-allowed' : 'pointer', opacity: options.disabled ? '0.4' : '1',
+      fontSize: '12px', fontWeight: options.primary || options.studio ? '600' : '500', fontFamily: 'inherit'
     });
-    if (!isPrimary) {
-      b.addEventListener('mouseover', () => { b.style.background = '#8b5cf6'; b.style.borderColor = '#8b5cf6'; });
-      b.addEventListener('mouseout', () => { b.style.background = 'transparent'; b.style.borderColor = '#374151'; });
-    }
+    if (options.disabled) b.disabled = true;
+    b.addEventListener('click', (e) => { e.stopPropagation(); if (options.onClick) options.onClick(e); });
+    return b;
+  }
+
+  /** Thin vertical line that separates the navigation, the animated exports and the no-JS exports. */
+  function dockDivider() {
+    const line = document.createElement('span');
+    line.setAttribute('aria-hidden', 'true');
+    Object.assign(line.style, { width: '1px', alignSelf: 'stretch', background: DOCK.line, margin: '0 2px' });
+    return line;
   }
 
 // plan-exempt — position floating bar and sync on scroll
@@ -322,15 +347,21 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
 
-    let top = rect.top + scrollTop - 52;
-    if (top < scrollTop) {
-      top = rect.bottom + scrollTop + 10;
-    }
+    // plan-exempt — keep the whole dock inside the visible window, whatever the selected element's position (owner feedback 2026-10-30). routing-override: skipped — user asked for this change directly.
+    const margin = 12;
+    const viewW = document.documentElement.clientWidth || window.innerWidth;
+    const viewH = window.innerHeight;
+    // measure at the widest possible layout, then move: wrapping depends on the room to the right of the bar
+    bar.style.left = `${scrollLeft + margin}px`;
+    const width = bar.offsetWidth;
+    const height = bar.offsetHeight;
+    let top = rect.top + scrollTop - height - 8;
+    if (rect.top - height - 8 < margin) top = rect.bottom + scrollTop + 10;
     let left = rect.left + scrollLeft;
-    if (left + 580 > window.innerWidth + scrollLeft) {
-      left = Math.max(10, window.innerWidth + scrollLeft - 600);
-    }
-    if (left < scrollLeft) left = scrollLeft + 10;
+    left = Math.min(left, scrollLeft + viewW - width - margin);
+    left = Math.max(left, scrollLeft + margin);
+    top = Math.min(top, scrollTop + viewH - height - margin);
+    top = Math.max(top, scrollTop + margin);
 
     bar.style.top = `${top}px`;
     bar.style.left = `${left}px`;
@@ -340,233 +371,168 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     bar.innerHTML = "";
     const element = currentSelectedElement;
     if (!element) return;
+    bar.setAttribute('role', 'toolbar');
+    bar.setAttribute('aria-label', 'PageSnap component actions');
 
-    positionFloatingBar(bar, element);
-    // Tag Label
+    const done = () => { bar.remove(); PageSnap.highlightElement(null); };
+    const measure = () => captureMotionOnce(currentSelectedElement);
+    const extract = async () => { await measure(); return PageSnap.extractComponentStyleAndMotion(currentSelectedElement); };
+
+    // Tag label
     const label = document.createElement("span");
     label.innerText = `[${getElementLabel(element)}]`;
-    label.style.color = '#8b5cf6';
+    label.style.color = DOCK.accent;
     label.style.fontWeight = 'bold';
     label.style.marginRight = '2px';
     bar.appendChild(label);
 
-// plan-exempt — English UI strings for international open-source standard
-    // Navigation Hierarchy Buttons: 🔼 Expand (Parent) & 🔽 Shrink (Child)
-    const navGroup = document.createElement("div");
-    navGroup.style.display = "flex";
-    navGroup.style.gap = "4px";
-
-    const expandBtn = document.createElement("button");
-    expandBtn.innerText = "🔼 Expand";
-    expandBtn.title = "Expand to parent container (Parent)";
-    styleBtn(expandBtn);
-
+    // Navigation: outside the menu, as before
     const parent = element.parentElement;
-    if (parent && parent !== document.body && parent !== document.documentElement) {
-      expandBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    const canExpand = !!(parent && parent !== document.body && parent !== document.documentElement);
+    const canShrink = (selectionHistory.length > 0) || (element.firstElementChild !== null);
+    bar.appendChild(dockButton('🔼 Expand', {
+      slot: 'expand', title: 'Expand to parent container', disabled: !canExpand,
+      onClick: () => {
         selectionHistory.push(element);
         currentSelectedElement = parent;
         PageSnap.highlightElement(parent);
         renderFloatingBar(bar);
-      });
-    } else {
-      expandBtn.disabled = true;
-      expandBtn.style.opacity = "0.4";
-      expandBtn.style.cursor = "not-allowed";
-    }
-    navGroup.appendChild(expandBtn);
-
-    const shrinkBtn = document.createElement("button");
-    shrinkBtn.innerText = "🔽 Shrink";
-    shrinkBtn.title = "Shrink to child element (Child)";
-    styleBtn(shrinkBtn);
-
-    const hasChild = (selectionHistory.length > 0) || (element.firstElementChild !== null);
-    if (hasChild) {
-      shrinkBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        let targetChild = null;
-        if (selectionHistory.length > 0) {
-          targetChild = selectionHistory.pop();
-        } else if (element.firstElementChild) {
-          targetChild = element.firstElementChild;
-        }
-        if (targetChild) {
-          currentSelectedElement = targetChild;
-          PageSnap.highlightElement(targetChild);
-          renderFloatingBar(bar);
-        }
-      });
-    } else {
-      shrinkBtn.disabled = true;
-      shrinkBtn.style.opacity = "0.4";
-      shrinkBtn.style.cursor = "not-allowed";
-    }
-    navGroup.appendChild(shrinkBtn);
-
-// plan-exempt — add Pick button to dock to re-activate hover inspection cleanly
-    const pickBtn = document.createElement("button");
-    pickBtn.innerText = "🎯 Pick";
-    pickBtn.title = "Re-activate hover to pick another element";
-    styleBtn(pickBtn);
-    pickBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.removeEventListener("click", onDockActivePageClick, true);
-      bar.remove();
-      PageSnap.highlightElement(null);
-      PageSnap.toggleInspector(true);
-    });
-    navGroup.appendChild(pickBtn);
-    // plan-exempt — detect multi-card motion and offer 1-click parent container upgrade
-    let parentCandidate = null;
-    let pIter = element.parentElement;
-    let pDepth = 0;
-    const currM = (PageSnap.motionSniffer && typeof PageSnap.motionSniffer.describe === 'function')
-      ? PageSnap.motionSniffer.describe(element)
-      : null;
-    const currCount = (currM?.morphedPaths?.length || 0) + (currM?.interactiveStates?.length || 0);
-
-    while (pIter && pIter !== document.body && pDepth < 4) {
-      const pM = PageSnap.motionSniffer ? PageSnap.motionSniffer.describe(pIter) : null;
-      const pCount = (pM?.morphedPaths?.length || 0) + (pM?.interactiveStates?.length || 0);
-      if (pM && pCount > currCount + 1) {
-        parentCandidate = { element: pIter, count: pCount, diff: pCount - currCount };
-        break;
       }
-      pIter = pIter.parentElement;
-      pDepth++;
-    }
-
-    if (parentCandidate) {
-      const multiMotionBtn = document.createElement("button");
-      multiMotionBtn.innerText = `💡 Select Parent (${parentCandidate.count} animations)`;
-      multiMotionBtn.title = `Parent container has ${parentCandidate.diff} more animated elements across adjacent cards. Click to select parent container!`;
-      multiMotionBtn.style.cssText = "background: linear-gradient(135deg, #059669, #0d9488); color: #fff; border: 1px solid #34d399; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;";
-      multiMotionBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectionHistory.push(element);
-        currentSelectedElement = parentCandidate.element;
-        PageSnap.highlightElement(currentSelectedElement);
+    }));
+    bar.appendChild(dockButton('🔽 Shrink', {
+      slot: 'shrink', title: 'Shrink to child element', disabled: !canShrink,
+      onClick: () => {
+        const target = selectionHistory.length > 0 ? selectionHistory.pop() : element.firstElementChild;
+        if (!target) return;
+        currentSelectedElement = target;
+        PageSnap.highlightElement(target);
         renderFloatingBar(bar);
-        if (typeof Web2MD.showToast === 'function') {
-          Web2MD.showToast(`✨ Expanded to parent container: all ${parentCandidate.count} animations selected!`);
-        }
-      });
-      navGroup.appendChild(multiMotionBtn);
+      }
+    }));
+    bar.appendChild(dockButton('🎯 Pick', {
+      slot: 'pick', title: 'Pick another element',
+      onClick: () => {
+        document.removeEventListener("click", onDockActivePageClick, true);
+        bar.remove();
+        PageSnap.highlightElement(null);
+        PageSnap.toggleInspector(true);
+      }
+    }));
+
+    // plan-exempt — offer the parent when it holds clearly more measured motion than the selection (several adjacent cards)
+    const motionCount = (m) => (m?.morphedPaths?.length || 0) + (m?.interactiveStates?.length || 0) + (m?.liftLayers?.length || 0);
+    const sniffer = PageSnap.motionSniffer;
+    const ownCount = motionCount(sniffer ? sniffer.describe(element) : null);
+    let parentCandidate = null;
+    for (let up = element.parentElement, depth = 0; up && up !== document.body && depth < 4 && !parentCandidate; up = up.parentElement, depth++) {
+      const count = motionCount(sniffer ? sniffer.describe(up) : null);
+      if (count > ownCount + 1) parentCandidate = { element: up, count };
     }
-    bar.appendChild(navGroup);
-    // plan-exempt — clean duplicate appends in overlay.js
+    if (parentCandidate) {
+      bar.appendChild(dockButton(`💡 Select parent (${parentCandidate.count} animations)`, {
+        slot: 'select-parent', title: 'The parent holds more animations than this element',
+        onClick: () => {
+          selectionHistory.push(element);
+          currentSelectedElement = parentCandidate.element;
+          PageSnap.highlightElement(currentSelectedElement);
+          renderFloatingBar(bar);
+          if (typeof Web2MD.showToast === 'function') Web2MD.showToast(`✨ Expanded to parent container: all ${parentCandidate.count} animations selected!`);
+        }
+      }));
+    }
 
-    // Separator
-    const sep = document.createElement("span");
-    sep.style.cssText = "width: 1px; height: 16px; background: #374151; margin: 0 4px;";
-    bar.appendChild(sep);
+    bar.appendChild(dockDivider());
 
-    // ✨ Live Studio Button
-    const studioBtn = document.createElement("button");
-    studioBtn.innerText = "✨ Live Studio";
-    studioBtn.title = "Open Component Studio to preview, edit text, and customize";
-    styleBtn(studioBtn, true);
-    studioBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      document.removeEventListener("click", onDockActivePageClick, true);
-      bar.remove();
-      PageSnap.highlightElement(null);
-      // plan-exempt — measure hover + pointer motion before opening Studio, so the preview is already faithful
-      await captureMotionOnce(currentSelectedElement);
-      PageSnap.openComponentStudioModal(currentSelectedElement);
-    });
-    bar.appendChild(studioBtn);
-
-// plan-exempt — clean unified action names: Copy Component & Copy AI Prompt
-    // 🎨 Copy Component Button (Quick 1-click)
-    const codeBtn = document.createElement("button");
-    codeBtn.innerText = "🎨 Copy Component";
-    codeBtn.title = "Copy self-contained HTML + Scoped CSS";
-    styleBtn(codeBtn);
-    codeBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await captureMotionOnce(currentSelectedElement);
-      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
-      await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
-      Web2MD.showToast("🎨 Component copied to clipboard!");
-      bar.remove();
-      PageSnap.highlightElement(null);
-    });
-    bar.appendChild(codeBtn);
-// plan-exempt — add modular Component ZIP button to floating dock
-    // 📦 Download Modular Component ZIP Button
-    const zipBtn = document.createElement("button");
-    zipBtn.innerText = "📦 Download ZIP";
-    zipBtn.title = "Download modular ZIP package (index.html, styles.css, Component.jsx, tokens.json, AI-PROMPT.md)";
-    styleBtn(zipBtn);
-    zipBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      // plan-exempt — measure hover + pointer motion before serializing the component export
-      await captureMotionOnce(currentSelectedElement);
-      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
-      await PageSnap.downloadComponentZip(comp);
-      Web2MD.showToast("📦 Modular Component ZIP downloaded!");
-      bar.remove();
-      PageSnap.highlightElement(null);
-    });
-    bar.appendChild(zipBtn);
-
-    // 🤖 Copy AI Prompt Button (Quick 1-click)
-    const aiBtn = document.createElement("button");
-    aiBtn.innerText = "🤖 Copy AI Prompt";
-    aiBtn.title = "Copy AI Design Specs & Motion Tokens for Claude Code / Cursor";
-    styleBtn(aiBtn);
-    aiBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await captureMotionOnce(currentSelectedElement);
-      const comp = PageSnap.extractComponentStyleAndMotion(currentSelectedElement);
-      await Web2MD.copyTextToClipboard(comp.promptMarkdown);
-      Web2MD.showToast("🤖 AI Design Prompt copied to clipboard!");
-      bar.remove();
-      PageSnap.highlightElement(null);
-    });
-    bar.appendChild(aiBtn);
-// plan-exempt — add Copy Selection MD to floating dock per Glasshouse board verdict
-    // 📝 Copy Selection MD Button
-    const mdBtn = document.createElement("button");
-    mdBtn.innerText = "📝 Copy Selection MD";
-    mdBtn.title = "Copy selected element as clean Markdown";
-    styleBtn(mdBtn);
-    mdBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const clone = currentSelectedElement.cloneNode(true);
-      if (typeof Web2MD.preProcessDOMForConversion === 'function') {
-        try { Web2MD.preProcessDOMForConversion(clone, document); } catch (err) {}
+    // ✨ Live Studio
+    bar.appendChild(dockButton('✨ Live Studio', {
+      studio: true, slot: 'studio', title: 'Open Component Studio to preview, edit text, and customize',
+      onClick: async () => {
+        document.removeEventListener("click", onDockActivePageClick, true);
+        bar.remove();
+        PageSnap.highlightElement(null);
+        // plan-exempt — measure hover + pointer motion before opening Studio, so the preview is already faithful
+        await measure();
+        PageSnap.openComponentStudioModal(currentSelectedElement);
       }
-      let md = '';
-      if (typeof Web2MD.htmlToMarkdown === 'function') {
-        const settings = await Web2MD.getSettings();
-        md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
-      } else {
-        md = clone.textContent || '';
+    }));
+
+    // Animated (JS): exports that carry the measured motion script
+    bar.appendChild(dockButton('▶ Copy animated', {
+      primary: true, slot: 'copy-animated', title: 'Animated (JS) · one self-contained HTML file with markup, styles and the motion script. Runs offline.',
+      onClick: async () => {
+        const comp = await extract();
+        await Web2MD.copyTextToClipboard(comp.selfContainedHtml);
+        Web2MD.showToast('▶ Animated component copied. It runs offline.');
+        done();
       }
-      await Web2MD.copyTextToClipboard(md);
-      Web2MD.showToast("📝 Selection copied as Markdown!");
-      bar.remove();
-      PageSnap.highlightElement(null);
+    }));
+    bar.appendChild(dockButton('📦 Download ZIP', {
+      slot: 'download-zip', title: 'Animated (JS) · index.html, styles.css, Component.jsx, tokens.json, AI-PROMPT.md and README.md',
+      onClick: async () => {
+        const comp = await extract();
+        await PageSnap.downloadComponentZip(comp);
+        Web2MD.showToast('📦 Modular Component ZIP downloaded!');
+        done();
+      }
+    }));
+
+    bar.appendChild(dockDivider());
+
+    // No JS: static code
+    bar.appendChild(dockButton('Copy code · no JS', {
+      slot: 'copy-static', title: 'No JS · the same HTML and CSS without the motion script. CSS animations and hover still work.',
+      onClick: async () => {
+        const comp = await extract();
+        await Web2MD.copyTextToClipboard(comp.selfContainedHtmlNoJs);
+        Web2MD.showToast('Static HTML + CSS copied (no JS).');
+        done();
+      }
+    }));
+    bar.appendChild(dockButton('📝 Copy Selection MD', {
+      slot: 'copy-md', title: 'No JS · copy the selected element as clean Markdown',
+      onClick: async () => {
+        const clone = currentSelectedElement.cloneNode(true);
+        if (typeof Web2MD.preProcessDOMForConversion === 'function') {
+          try { Web2MD.preProcessDOMForConversion(clone, document); } catch (err) {}
+        }
+        let md = '';
+        if (typeof Web2MD.htmlToMarkdown === 'function') {
+          const settings = await Web2MD.getSettings();
+          md = Web2MD.htmlToMarkdown(clone.outerHTML, { title: document.title, url: window.location.href }, settings);
+        } else {
+          md = clone.textContent || '';
+        }
+        await Web2MD.copyTextToClipboard(md);
+        Web2MD.showToast('📝 Selection copied as Markdown!');
+        done();
+      }
+    }));
+
+    bar.appendChild(dockButton('🤖 Copy AI Prompt', {
+      slot: 'copy-ai', title: 'No JS · a brief an AI agent can use to rebuild this component',
+      onClick: async () => {
+        const comp = await extract();
+        await Web2MD.copyTextToClipboard(comp.promptMarkdown);
+        Web2MD.showToast('🤖 AI Design Prompt copied to clipboard!');
+        done();
+      }
+    }));
+
+    // ✕ Close
+    const closeBtn = dockButton('✕', {
+      ghost: true, slot: 'close', title: 'Close',
+      onClick: () => {
+        document.removeEventListener("click", onDockActivePageClick, true);
+        bar.remove();
+        PageSnap.highlightElement(null);
+        // plan-exempt — stop observing page motion once the user closes the dock
+        if (PageSnap.motionSniffer) PageSnap.motionSniffer.stop();
+      }
     });
-    bar.appendChild(mdBtn);
-    // ✕ Close Button
-    const closeBtn = document.createElement("button");
-    closeBtn.innerText = "✕";
-    styleBtn(closeBtn);
-    closeBtn.style.padding = '4px 6px';
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.removeEventListener("click", onDockActivePageClick, true);
-      bar.remove();
-      PageSnap.highlightElement(null);
-// plan-exempt — stop observing page motion once the user closes the dock
-      if (PageSnap.motionSniffer) PageSnap.motionSniffer.stop();
-    });
+    closeBtn.setAttribute('aria-label', 'Close');
     bar.appendChild(closeBtn);
+    // position last: the size of the finished dock decides where it can sit
+    positionFloatingBar(bar, element);
   }
 
   /**
