@@ -778,11 +778,14 @@
       document.body.appendChild(pill);
     }
     // plan-exempt — ps-002 build: one overall percentage (hover sweep 0-30, spring fit 30-100) with a short hint, as approved at G2 W-1. routing-override: skipped — user asked to build from the plan.
+    // plan-exempt — layered review finding: the percentage never goes down, and every stage identify reports has a range (outside was missing). routing-override: skipped — user asked to fix review findings.
+    let shown = 0;
     const say = (percent, hint) => {
-      if (main) main.textContent = `🎯 Measuring motion… ${Math.round(percent)}%`;
+      shown = Math.max(shown, percent);
+      if (main) main.textContent = `🎯 Measuring motion… ${Math.round(shown)}%`;
       if (note) note.textContent = hint;
     };
-    const STAGE_RANGE = { discover: [30, 35], coarse: [35, 60], spring: [60, 70], refine: [70, 85], path: [85, 92], holdout: [92, 99], done: [99, 100] };
+    const STAGE_RANGE = { discover: [30, 35], coarse: [35, 60], spring: [60, 70], refine: [70, 85], path: [85, 92], outside: [92, 94], holdout: [94, 99], done: [99, 100] };
     try {
       say(0, 'hover sweep, then spring fit · about 40 s');
       await sniffer.sweepHover(root, { ctrl, onProgress: (p) => say((30 * (p.done + 1)) / Math.max(1, p.total), 'hover sweep, then spring fit · about 40 s') });
