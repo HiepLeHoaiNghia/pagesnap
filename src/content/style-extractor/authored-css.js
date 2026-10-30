@@ -125,6 +125,11 @@
     if (!elements || !elements.length) return '';
     const root = elements[0];
     const { records, unreadable } = readRules();
+    // plan-exempt — measured on Linear: removing a pinned width cost 10 points of fidelity (7 divs) although the missed rule could not be found by reading; so each un-pin is tried on the live page first and kept only if the box stays within 1px. routing-override: skipped — user asked to check the improvement on complex sites and fix what the numbers show.
+    // The probe uses a data-* attribute plus a temporary <style>: the motion sniffer watches neither.
+    const probeStyle = document.createElement('style');
+    probeStyle.textContent = '[data-ps-probe-w]{width:auto!important}[data-ps-probe-h]{height:auto!important}';
+    (document.head || document.documentElement).appendChild(probeStyle);
 
     // keep only rules that can match something inside the component
     const relevant = [];
@@ -157,6 +162,46 @@
     let chars = 0;
     const emit = (text) => { if (chars + text.length <= MAX_CSS_CHARS) { blocks.push(text); chars += text.length; } };
 
+    // Un-pin candidates, then prove them together: with all of them applied at once, no box in the component may move
+    // by more than 1px; otherwise the offending element and its ancestors stay pinned and the check repeats.
+    const unpin = { w: new Set(), h: new Set() };
+    const sets = (i, p) => per[i].some((e) => e.decls.some((d) => d.prop === p));
+    if (!unreadable) {
+      elements.forEach((el, i) => {
+        if ((typeof SVGElement !== 'undefined' && el instanceof SVGElement) || KEEP_SIZE_TAGS.has(el.tagName.toUpperCase())) return;
+        const inl = el.style;
+        // plan-exempt — measured on Linear: a width that depends on the containing block or on content (absolute/fixed/sticky, transformed, floated, or a flex item) resolves differently in the export, and the live probe cannot prove otherwise. routing-override: skipped — user asked to check the improvement on complex sites and fix what the numbers show.
+        const cs = getComputedStyle(el);
+        const parentDisplay = el.parentElement ? getComputedStyle(el.parentElement).display : '';
+        // flex/grid containers keep their width too: un-pinning one on Linear (div.customerCards, 1344px in a 1344px parent) raised the difference from 4.9% to 15.8% although its box did not move on the page; the cause is not understood, the rule is empirical.
+        const inFlow = !['absolute', 'fixed', 'sticky'].includes(cs.position) && cs.transform === 'none' && cs.float === 'none' && !/flex/.test(parentDisplay) && !/flex|grid/.test(cs.display);
+        if (inFlow && i !== 0 && !sets(i, 'width') && !(inl && inl.getPropertyValue('width')) && !el.hasAttribute('width')) unpin.w.add(i);
+        if (!sets(i, 'height') && !(inl && inl.getPropertyValue('height')) && !el.hasAttribute('height')) unpin.h.add(i);
+      });
+      const base = elements.map((el) => { const r = el.getBoundingClientRect(); return [r.width, r.height]; });
+      const indexOf = new Map(elements.map((el, i) => [el, i]));
+      let stable = false;
+      for (let round = 0; round < 6 && !stable; round++) {
+        unpin.w.forEach((i) => elements[i].setAttribute('data-ps-probe-w', ''));
+        unpin.h.forEach((i) => elements[i].setAttribute('data-ps-probe-h', ''));
+        const moved = [];
+        elements.forEach((el, i) => {
+          const r = el.getBoundingClientRect();
+          if (Math.abs(r.width - base[i][0]) > 1 || Math.abs(r.height - base[i][1]) > 1) moved.push(i);
+        });
+        unpin.w.forEach((i) => elements[i].removeAttribute('data-ps-probe-w'));
+        unpin.h.forEach((i) => elements[i].removeAttribute('data-ps-probe-h'));
+        stable = moved.length === 0;
+        moved.forEach((i) => {
+          for (let e = elements[i]; e; e = e === root ? null : e.parentElement) {
+            const j = indexOf.get(e);
+            if (j !== undefined) { unpin.w.delete(j); unpin.h.delete(j); }
+          }
+        });
+      }
+      if (!stable) { unpin.w.clear(); unpin.h.clear(); }
+    }
+
     elements.forEach((el, i) => {
       const sel = `.ps-el-${i}`;
       const entries = per[i].sort((a, b) => (a.layer - b.layer) || (a.spec - b.spec) || (a.order - b.order));
@@ -167,10 +212,9 @@
 
       // 1) un-pin what no readable rule sets: the element flows again instead of keeping its used size
       const lead = [];
-      if (!unreadable && !KEEP_SIZE_TAGS.has(el.tagName.toUpperCase())) {
-        if (!settersOf.has('width') && !inline.getPropertyValue('width') && i !== 0) lead.push('width: auto');
-        if (!settersOf.has('height') && !inline.getPropertyValue('height')) lead.push('height: auto');
-      }
+      // plan-exempt — measured on Linear (an SVG-heavy region): "width: auto" on SVG geometry (rect, g, ...) replaces the width attribute and collapses the shape, so SVG elements and elements with a width/height attribute keep their pinned size. routing-override: skipped — user asked to check the improvement on complex sites and fix what the numbers show.
+      if (unpin.w.has(i)) lead.push('width: auto');
+      if (unpin.h.has(i)) lead.push('height: auto');
       // the component keeps its captured width on a wide window but may shrink on a narrow one
       if (i === 0) lead.push('max-width: 100%');
       if (lead.length) emit(`${sel} { ${lead.join('; ')}; }`);
@@ -194,6 +238,7 @@
         emit(text);
       }
     });
+    probeStyle.remove();
 
     PageSnap.authoredCss.lastStats = { rulesInPage: records.length, relevantRules: relevant.length, blocks: blocks.length, chars, unreadableSheets: unreadable, capped: chars >= MAX_CSS_CHARS };
     return blocks.join('\n');
