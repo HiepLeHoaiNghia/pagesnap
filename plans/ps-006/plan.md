@@ -30,3 +30,4 @@ Cross-origin stylesheets (needs a fetch and host permission), real-width sweeps 
 ## Changelog
 
 - 2026-10-30: built test-first; verified as above. Branch `fix/nested-keyframes`, local commits only (no push, no PR).
+- 2026-10-30 (looking at a real clone): exporting a region of cursor.com and checking it by eye showed underlined links the page does not underline. Cause: `style-collect.js` captured a short property list and dropped every computed `none`/`normal`. Fixed (test `e2e-style-fidelity`, 9 of 10 red before, green after; all other suites and the Linear click-through unchanged). The clone of cursor.com is in `plans/ps-005/evidence/clones/cursor/` (not committed).

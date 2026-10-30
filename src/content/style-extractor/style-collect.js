@@ -29,8 +29,25 @@
     'backdrop-filter', '-webkit-backdrop-filter',
     'transform', 'transform-origin', 'transition',
     'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay', 'animation-iteration-count',
-    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin'
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
+    // plan-exempt — ps-006: found on a real clone (cursor.com): link underlines, list bullets, italics, nowrap, object-fit and cursor were never captured, and a computed "none" was dropped so the browser default came back. routing-override: skipped — user asked to see a real clone and fix what shows.
+    'text-decoration-line', 'list-style-type', 'list-style-position', 'font-style', 'white-space', 'text-transform', 'text-overflow',
+    'text-indent', 'vertical-align', 'object-fit', 'object-position', 'aspect-ratio', 'filter', 'mix-blend-mode', 'clip-path',
+    'cursor', 'pointer-events', 'overflow-wrap', 'word-break'
   ];
+
+  // A computed "none"/"normal" says something only where the browser default is different: a link is underlined, a list has
+  // bullets, <em> is italic, <pre> keeps its spaces. Elsewhere it is noise and is left out.
+  const NEUTRAL_MATTERS_ON = {
+    'text-decoration-line': ['A', 'U', 'INS', 'DEL', 'S', 'STRIKE', 'ABBR', 'ACRONYM'],
+    'list-style-type': ['UL', 'OL', 'LI', 'MENU', 'DIR', 'SUMMARY'],
+    'font-style': ['EM', 'I', 'CITE', 'DFN', 'VAR', 'ADDRESS'],
+    'white-space': ['PRE', 'TEXTAREA', 'LISTING', 'XMP', 'PLAINTEXT', 'NOBR'],
+    'display': null,
+    'pointer-events': null
+  };
+  // values that are the default everywhere: not worth a declaration
+  const PLAIN_DEFAULT = { 'object-fit': 'fill', 'vertical-align': 'baseline', 'text-overflow': 'clip', 'list-style-position': 'outside', 'text-indent': '0px', 'object-position': '50% 50%' };
 
   /**
    * Scans document stylesheets for keyframe animation rules matching given animation names
@@ -88,10 +105,20 @@
       RELEVANT_STYLE_PROPS.forEach(prop => {
         if (isSvgChild && el.hasAttribute(prop)) return;
         const val = computed.getPropertyValue(prop);
-        if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== 'rgba(0, 0, 0, 0)') {
+        const neutral = val === 'none' || val === 'normal';
+        const matters = neutral && Object.prototype.hasOwnProperty.call(NEUTRAL_MATTERS_ON, prop)
+          && (NEUTRAL_MATTERS_ON[prop] === null || NEUTRAL_MATTERS_ON[prop].includes(el.tagName.toUpperCase()));
+        if (val && (matters || !neutral) && val !== 'auto' && val !== 'rgba(0, 0, 0, 0)' && PLAIN_DEFAULT[prop] !== val) {
           styleObj[prop] = val;
         }
       });
+      // a decoration carries its own style and colour
+      if (styleObj['text-decoration-line'] && styleObj['text-decoration-line'] !== 'none') {
+        ['text-decoration-style', 'text-decoration-color', 'text-decoration-thickness'].forEach((p) => {
+          const v = computed.getPropertyValue(p);
+          if (v && v !== 'auto' && v !== 'solid') styleObj[p] = v;
+        });
+      }
 // plan-exempt — capture inline CSS custom variables into scoped rules
       if (el.style && el.style.length) {
         for (let i = 0; i < el.style.length; i++) {

@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261030-v12: new content script authored-css.js, open tabs must re-inject. routing-override: skipped — user asked to learn from ui-clone-skills and improve the repo.
+// plan-exempt — bump buildId to 20261030-v13: style-collect.js captures more properties, open tabs must re-inject. routing-override: skipped — user asked to see a real clone and fix what shows.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261030-v12') {
+        if (!pingRes || pingRes.buildId !== '20261030-v13') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

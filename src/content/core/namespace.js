@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261030-v12 so open tabs re-inject authored-css.js. routing-override: skipped — user asked to learn from ui-clone-skills and improve the repo.
+// plan-exempt — bump buildId to 20261030-v13 so open tabs re-inject style-collect.js. routing-override: skipped — user asked to see a real clone and fix what shows.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261030-v12' });
+    sendResponse({ success: true, buildId: '20261030-v13' });
     return true;
   }
 });
