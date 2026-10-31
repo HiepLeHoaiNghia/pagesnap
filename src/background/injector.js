@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v21: cross-layer 3D hover bridge (data-matcap -> WebGL texture) and dark midnight navy tinting. routing-override: skipped — user requested cross-layer hover and color shift loop.
+// plan-exempt — bump buildId to 20261031-v22: pluggable interactionManifest and meshMapper SOLID extraction modules. routing-override: skipped — user requested SOLID architecture update.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v21') {
+        if (!pingRes || pingRes.buildId !== '20261031-v22') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

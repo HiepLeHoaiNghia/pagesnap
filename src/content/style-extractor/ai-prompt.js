@@ -9,14 +9,16 @@
   'use strict';
 
   /** @returns {string} the markdown document */
-  // plan-exempt — ps-008: support scrollChoreography parameter. routing-override: skipped — user approved scroll choreography tracker.
-  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography }) {
+  // plan-exempt — ps-008: support interactionManifest and meshMapping parameters. routing-override: skipped — user requested SOLID architecture update.
+  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping }) {
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
     const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
     // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
-// plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
     const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
+    const manifestMd = (PageSnap.interactionManifest && PageSnap.interactionManifest.promptSection(interactionManifest)) || '';
+    const meshMappingMd = (PageSnap.meshMapper && PageSnap.meshMapper.promptSection(meshMapping)) || '';
+// plan-exempt — ps-008: clean duplicate declaration. routing-override: skipped — user requested SOLID architecture update.
     // plan-exempt — ps-008: add scroll choreography section if tracked with multi-pose rotation guidance. routing-override: skipped — user approved multi-frame grounding loop.
     const scrollChoreoMd = scrollChoreography && scrollChoreography.checkpoints && scrollChoreography.checkpoints.length
       ? [
@@ -149,8 +151,11 @@ ${renderSurfacesMd}
 
 ${scrollChoreoMd}
 
-${crossLayerHoverMd}
+${manifestMd}
 
+${meshMappingMd}
+
+${crossLayerHoverMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`

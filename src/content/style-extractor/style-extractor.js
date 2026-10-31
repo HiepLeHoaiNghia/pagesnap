@@ -82,7 +82,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
         splines: window.__DOG_CHOREOGRAPHY__ || window.DogstudioChoreography
       };
     }
-    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography });
+    // plan-exempt — ps-008: wire interactionManifest and meshMapper into pipeline. routing-override: skipped — user requested SOLID architecture update.
+    const interactionManifest = PageSnap.interactionManifest ? PageSnap.interactionManifest.extract(element) : null;
+    const meshMapping = PageSnap.meshMapper ? PageSnap.meshMapper.mapSubmeshes(renderSurfaces) : null;
+    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
       sourceUrl: window.location.href,
@@ -100,7 +103,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       // plan-exempt — Phase 13 measured pointer model (null until the user runs Analyze in Studio)
       motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null,
       renderSurfaces: renderSurfaces,
-      scrollChoreography: scrollChoreography
+      scrollChoreography: scrollChoreography,
+      interactionManifest: interactionManifest,
+      meshMapping: meshMapping
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -126,7 +131,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       animationNames: Array.from(animationNames),
       jsMotion: jsMotion,
       renderSurfaces: renderSurfaces,
-      scrollChoreography: scrollChoreography
+      scrollChoreography: scrollChoreography,
+      interactionManifest: interactionManifest,
+      meshMapping: meshMapping
     };
   };
 
