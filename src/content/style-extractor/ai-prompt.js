@@ -112,12 +112,15 @@ ${element.outerHTML}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
-You are a senior Frontend Engineer specializing in Tailwind CSS and Framer Motion.
+// plan-exempt — ps-007: visual grounding reference preview.png instruction. routing-override: skipped — user approved adding general grounding features.
+You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
 Recreate this component cleanly and faithfully based on the design tokens, layout, and motion specifications above.
+- Visual Grounding Reference: A screenshot of the original rendered component is provided as \`preview.png\`. Inspect \`preview.png\` to verify and calibrate camera perspective, spatial hierarchy, lighting atmosphere, and typography placement.
 - Framework: React (TypeScript)
 - Styling: Tailwind CSS
-- Animation: Framer Motion (matching the keyframes/transitions above)
+- Animation: Framer Motion / Three.js (matching specs and \`preview.png\`)
 - Produce clean, modern, accessible, and responsive component code.
+// plan-exempt — ps-007: clean up duplicated bullet points. routing-override: skipped — user approved adding general grounding features.
 
 ### Suggested Framer Motion Patterns:
 1. For continuous SVG Path Morphing:

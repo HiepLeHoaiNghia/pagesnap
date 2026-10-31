@@ -132,6 +132,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     zip.file('tokens.json', componentData.tokensJson);
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
+    // plan-exempt — ps-007: include preview.png if captured in componentData for AI visual grounding. routing-override: skipped — user approved adding general grounding features.
+    if (componentData.previewPngBlob) {
+      zip.file('preview.png', componentData.previewPngBlob);
+    } else if (componentData.previewPngBase64) {
+      zip.file('preview.png', componentData.previewPngBase64, { base64: true });
+    }
 
 // plan-exempt — the returned promise must always settle; an extension reload under an open page (context invalidated) used to leave "Packaging..." pending forever
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });

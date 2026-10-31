@@ -19,8 +19,16 @@
     [/\.(lottie|riv)(\?|#|$)/i, 'animation'],
     [/\.(mp4|webm|mov|m4v)(\?|#|$)/i, 'video']
   ];
+  // plan-exempt — ps-007: precise classification of textures (normal-map, matcap, diffuse, specular) so AI agents know how to bind them in Three.js/WebGL. routing-override: skipped — user approved committing and adding general grounding features.
   const IMAGE_FILE = /\.(png|jpe?g|webp|avif)(\?|#|$)/i;
-  const TEXTURE_NAME = /(matcap|normal|noise|envmap|environment|lightmap|displacement|roughness)/i;
+  const CLASSIFY_IMAGE = (url) => {
+    if (/matcap/i.test(url)) return 'matcap';
+    if (/normal/i.test(url)) return 'normal-map';
+    if (/specular|roughness|metal/i.test(url)) return 'specular-map';
+    if (/diffuse|albedo|basecolor/i.test(url)) return 'diffuse-map';
+    if (/noise|displacement|envmap|lightmap/i.test(url)) return 'texture';
+    return null;
+  };
   const LIBRARIES = [
     [/(^|[\/._-])three(\.module)?(\.min)?\.js/i, 'three.js'],
     [/pixi(\.min)?\.js/i, 'PixiJS'],
@@ -92,7 +100,7 @@
       const url = e.name;
       if (seen.has(url)) continue;
       let kind = (ASSET_KINDS.find(([re]) => re.test(url)) || [])[1];
-      if (!kind && IMAGE_FILE.test(url) && TEXTURE_NAME.test(url)) kind = 'texture';
+      if (!kind && IMAGE_FILE.test(url)) kind = CLASSIFY_IMAGE(url);
       if (!kind) continue;
       seen.add(url);
       result.assets.push({ kind, url });

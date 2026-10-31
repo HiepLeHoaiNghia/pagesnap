@@ -69,7 +69,8 @@ try {
   await check('the 3D and texture files the page loaded are listed with their kind', () => {
     const a = rich.surfaces.assets;
     assert.ok(a.some((x) => x.kind === 'model' && x.url.endsWith('/assets/dog.drc.glb')), JSON.stringify(a));
-    assert.ok(a.some((x) => x.kind === 'texture' && x.url.endsWith('/assets/images/matcap-a.jpg')), JSON.stringify(a));
+    // plan-exempt — textures are now classified specifically into matcap/normal-map/diffuse-map. routing-override: skipped — user approved adding general grounding features.
+    assert.ok(a.some((x) => (x.kind === 'texture' || x.kind === 'matcap') && x.url.endsWith('/assets/images/matcap-a.jpg')), JSON.stringify(a));
   });
   await check('markup hints (data-matcap), video and iframe counts are reported', () => {
     assert.ok(rich.surfaces.hints.includes('data-matcap'), JSON.stringify(rich.surfaces.hints));

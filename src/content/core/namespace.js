@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v16 so open tabs re-inject the bundle with render-surfaces.js. routing-override: skipped — user approved the canvas warning work in chat.
+// plan-exempt — bump buildId to 20261031-v17 so open tabs re-inject updated prompt and surface extractors. routing-override: skipped — user approved adding general grounding features.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v16' });
+    sendResponse({ success: true, buildId: '20261031-v17' });
     return true;
   }
 });
