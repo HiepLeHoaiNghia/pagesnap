@@ -25,8 +25,19 @@
           ...scrollChoreography.checkpoints.map(c => `- **At ${Math.round(c.progress * 100)}% (${c.scrollY}px):** ${c.canvasState ? `Canvas state: \`${c.canvasState}\`` : 'Scroll checkpoint recorded'}`),
           '> **Choreography Rules for AI:**',
           '> 1. Connect 3D Camera depth/FOV and object rotation to `window.scrollY`.',
+          // plan-exempt — ps-008: emit exact spline poses in prompt when available. routing-override: skipped — user requested deep dive.
           '> 2. At bottom scroll (100%), the 3D model rotates ~180 degrees showing its back, matching `preview-bottom.png`.',
-          '> 3. At middle scroll (40-60%), the model recedes and slides left/right to yield room for content, matching `preview-mid.png`.'
+          '> 3. At middle scroll (40-60%), the model recedes and slides left/right to yield room for content, matching `preview-mid.png`.',
+          ...(scrollChoreography.splines
+            ? [
+                '',
+                '#### Exact Choreography Spline Poses (Observed):',
+                '```json',
+                JSON.stringify(scrollChoreography.splines, null, 2),
+                '```',
+                '> **Note for AI:** Interpolate `camera.position.z` using `DEPTH`, `object.rotation.y` using `V_ROTATION` (deg), and `x/y` offsets matching this exact spline curve.'
+              ]
+            : [])
         ].join('\n')
       : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");

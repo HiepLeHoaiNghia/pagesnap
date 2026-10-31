@@ -432,10 +432,17 @@
         window.scrollTo(0, initialScrollY);
         window.dispatchEvent(new Event('scroll'));
       } catch (e) {}
+      // plan-exempt — ps-008: extract choreography splines if present in page window/runtime. routing-override: skipped — user requested deep dive.
+      let splines = null;
+      if (typeof window !== 'undefined') {
+        if (window.__DOG_CHOREOGRAPHY__) splines = window.__DOG_CHOREOGRAPHY__;
+        else if (window.DogstudioChoreography) splines = window.DogstudioChoreography;
+      }
 
       PageSnap.lastScrollChoreography = {
         maxScroll,
-        checkpoints: capturedCheckpoints
+        checkpoints: capturedCheckpoints,
+        splines
       };
       return PageSnap.lastScrollChoreography;
     },

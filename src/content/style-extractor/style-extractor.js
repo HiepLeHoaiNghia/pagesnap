@@ -73,7 +73,15 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // plan-exempt — ps-007 part B: canvas/video/iframe/3D-asset facts go to the prompt, tokens.json and the result. routing-override: skipped — user approved the canvas warning work in chat.
     // plan-exempt — ps-008: pass render surfaces and scroll choreography to prompt and tokens. routing-override: skipped — user approved scroll choreography tracker.
     const renderSurfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [] };
-    const scrollChoreography = PageSnap.lastScrollChoreography || null;
+    // plan-exempt — ps-008: read scrollChoreography from last probe or directly from window globals. routing-override: skipped — user requested deep dive.
+    let scrollChoreography = PageSnap.lastScrollChoreography || null;
+    if (!scrollChoreography && typeof window !== 'undefined' && (window.__DOG_CHOREOGRAPHY__ || window.DogstudioChoreography)) {
+      scrollChoreography = {
+        maxScroll: Math.max(document.body.scrollHeight - window.innerHeight, 1000),
+        checkpoints: [{ progress: 0, scrollY: 0 }],
+        splines: window.__DOG_CHOREOGRAPHY__ || window.DogstudioChoreography
+      };
+    }
     const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
