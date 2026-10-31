@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dogstudio 3D Core - Step 1 Ground Truth Rebuild</title>
+  <title>Dogstudio 3D Core - Step 1 Ground Truth (Exact Pose & Lighting Matched)</title>
   <style>
     body {
       margin: 0;
@@ -43,11 +43,14 @@
 
       const scene = new THREE.Scene();
 
-      // Camera: exact FOV 60
-      const camera = new THREE.PerspectiveCamera(60, width / height, 1, 50);
-      camera.position.set(0, 0, 10);
+      // Camera: exact match framing
+      const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
+      camera.position.set(0.2, 1.6, 22.0);
       scene.add(camera);
-      camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+      // Target head center
+      const target = new THREE.Vector3(1.1, 1.8, 0);
+      camera.lookAt(target);
 
       const textureLoader = new THREE.TextureLoader();
       const loadTex = (url) => {
@@ -70,6 +73,7 @@
       await new Promise(r => { img.onload = r; });
       const cellW = img.width / 10;
       const cellH = img.height / 2;
+      // Index 1: row 0, col 1
       mctx.drawImage(img, cellW * 1, 0, cellW, cellH, 0, 0, 256, 256);
       const singleMatcapTex = new THREE.CanvasTexture(matcapCanvas);
 
@@ -96,7 +100,8 @@
             child.material = new THREE.MeshMatcapMaterial({
               matcap: singleMatcapTex,
               normalMap: isLeaf ? branchesNormals : dogNormals,
-              normalScale: new THREE.Vector2(0.35, 0.35),
+              normalScale: new THREE.Vector2(0.55, 0.55),
+              color: new THREE.Color(0x3a4866), // Tint dark navy blue to match Dogstudio mood lighting!
               skinning: !!child.isSkinnedMesh
             });
           }
@@ -104,10 +109,10 @@
 
         dogContainer.add(model);
 
-        // Frame the wolf head in center-right
-        dogContainer.position.set(-0.5, -2.2, 0);
-        dogContainer.rotation.y = 2.45; // ~140 degrees (Head faces viewer & left)
-        dogContainer.rotation.x = 0.05;
+        // Turn dog body so head looks towards viewer (slight left angle)
+        dogContainer.rotation.y = 0.62; // ~35 degrees
+        dogContainer.rotation.x = -0.15; // tilt head up towards viewer
+        dogContainer.position.set(0.0, -0.2, 0);
 
         if (gltf.animations && gltf.animations.length > 0) {
           mixer = new THREE.AnimationMixer(model);
