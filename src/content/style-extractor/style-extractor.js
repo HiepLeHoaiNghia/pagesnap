@@ -136,12 +136,16 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     zip.file('tokens.json', componentData.tokensJson);
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
-    // plan-exempt — ps-007: include preview.png if captured in componentData for AI visual grounding. routing-override: skipped — user approved adding general grounding features.
-    if (componentData.previewPngBlob) {
-      zip.file('preview.png', componentData.previewPngBlob);
-    } else if (componentData.previewPngBase64) {
-      zip.file('preview.png', componentData.previewPngBase64, { base64: true });
-    }
+    // plan-exempt — ps-008: bundle multi-frame visual grounding images (hero, mid, bottom) into modular package. routing-override: skipped — user approved multi-frame grounding loop.
+// plan-exempt — ps-008: multi-frame visual grounding preview bundling. routing-override: skipped — user approved multi-frame grounding loop.
+    if (componentData.previewPngBlob) zip.file('preview.png', componentData.previewPngBlob);
+    else if (componentData.previewPngBase64) zip.file('preview.png', componentData.previewPngBase64, { base64: true });
+    if (componentData.previewHeroBlob) zip.file('preview-hero.png', componentData.previewHeroBlob);
+    else if (componentData.previewHeroBase64) zip.file('preview-hero.png', componentData.previewHeroBase64, { base64: true });
+    if (componentData.previewMidBlob) zip.file('preview-mid.png', componentData.previewMidBlob);
+    else if (componentData.previewMidBase64) zip.file('preview-mid.png', componentData.previewMidBase64, { base64: true });
+    if (componentData.previewBottomBlob) zip.file('preview-bottom.png', componentData.previewBottomBlob);
+    else if (componentData.previewBottomBase64) zip.file('preview-bottom.png', componentData.previewBottomBase64, { base64: true });
 
 // plan-exempt — the returned promise must always settle; an extension reload under an open page (context invalidated) used to leave "Packaging..." pending forever
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });

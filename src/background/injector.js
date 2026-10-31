@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v18: scroll choreography tracking and 3D eye detail prompt instructions. routing-override: skipped — user approved scroll choreography tracker.
+// plan-exempt — bump buildId to 20261031-v19: multi-frame visual grounding previews and 180-deg scroll rotation prompt. routing-override: skipped — user approved multi-frame grounding loop.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v18') {
+        if (!pingRes || pingRes.buildId !== '20261031-v19') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

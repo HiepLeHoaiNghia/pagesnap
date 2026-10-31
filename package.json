@@ -18,7 +18,8 @@
     "test:e2e:hover": "node tests/e2e/e2e-hover-export.mjs",
     "test:e2e:surfaces": "node tests/e2e/e2e-render-surfaces.mjs",
     "test:e2e:grounding": "node tests/e2e/e2e-visual-grounding.mjs",
-    "test:e2e:choreography": "node tests/e2e/e2e-scroll-choreography.mjs"
+    "test:e2e:choreography": "node tests/e2e/e2e-scroll-choreography.mjs",
+    "test:e2e:multiframe": "node tests/e2e/e2e-multiframe-grounding.mjs"
   },
   "keywords": [
     "pagesnap",

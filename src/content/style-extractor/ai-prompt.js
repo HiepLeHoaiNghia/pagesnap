@@ -17,13 +17,16 @@
     // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
 // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
     const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
-    // plan-exempt — ps-008: add scroll choreography section if tracked
+    // plan-exempt — ps-008: add scroll choreography section if tracked with multi-pose rotation guidance. routing-override: skipped — user approved multi-frame grounding loop.
     const scrollChoreoMd = scrollChoreography && scrollChoreography.checkpoints && scrollChoreography.checkpoints.length
       ? [
-          '### Scroll Choreography & State Checkpoints (Observed)',
+          '### Scroll Choreography & Multi-Pose State Checkpoints (Observed)',
           `Max scroll range: ${scrollChoreography.maxScroll}px across ${scrollChoreography.checkpoints.length} checkpoints:`,
           ...scrollChoreography.checkpoints.map(c => `- **At ${Math.round(c.progress * 100)}% (${c.scrollY}px):** ${c.canvasState ? `Canvas state: \`${c.canvasState}\`` : 'Scroll checkpoint recorded'}`),
-          '> **Note for AI:** Connect your 3D Camera / Object rotation and zoom to `window.scrollY` matching these checkpoints so the 3D scene responds to user scrolling smoothly.'
+          '> **Choreography Rules for AI:**',
+          '> 1. Connect 3D Camera depth/FOV and object rotation to `window.scrollY`.',
+          '> 2. At bottom scroll (100%), the 3D model rotates ~180 degrees showing its back, matching `preview-bottom.png`.',
+          '> 3. At middle scroll (40-60%), the model recedes and slides left/right to yield room for content, matching `preview-mid.png`.'
         ].join('\n')
       : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
@@ -127,13 +130,13 @@ ${element.outerHTML}
 \`\`\`
 // plan-exempt — ps-007: visual grounding reference preview.png instruction. routing-override: skipped — user approved adding general grounding features.
 You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
-Recreate this component cleanly and faithfully based on the design tokens, layout, and motion specifications above.
-- Visual Grounding Reference: A screenshot of the original rendered component is provided as \`preview.png\`. Inspect \`preview.png\` to verify and calibrate camera perspective, spatial hierarchy, lighting atmosphere, and typography placement.
-- 3D Eye & Specular Detailing: If 3D mesh contains eyes, create a dedicated specular material with vibrant glowing pupil (amber/cyan) making direct eye contact with the viewer, matching \`preview.png\`.
-- Scroll Choreography: Connect 3D camera / object transforms (depth, rotation, x/y offsets) to scroll progress to reproduce the multi-pose choreography.
+- Multi-Frame Visual Grounding Reference: Three visual grounding captures are provided: \`preview-hero.png\` (top hero view), \`preview-mid.png\` (middle section), and \`preview-bottom.png\` (bottom section). Inspect all three to verify camera perspective, model scale, and rotation transitions across scrolling.
+- 3D Material & Ambient Tone: Apply a dark ambient tint (e.g. dark navy/indigo) to the matcap material so the 3D model blends into the dark background instead of appearing as a washed-out cyan/white.
+- 3D Eye & Specular Detailing: Give the eyes a dedicated specular material with a realistic glowing amber pupil making piercing direct eye contact in the hero frame, matching \`preview-hero.png\`.
+- Scroll Choreography: Connect 3D camera / object transforms (depth, rotation, x/y offsets) to scroll progress so the 3D model rotates ~180 degrees showing its back at the bottom section.
 - Framework: React (TypeScript) / Three.js
 - Styling: Tailwind CSS
-- Animation: Framer Motion / Three.js (matching specs and \`preview.png\`)
+- Animation: Framer Motion / Three.js (matching specs and the 3 preview frames)
 - Produce clean, modern, accessible, and responsive component code.
 
 ### Suggested Framer Motion Patterns:
