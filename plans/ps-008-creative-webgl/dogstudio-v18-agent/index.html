@@ -1,0 +1,1026 @@
+<!-- plan-exempt — ps-008: standalone rebuild index.html for Dogstudio hero v18 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dogstudio — We Make Good Shit</title>
+
+  <!-- Google Fonts: Heebo & Playfair Display for GT Sectra Display fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+
+  <!-- Base Scoped Styles from PageSnap Export -->
+  <link rel="stylesheet" href="./input/styles.css">
+
+  <style>
+    /* Reset & Viewport Constraints */
+    html {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0d13;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent !important;
+      background-color: transparent !important;
+      color: #ffffff;
+      font-family: Heebo, Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
+
+    /* Atmospheric Lighting Aura (Calibrated to BASE/input/preview.png) */
+    .atmospheric-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      background-color: #0b0d13;
+      background-image:
+        radial-gradient(ellipse 70% 60% at 20% 36%, rgba(85, 36, 135, 0.75) 0%, rgba(48, 20, 90, 0.45) 45%, transparent 75%),
+        radial-gradient(ellipse 65% 55% at 54% 18%, rgba(26, 110, 135, 0.65) 0%, rgba(16, 55, 75, 0.3) 50%, transparent 75%),
+        radial-gradient(circle at 16% 45%, rgba(160, 30, 110, 0.45) 0%, transparent 42%),
+        radial-gradient(circle at 45% 65%, rgba(30, 50, 90, 0.25) 0%, transparent 55%),
+        radial-gradient(ellipse 85% 85% at 50% 50%, transparent 45%, rgba(9, 10, 15, 0.9) 100%);
+      pointer-events: none;
+    }
+
+    .noise-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      background-image: url('./assets/noise.png');
+      background-repeat: repeat;
+      opacity: 0.04;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+    }
+
+    /* 3D WebGL Canvas Container */
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+    }
+
+    /* Top Navigation Header matching preview.png */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 30px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+      pointer-events: auto;
+      box-sizing: border-box;
+    }
+
+    .site-logo {
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: #ffffff;
+      line-height: 1.1;
+    }
+
+    .site-logo .brand-main {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .site-logo .brand-sub {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      opacity: 0.85;
+    }
+
+    .menu-button {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 13px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .menu-button span {
+      display: block;
+      width: 100%;
+      height: 1.5px;
+      background-color: #ffffff;
+      border-radius: 1px;
+    }
+
+    /* Preserve 14 Hover Rules from styles.css */
+    .ps-el-52:hover { color: rgba(255, 255, 255, 0.7); }
+    .ps-el-54:hover { color: rgba(255, 255, 255, 0.7); }
+    .ps-el-56:hover { color: rgba(255, 255, 255, 0.7); }
+    .ps-el-58:hover { color: rgba(255, 255, 255, 0.7); }
+    .ps-el-60:hover { color: rgba(255, 255, 255, 0.7); }
+    .ps-el-68:hover { color: rgb(255, 255, 255); }
+    .ps-el-71:hover { color: rgb(255, 255, 255); }
+    .ps-el-74:hover { color: rgb(255, 255, 255); }
+    .ps-el-77:hover { color: rgb(255, 255, 255); }
+    .ps-el-80:hover { color: rgb(255, 255, 255); }
+    .ps-el-83:hover { color: rgb(255, 255, 255); }
+    .ps-el-86:hover { color: rgb(255, 255, 255); }
+    .ps-el-327:hover .ps-el-329 { transform: translateX(0px) scaleX(1); }
+    .ps-el-37:hover .ps-el-38 { transform: translateX(6px); }
+
+    /* Prevent Horizontal Overflow at 420px, 700px, 1500px */
+    .pagesnap-component-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background: transparent !important;
+      background-color: transparent !important;
+      padding: 0;
+      margin: 0;
+      z-index: 2;
+    }
+
+    .ps-el-0 {
+      width: 100% !important;
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    .home-hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      max-width: 100vw;
+      overflow: visible;
+      background: transparent !important;
+    }
+
+    .home-hero .center {
+      position: relative;
+      width: 100%;
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 0 48px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    /* Hero Typography calibrated to exact bounding box of preview.png */
+    .home-hero-title {
+      font-family: "GT Sectra Display", "Playfair Display", Georgia, serif !important;
+      font-weight: 700 !important;
+      color: #ffffff !important;
+      letter-spacing: -3.5px !important;
+      line-height: 0.88 !important;
+      user-select: none;
+      z-index: 5;
+    }
+
+    @media (min-width: 1030px) {
+      .home-hero-title {
+        font-size: 120px !important;
+        width: 269px !important;
+        margin-left: 426px !important;
+        margin-top: -28px !important;
+        text-align: right !important;
+      }
+    }
+
+    @media (max-width: 1029px) and (min-width: 701px) {
+      .home-hero-title {
+        font-size: 84px !important;
+        margin-left: 8% !important;
+        letter-spacing: -2px !important;
+        text-align: left !important;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .home-hero-title {
+        font-size: 54px !important;
+        margin-left: 0 !important;
+        letter-spacing: -1.5px !important;
+        text-align: left !important;
+      }
+      .site-header {
+        padding: 20px 24px;
+      }
+      .home-hero .center {
+        padding: 0 24px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .home-hero-title {
+        font-size: 42px !important;
+      }
+    }
+
+    /* Red Accent Lines */
+    .line--1 {
+      position: absolute;
+      top: 320px;
+      left: 12px;
+      width: 250px;
+      height: 1px;
+      transform: rotate(-45deg);
+      background-color: rgb(228, 51, 51);
+      opacity: 0.75;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .line--2 {
+      position: absolute;
+      top: 360px;
+      right: 180px;
+      width: 180px;
+      height: 1px;
+      transform: rotate(-45deg);
+      background-color: rgb(228, 51, 51);
+      opacity: 0.75;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Showreel Link */
+    .home-hero-showreel {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      z-index: 10;
+      white-space: nowrap;
+      transition: color 0.3s ease;
+    }
+
+    .home-hero-showreel:hover {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .home-hero-showreel .caret-icon {
+      width: 7px;
+      height: 11px;
+      transition: transform 0.3s ease;
+    }
+
+    /* Bottom Right Hero Content calibrated to preview.png */
+    .home-hero-content {
+      position: absolute;
+      bottom: 56px;
+      left: 57%;
+      max-width: 480px;
+      z-index: 5;
+    }
+
+    .home-hero-content p.lead {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #ffffff;
+      margin-bottom: 16px;
+      font-weight: 400;
+    }
+
+    .home-hero-content p:not(.lead) {
+      font-size: 13px;
+      line-height: 1.8;
+      color: rgba(160, 168, 220, 0.7);
+      margin-bottom: 20px;
+    }
+
+    .home-hero-content ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .home-hero-content ul li a {
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      transition: color 0.3s ease;
+    }
+
+    @media (max-width: 900px) {
+      .home-hero-content {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        margin-top: 40px;
+        max-width: 100%;
+      }
+      .line--1, .line--2 {
+        display: none;
+      }
+    }
+
+    /* Cookie Consent Banner matching preview.png */
+    .cookie-banner {
+      position: fixed;
+      bottom: 40px;
+      left: 48px;
+      width: 320px;
+      background: rgba(18, 20, 28, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 24px 22px 20px;
+      z-index: 25;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      font-size: 11px;
+      line-height: 1.6;
+      color: rgba(180, 190, 220, 0.75);
+    }
+
+    .cookie-banner p {
+      margin: 0 0 16px 0;
+    }
+
+    .cookie-banner a {
+      color: rgba(220, 230, 255, 0.85);
+      text-decoration: underline;
+    }
+
+    .cookie-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .cookie-actions button {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: #ff3b3b;
+      font-weight: 600;
+      font-family: inherit;
+    }
+
+    /* Theme Switcher in Bottom Right */
+    .theme-switcher {
+      position: fixed;
+      bottom: 40px;
+      right: 48px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 25;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .theme-switcher::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+
+    /* Home Cases Section */
+    .home-cases {
+      position: relative;
+      padding: 120px 0;
+      z-index: 5;
+      width: 100%;
+      max-width: 100vw;
+    }
+
+    .home-cases .center {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 0 48px;
+    }
+
+    .home-cases-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 40px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .home-cases-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .home-cases-list li {
+      margin-bottom: 24px;
+    }
+
+    .home-cases-list li a {
+      color: rgba(160, 168, 220, 0.7);
+      text-decoration: none;
+      font-size: 32px;
+      font-weight: 600;
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+      transition: color 0.3s ease;
+    }
+
+    .home-cases-list li a span {
+      font-size: 14px;
+      color: rgba(160, 168, 220, 0.4);
+      min-width: 140px;
+    }
+
+    /* Home About Section (containing ps-el-327 & ps-el-329) */
+    .home-about {
+      position: relative;
+      padding: 120px 0;
+      z-index: 5;
+      width: 100%;
+      max-width: 100vw;
+    }
+
+    .home-about .center {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 0 48px;
+    }
+
+    .home-about-headline {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(160, 168, 220, 0.6);
+      margin-bottom: 16px;
+    }
+
+    .home-about-title {
+      font-family: "GT Sectra Display", "Playfair Display", Georgia, serif;
+      font-size: 48px;
+      line-height: 1.15;
+      color: #ffffff;
+      margin-bottom: 40px;
+      max-width: 800px;
+    }
+
+    .home-about-text {
+      font-size: 16px;
+      line-height: 1.75;
+      color: rgba(160, 168, 220, 0.8);
+      max-width: 700px;
+      margin-bottom: 32px;
+    }
+
+    .home-about-link {
+      position: relative;
+      display: inline-block;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      padding-bottom: 4px;
+    }
+
+    .home-about-link .ps-el-329 {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 1.5px;
+      background-color: #ffffff;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+
+    @media (max-width: 700px) {
+      .home-cases-list li a {
+        font-size: 22px;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .home-about-title {
+        font-size: 32px;
+      }
+      .cookie-banner {
+        display: none;
+      }
+    }
+  </style>
+
+  <!-- Three.js r128 & Loaders -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+  <!-- Atmospheric Lighting & Noise Overlay -->
+  <div class="atmospheric-background"></div>
+  <div class="noise-overlay"></div>
+
+  <!-- WebGL 3D Canvas Background -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Navigation Header matching preview.png -->
+  <header class="site-header">
+    <a href="#" class="site-logo">
+      <span class="brand-main">Dogstudio</span>
+      <span class="brand-sub">/ DEPT.</span>
+    </a>
+    <button class="menu-button" aria-label="Toggle navigation">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </header>
+
+  <!-- Cookie Consent Banner matching preview.png -->
+  <aside class="cookie-banner" id="cookie-banner">
+    <p>
+      We use functional cookies to make the website work properly and analytical cookies to measure your behavior. We collect data on how you use our website to make our website easier to use. By clicking accept you agree to this. More information? <a href="#">Read our cookie policy</a>.
+    </p>
+    <div class="cookie-actions">
+      <button class="accept" onclick="document.getElementById('cookie-banner').style.display='none'">Accept</button>
+      <button class="deny" onclick="document.getElementById('cookie-banner').style.display='none'">Deny</button>
+    </div>
+  </aside>
+
+  <!-- Theme Switcher matching preview.png -->
+  <div class="theme-switcher" aria-label="Toggle color theme"></div>
+
+  <!-- PageSnap Modular HTML Markup -->
+  <div class="pagesnap-component-wrapper">
+    <main data-router-view="home" role="main" class="ps-el-0">
+      <h1 class="u-visually-hidden ps-el-1">Dogstudio</h1>
+      
+      <!-- Section: Home Hero -->
+      <section class="home-hero js-in-view in-view ps-el-7">
+        <h2 class="u-visually-hidden ps-el-8">We Make Good Shit</h2>
+        <div class="center ps-el-9">
+          <!-- Diagonal Red Accent Lines -->
+          <div class="line line--1 ps-el-10"></div>
+          <div class="line line--2 ps-el-12"></div>
+
+          <!-- Hero Main Title: We Make Good Shit -->
+          <p class="home-hero-title fx-parent ps-el-14">
+            <span class="fx-word ps-el-15">
+              <span class="fx-letter fx-letter--1 ps-el-16">W</span>
+              <span class="fx-letter fx-letter--2 ps-el-17">e</span>
+            </span>
+            <br class="ps-el-18">
+            <span class="fx-word ps-el-19">
+              <span class="fx-letter fx-letter--3 ps-el-20">M</span>
+              <span class="fx-letter fx-letter--4 ps-el-21">a</span>
+              <span class="fx-letter fx-letter--5 ps-el-22">k</span>
+              <span class="fx-letter fx-letter--6 ps-el-23">e</span>
+            </span>
+            <br class="ps-el-24">
+            <span class="fx-word ps-el-25">
+              <span class="fx-letter fx-letter--7 ps-el-26">G</span>
+              <span class="fx-letter fx-letter--8 ps-el-27">o</span>
+              <span class="fx-letter fx-letter--9 ps-el-28">o</span>
+              <span class="fx-letter fx-letter--10 ps-el-29">d</span>
+            </span>
+            <br class="ps-el-30">
+            <span class="fx-word ps-el-31">
+              <span class="fx-letter fx-letter--11 ps-el-32">S</span>
+              <span class="fx-letter fx-letter--12 ps-el-33">h</span>
+              <span class="fx-letter fx-letter--13 ps-el-34">i</span>
+              <span class="fx-letter fx-letter--14 ps-el-35">t</span>
+            </span>
+          </p>
+
+          <!-- Our Showreel Link -->
+          <a href="https://vimeo.com/836218697" target="_blank" class="home-hero-showreel js-show-showreel ps-el-37">
+            <span class="svg svg-caret-right ps-el-38">
+              <svg class="caret-icon ps-el-39" viewBox="0 0 6 10" fill="none">
+                <path d="M1 1.5L4.5 5L1 8.5" stroke="#e43333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            Our Showreel
+          </a>
+
+          <!-- Bottom Right Lead & Social Links -->
+          <div class="home-hero-content ps-el-41">
+            <p class="lead ps-el-42">
+              <span class="ps-el-43">Dogstudio is a multidisciplinary</span><br>
+              <span class="ps-el-44">creative studio at the intersection</span><br>
+              <span class="ps-el-45">of art, design and technology.</span>
+            </p>
+            <p class="ps-el-46">
+              <span class="ps-el-47">Our goal is to deliver amazing experiences that make</span>
+              <span class="ps-el-48">people talk, and build strategic value for brands, tech,</span>
+              <span class="ps-el-49">entertainment, arts &amp; culture.</span>
+            </p>
+            <ul class="ps-el-50">
+              <li class="ps-el-51">
+                <a href="https://www.facebook.com/dogstudio/" target="_blank" class="ps-el-52">Facebook</a>
+              </li>
+              <li class="ps-el-53">
+                <a href="https://www.instagram.com/dogstudio.co/" target="_blank" class="ps-el-54">Instagram</a>
+              </li>
+              <li class="ps-el-55">
+                <a href="https://dribbble.com/dogstudio" target="_blank" class="ps-el-56">Dribbble</a>
+              </li>
+              <li class="ps-el-57">
+                <a href="https://twitter.com/Dogstudio" target="_blank" class="ps-el-58">Twitter</a>
+              </li>
+              <li class="ps-el-59">
+                <a href="https://dogstudio.co/newsletter/" class="ps-el-60">Newsletter</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Featured Projects (Preserving Hover Rules 68, 71, 74, 77, 80, 83, 86) -->
+      <section class="home-cases ps-el-61">
+        <div class="center ps-el-62">
+          <h2 class="home-cases-title js-in-view appear-fade-up in-view ps-el-63">Featured projects</h2>
+          <ul class="home-cases-list js-cases-list ps-el-66">
+            <li class="js-in-view appear-fade-up ps-el-67">
+              <a href="https://dogstudio.co/cases/tomorrowland/" data-theme="tomorrowland" data-matcap="18, 18" class="ps-el-68">
+                <span class="ps-el-69">2020 - Ongoing</span> Tomorrowland
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-70">
+              <a href="https://dogstudio.co/cases/navy-pier/" data-theme="navy-pier" data-matcap="7, 7" class="ps-el-71">
+                <span class="ps-el-72">2018 - Today</span> Navy Pier
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-73">
+              <a href="https://dogstudio.co/cases/msi-chicago/" data-theme="msi-chicago" data-matcap="8, 8" class="ps-el-74">
+                <span class="ps-el-75">2015 - Today</span> MSI Chicago
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-76">
+              <a href="https://dogstudio.co/cases/voo/" data-theme="this-was-louises-phone" data-matcap="11, 11" class="ps-el-77">
+                <span class="ps-el-78">2016</span> This Was Louise’s Phone
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-79">
+              <a href="https://dogstudio.co/cases/kikk-festival-2018/" data-theme="kikk-18" data-matcap="9, 9" class="ps-el-80">
+                <span class="ps-el-81">2012 - Today</span> KIKK Festival 2018
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-82">
+              <a href="https://dogstudio.co/cases/the-kennedy-center/" data-theme="the-kennedy-center" data-matcap="10, 10" class="ps-el-83">
+                <span class="ps-el-84">2017</span> The Kennedy Center
+              </a>
+            </li>
+            <li class="js-in-view appear-fade-up ps-el-85">
+              <a href="https://dogstudio.co/cases/royal-opera-of-wallonia/" data-theme="orw" data-matcap="12, 12" class="ps-el-86">
+                <span class="ps-el-87">2016 - Ongoing</span> Royal Opera Of Wallonia
+              </a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Section: Home About (Preserving Hover Rule 327 & 329) -->
+      <section class="home-about js-in-view in-view ps-el-241">
+        <div class="center ps-el-248">
+          <header class="home-about-header js-in-view in-view ps-el-249">
+            <p class="home-about-headline appear-fade-up">This is how we do it</p>
+            <p class="home-about-title fx-parent ps-el-251">We're crafting emotional experiences aimed at improving results</p>
+          </header>
+          <div class="home-about-content js-in-view in-view ps-el-320">
+            <div class="home-about-text typeset ps-el-323">
+              <p class="appear-fade-up appear-delay--3 ps-el-324">Dogstudio is a design &amp; technology firm working globally from our offices based in Belgium and Chicago.<br class="ps-el-325"> Our strong focus on producing high quality &amp; emotional brandings, digital products and experiences became a signature.</p>
+              <p class="appear-fade-up appear-delay--4 ps-el-326">We’re passionate about moving people and solving problems for the likes of Microsoft, The Museum of Science And Industry Of Chicago, The Kennedy Center of Washington, Dragone, Quanta Magazine, and many more.</p>
+            </div>
+            <a href="https://dogstudio.co/values/" class="home-about-link link link--under ps-el-327" title="Discover our values">
+              <span class="link-label ps-el-328">Discover our values</span>
+              <span class="link-line ps-el-329"></span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- WebGL 3D Rebuild & Interactive Motion Script -->
+  <script>
+    (async function () {
+      const container = document.getElementById('canvas-container');
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(width, height);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.LinearToneMapping;
+      container.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+
+      // Camera: calibrated perspective camera matching preview.png
+      const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
+      const baseCamZ = 22.0;
+      camera.position.set(0.2, 1.6, baseCamZ);
+      scene.add(camera);
+
+      const target = new THREE.Vector3(1.1, 1.8, 0);
+      camera.lookAt(target);
+
+      const textureLoader = new THREE.TextureLoader();
+      const loadTex = (url) => {
+        const t = textureLoader.load(url);
+        t.flipY = false;
+        return t;
+      };
+
+      const dogNormals = loadTex('./assets/dog_normals.jpg');
+
+      // Crop Matcap Index 1 (Cyan/Purple iridescent matcap matching hero atmosphere)
+      const matcapCanvas = document.createElement('canvas');
+      matcapCanvas.width = 256;
+      matcapCanvas.height = 256;
+      const mctx = matcapCanvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = './assets/matcap-combined-resized.jpg';
+      await new Promise(r => { img.onload = r; });
+      const cellW = img.width / 10;
+      const cellH = img.height / 2;
+      // Matcap 1: row 0, col 1
+      mctx.drawImage(img, cellW * 1, 0, cellW, cellH, 0, 0, 256, 256);
+      const singleMatcapTex = new THREE.CanvasTexture(matcapCanvas);
+
+      // Create dedicated piercing glowing cyan/amber eye texture matching preview.png
+      const eyeCanvas = document.createElement('canvas');
+      eyeCanvas.width = 512;
+      eyeCanvas.height = 512;
+      const ectx = eyeCanvas.getContext('2d');
+
+      // Background / Sclera
+      ectx.fillStyle = '#050e16';
+      ectx.fillRect(0, 0, 512, 512);
+
+      // Glowing cyan iris with amber flecks
+      const irisGrad = ectx.createRadialGradient(256, 256, 35, 256, 256, 210);
+      irisGrad.addColorStop(0, '#ffd166'); // golden amber flecks
+      irisGrad.addColorStop(0.2, '#06d6a0'); // turquoise
+      irisGrad.addColorStop(0.45, '#00f0ff'); // bright piercing cyan
+      irisGrad.addColorStop(0.75, '#0077b6'); // deep ocean blue
+      irisGrad.addColorStop(1.0, '#050e16');
+      ectx.fillStyle = irisGrad;
+      ectx.beginPath();
+      ectx.arc(256, 256, 210, 0, Math.PI * 2);
+      ectx.fill();
+
+      // Sharp dark pupil
+      const pupilGrad = ectx.createRadialGradient(256, 256, 0, 256, 256, 75);
+      pupilGrad.addColorStop(0, '#010306');
+      pupilGrad.addColorStop(0.85, '#020810');
+      pupilGrad.addColorStop(1, '#061824');
+      ectx.fillStyle = pupilGrad;
+      ectx.beginPath();
+      ectx.arc(256, 256, 75, 0, Math.PI * 2);
+      ectx.fill();
+
+      // Specular bright pinpoint highlights
+      ectx.fillStyle = '#ffffff';
+      ectx.beginPath();
+      ectx.arc(215, 215, 20, 0, Math.PI * 2);
+      ectx.fill();
+
+      ectx.fillStyle = 'rgba(200, 250, 255, 0.85)';
+      ectx.beginPath();
+      ectx.arc(290, 290, 10, 0, Math.PI * 2);
+      ectx.fill();
+
+      const eyeTex = new THREE.CanvasTexture(eyeCanvas);
+
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+
+      const gltfLoader = new THREE.GLTFLoader();
+      gltfLoader.setDRACOLoader(dracoLoader);
+
+      let mixer = null;
+      const dogContainer = new THREE.Object3D();
+      scene.add(dogContainer);
+
+      let headBone = null;
+
+      // Base transforms calibrated to preview.png
+      const baseRotY = 0.58;
+      const baseRotX = -0.14;
+      const basePosX = 0.12;
+      const basePosY = 0.06;
+
+      gltfLoader.load('./assets/dog.drc.glb', (gltf) => {
+        const model = gltf.scene;
+
+        // Model internal offset calibrated to preview.png framing
+        const scale = 14.5;
+        model.scale.set(scale, scale, scale);
+        model.position.set(0.2 * scale, -0.5 * scale, 0.15 * scale);
+
+        model.traverse((child) => {
+          if (child.isBone && child.name.toLowerCase().includes('head')) {
+            headBone = child;
+          }
+          if (child.isMesh) {
+            const name = child.name.toLowerCase();
+            if (name.includes('eye')) {
+              // Remap UVs to normalized range for dedicated eye texture
+              const uvs = child.geometry.attributes.uv;
+              const minU = 0.85396, maxU = 0.98188;
+              const minV = 0.64321, maxV = 0.77113;
+              for (let i = 0; i < uvs.count; i++) {
+                let u = (uvs.getX(i) - minU) / (maxU - minU);
+                let v = (uvs.getY(i) - minV) / (maxV - minV);
+                uvs.setXY(i, u, v);
+              }
+              uvs.needsUpdate = true;
+
+              child.material = new THREE.MeshBasicMaterial({
+                map: eyeTex
+              });
+            } else {
+              const isLeaf = name.includes('branch') || name.includes('leaf');
+              child.material = new THREE.MeshMatcapMaterial({
+                matcap: singleMatcapTex,
+                normalMap: dogNormals,
+                normalScale: new THREE.Vector2(0.68, 0.68),
+                color: new THREE.Color(0x566d8e), // Rich moody blue-grey tint matching preview.png
+                skinning: !!child.isSkinnedMesh,
+                side: isLeaf ? THREE.DoubleSide : THREE.FrontSide
+              });
+            }
+          }
+        });
+
+        dogContainer.add(model);
+
+        // Orient wolf: head tilted towards front-left, eye contact with viewer
+        dogContainer.rotation.y = baseRotY;
+        dogContainer.rotation.x = baseRotX;
+        dogContainer.position.set(basePosX, basePosY, 0);
+
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          const action = mixer.clipAction(gltf.animations[0]);
+          action.play();
+        }
+
+        window.__DOG_READY__ = true;
+      });
+
+      // Mouse Parallax Interaction
+      let mouseX = 0;
+      let mouseY = 0;
+      let targetParallaxX = 0;
+      let targetParallaxY = 0;
+
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      // Scroll Choreography Checkpoints (from AI-PROMPT.md & dog-choreography-truth.json)
+      // Checkpoints: 0px (0%), 743px (25%), 1485px (50%), 2228px (75%), 2970px (100%)
+      const poses = [
+        { progress: 0.00, depth: 1,  hRot: 0,    vRot: 60,   xOff: 2,    yOff: -5 },
+        { progress: 0.25, depth: 18, hRot: -7.8, vRot: 36.7, xOff: -1.5, yOff: -1.2 },
+        { progress: 0.50, depth: 30, hRot: -2.2, vRot: 53,   xOff: -0.4, yOff: 0.9 },
+        { progress: 0.75, depth: 35, hRot: 14,   vRot: 53,   xOff: -0.4, yOff: 0 },
+        { progress: 1.00, depth: 25, hRot: 25,   vRot: -80,  xOff: -1,   yOff: 0 }
+      ];
+
+      function getInterpolatedPose(scrollProgress) {
+        const p = Math.max(0, Math.min(1, scrollProgress));
+        let i = 0;
+        while (i < poses.length - 1 && poses[i + 1].progress < p) {
+          i++;
+        }
+        if (i >= poses.length - 1) return poses[poses.length - 1];
+
+        const p0 = poses[i];
+        const p1 = poses[i + 1];
+        const t = (p - p0.progress) / (p1.progress - p0.progress);
+        const smoothT = t * t * (3 - 2 * t); // smoothstep interpolation
+
+        return {
+          depth: p0.depth + (p1.depth - p0.depth) * smoothT,
+          hRot: p0.hRot + (p1.hRot - p0.hRot) * smoothT,
+          vRot: p0.vRot + (p1.vRot - p0.vRot) * smoothT,
+          xOff: p0.xOff + (p1.xOff - p0.xOff) * smoothT,
+          yOff: p0.yOff + (p1.yOff - p0.yOff) * smoothT
+        };
+      }
+
+      // Handle Resize
+      window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      });
+
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
+
+        // Smooth mouse parallax lerp
+        targetParallaxX += (mouseX * 0.05 - targetParallaxX) * 0.08;
+        targetParallaxY += (mouseY * 0.05 - targetParallaxY) * 0.08;
+
+        // Calculate scroll choreography
+        const scrollProgress = window.scrollY / 2970;
+        const currentPose = getInterpolatedPose(scrollProgress);
+
+        // Apply scroll choreography transformations
+        const depthDelta = (currentPose.depth - 1) * 0.35;
+        camera.position.z = baseCamZ + depthDelta;
+
+        const hRotDelta = (currentPose.hRot - 0) * (Math.PI / 180) * 0.6;
+        const vRotDelta = (currentPose.vRot - 60) * (Math.PI / 180) * 0.3;
+        const xOffDelta = (currentPose.xOff - 2) * 0.06;
+        const yOffDelta = (currentPose.yOff - (-5)) * 0.05;
+
+        dogContainer.rotation.y = baseRotY + hRotDelta + targetParallaxX;
+        dogContainer.rotation.x = baseRotX + vRotDelta + targetParallaxY;
+        dogContainer.position.x = basePosX + xOffDelta;
+        dogContainer.position.y = basePosY + yOffDelta;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+    })();
+  </script>
+</body>
+</html>
