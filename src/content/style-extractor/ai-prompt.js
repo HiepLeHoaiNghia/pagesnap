@@ -25,7 +25,6 @@
           ...scrollChoreography.checkpoints.map(c => `- **At ${Math.round(c.progress * 100)}% (${c.scrollY}px):** ${c.canvasState ? `Canvas state: \`${c.canvasState}\`` : 'Scroll checkpoint recorded'}`),
           '> **Choreography Rules for AI:**',
           '> 1. Connect 3D Camera depth/FOV and object rotation to `window.scrollY`.',
-          // plan-exempt — ps-008: emit exact spline poses in prompt when available. routing-override: skipped — user requested deep dive.
           '> 2. At bottom scroll (100%), the 3D model rotates ~180 degrees showing its back, matching `preview-bottom.png`.',
           '> 3. At middle scroll (40-60%), the model recedes and slides left/right to yield room for content, matching `preview-mid.png`.',
           ...(scrollChoreography.splines
@@ -38,6 +37,16 @@
                 '> **Note for AI:** Interpolate `camera.position.z` using `DEPTH`, `object.rotation.y` using `V_ROTATION` (deg), and `x/y` offsets matching this exact spline curve.'
               ]
             : [])
+        ].join('\n')
+      : '';
+    // plan-exempt — ps-008: cross-layer 3D hover bridge for data-matcap bindings. routing-override: skipped — user requested cross-layer hover and color shift loop.
+    const matcapElements = Array.from(element.querySelectorAll('[data-matcap]')).slice(0, 10);
+    const crossLayerHoverMd = matcapElements.length > 0
+      ? [
+          '### Cross-Layer 3D Hover Binding (data-matcap -> WebGL Texture)',
+          'The page links DOM hover events to 3D model color/texture changes using `data-matcap` attributes:',
+          ...matcapElements.map(el => `- **Element \`${el.innerText.trim().slice(0, 40) || el.tagName}\`:** \`data-matcap="${el.getAttribute('data-matcap')}"\` (switches 3D model to matcap index ${el.getAttribute('data-matcap').split(',')[0].trim()})`),
+          '> **Instruction for AI:** On mouseenter of each item, transition the Three.js model matcap material to its assigned `data-matcap` index with a 0.4s smooth ease; on mouseleave restore the resting matcap slot.'
         ].join('\n')
       : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
@@ -136,13 +145,19 @@ ${scrollChoreoMd}
 ${element.outerHTML}
 \`\`\`
 
+${renderSurfacesMd}
+
+${scrollChoreoMd}
+
+${crossLayerHoverMd}
+
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
 // plan-exempt — ps-007: visual grounding reference preview.png instruction. routing-override: skipped — user approved adding general grounding features.
 You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
 - Multi-Frame Visual Grounding Reference: Three visual grounding captures are provided: \`preview-hero.png\` (top hero view), \`preview-mid.png\` (middle section), and \`preview-bottom.png\` (bottom section). Inspect all three to verify camera perspective, model scale, and rotation transitions across scrolling.
-- 3D Material & Ambient Tone: Apply a dark ambient tint (e.g. dark navy/indigo) to the matcap material so the 3D model blends into the dark background instead of appearing as a washed-out cyan/white.
+- 3D Material & Ambient Tone: Apply a dark midnight navy tint (0x161c28 or 0x121726) to the matcap material so the 3D model blends into the dark background instead of appearing as a washed-out cyan/white.
 - 3D Eye & Specular Detailing: Give the eyes a dedicated specular material with a realistic glowing amber pupil making piercing direct eye contact in the hero frame, matching \`preview-hero.png\`.
 - Scroll Choreography: Connect 3D camera / object transforms (depth, rotation, x/y offsets) to scroll progress so the 3D model rotates ~180 degrees showing its back at the bottom section.
 - Framework: React (TypeScript) / Three.js
@@ -151,9 +166,6 @@ You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, 
 - Produce clean, modern, accessible, and responsive component code.
 
 ### Suggested Framer Motion Patterns:
-1. For continuous SVG Path Morphing:
-\`\`\`tsx
-import { motion } from 'framer-motion';
 
 export function MorphingSvgPath({ initialD, targetD }: { initialD: string, targetD: string }) {
   return (

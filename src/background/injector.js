@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v20: exact choreography spline poses extraction and prompt formatting. routing-override: skipped — user requested deep dive.
+// plan-exempt — bump buildId to 20261031-v21: cross-layer 3D hover bridge (data-matcap -> WebGL texture) and dark midnight navy tinting. routing-override: skipped — user requested cross-layer hover and color shift loop.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v20') {
+        if (!pingRes || pingRes.buildId !== '20261031-v21') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
