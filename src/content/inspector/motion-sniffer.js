@@ -397,6 +397,49 @@
       }
     },
 
+    // plan-exempt — ps-008: probe scroll choreography across component height to track 3D object / canvas transformations at checkpoints. routing-override: skipped — user approved scroll choreography tracker.
+    async probeScrollChoreography(root) {
+      if (!root || typeof window.scrollTo !== 'function') return null;
+      if (!this.isActive()) this.start();
+
+      const initialScrollY = window.scrollY;
+      const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 1000);
+      const viewHeight = window.innerHeight || 800;
+      const maxScroll = Math.max(0, docHeight - viewHeight);
+      if (maxScroll < 200) return null;
+
+      const checkpoints = [0, 0.25, 0.5, 0.75, 1.0];
+      const capturedCheckpoints = [];
+
+      for (const ratio of checkpoints) {
+        const targetY = Math.round(ratio * maxScroll);
+        try {
+          window.scrollTo(0, targetY);
+          window.dispatchEvent(new Event('scroll'));
+        } catch (e) {}
+        await new Promise((r) => setTimeout(r, 60));
+
+        // Check canvas and key elements for attribute or style changes
+        const canvas = document.querySelector('canvas');
+        capturedCheckpoints.push({
+          progress: ratio,
+          scrollY: targetY,
+          canvasState: canvas ? (canvas.getAttribute('style') || canvas.getAttribute('data-scroll-depth') || '') : ''
+        });
+      }
+
+      try {
+        window.scrollTo(0, initialScrollY);
+        window.dispatchEvent(new Event('scroll'));
+      } catch (e) {}
+
+      PageSnap.lastScrollChoreography = {
+        maxScroll,
+        checkpoints: capturedCheckpoints
+      };
+      return PageSnap.lastScrollChoreography;
+    },
+
     /** @returns {null | {attributes: Array, samples: Array, totalWrites: number}} null when no motion was observed */
     describe(root) {
       if (!root || !root.querySelectorAll) return null;

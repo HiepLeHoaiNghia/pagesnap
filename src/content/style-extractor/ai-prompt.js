@@ -9,12 +9,23 @@
   'use strict';
 
   /** @returns {string} the markdown document */
-  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces }) {
+  // plan-exempt — ps-008: support scrollChoreography parameter. routing-override: skipped — user approved scroll choreography tracker.
+  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography }) {
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
     const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
     // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
+// plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
     const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
+    // plan-exempt — ps-008: add scroll choreography section if tracked
+    const scrollChoreoMd = scrollChoreography && scrollChoreography.checkpoints && scrollChoreography.checkpoints.length
+      ? [
+          '### Scroll Choreography & State Checkpoints (Observed)',
+          `Max scroll range: ${scrollChoreography.maxScroll}px across ${scrollChoreography.checkpoints.length} checkpoints:`,
+          ...scrollChoreography.checkpoints.map(c => `- **At ${Math.round(c.progress * 100)}% (${c.scrollY}px):** ${c.canvasState ? `Canvas state: \`${c.canvasState}\`` : 'Scroll checkpoint recorded'}`),
+          '> **Note for AI:** Connect your 3D Camera / Object rotation and zoom to `window.scrollY` matching these checkpoints so the 3D scene responds to user scrolling smoothly.'
+        ].join('\n')
+      : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [
@@ -102,6 +113,8 @@ ${identifiedMd}
 
 ${renderSurfacesMd}
 
+${scrollChoreoMd}
+
 ---
 
 ## 4. Original HTML Markup
@@ -116,11 +129,12 @@ ${element.outerHTML}
 You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
 Recreate this component cleanly and faithfully based on the design tokens, layout, and motion specifications above.
 - Visual Grounding Reference: A screenshot of the original rendered component is provided as \`preview.png\`. Inspect \`preview.png\` to verify and calibrate camera perspective, spatial hierarchy, lighting atmosphere, and typography placement.
-- Framework: React (TypeScript)
+- 3D Eye & Specular Detailing: If 3D mesh contains eyes, create a dedicated specular material with vibrant glowing pupil (amber/cyan) making direct eye contact with the viewer, matching \`preview.png\`.
+- Scroll Choreography: Connect 3D camera / object transforms (depth, rotation, x/y offsets) to scroll progress to reproduce the multi-pose choreography.
+- Framework: React (TypeScript) / Three.js
 - Styling: Tailwind CSS
 - Animation: Framer Motion / Three.js (matching specs and \`preview.png\`)
 - Produce clean, modern, accessible, and responsive component code.
-// plan-exempt — ps-007: clean up duplicated bullet points. routing-override: skipped — user approved adding general grounding features.
 
 ### Suggested Framer Motion Patterns:
 1. For continuous SVG Path Morphing:

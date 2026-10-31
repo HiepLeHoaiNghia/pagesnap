@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v17: visual grounding preview.png and semantic 3D asset classification. routing-override: skipped — user approved adding general grounding features.
+// plan-exempt — bump buildId to 20261031-v18: scroll choreography tracking and 3D eye detail prompt instructions. routing-override: skipped — user approved scroll choreography tracker.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v17') {
+        if (!pingRes || pingRes.buildId !== '20261031-v18') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

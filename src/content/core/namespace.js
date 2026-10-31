@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v17 so open tabs re-inject updated prompt and surface extractors. routing-override: skipped — user approved adding general grounding features.
+// plan-exempt — bump buildId to 20261031-v18 so open tabs re-inject scroll choreography and prompt builders. routing-override: skipped — user approved scroll choreography tracker.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v17' });
+    sendResponse({ success: true, buildId: '20261031-v18' });
     return true;
   }
 });

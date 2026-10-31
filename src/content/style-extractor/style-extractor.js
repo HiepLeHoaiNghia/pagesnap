@@ -71,8 +71,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     const selfContainedHtmlNoJs = playerHtml ? selfContainedHtml.replace(playerHtml, () => '') : selfContainedHtml;
     // plan-exempt — ps-003 phase 4: AI-PROMPT.md is assembled by ai-prompt.js (moved unchanged). routing-override: skipped — user asked to build from the plan.
     // plan-exempt — ps-007 part B: canvas/video/iframe/3D-asset facts go to the prompt, tokens.json and the result. routing-override: skipped — user approved the canvas warning work in chat.
+    // plan-exempt — ps-008: pass render surfaces and scroll choreography to prompt and tokens. routing-override: skipped — user approved scroll choreography tracker.
     const renderSurfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [] };
-    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces });
+    const scrollChoreography = PageSnap.lastScrollChoreography || null;
+    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
       sourceUrl: window.location.href,
@@ -89,7 +91,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       jsMotion: jsMotion,
       // plan-exempt — Phase 13 measured pointer model (null until the user runs Analyze in Studio)
       motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null,
-      renderSurfaces: renderSurfaces
+      renderSurfaces: renderSurfaces,
+      scrollChoreography: scrollChoreography
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -114,7 +117,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       fontTokens: Array.from(fontTokens),
       animationNames: Array.from(animationNames),
       jsMotion: jsMotion,
-      renderSurfaces: renderSurfaces
+      renderSurfaces: renderSurfaces,
+      scrollChoreography: scrollChoreography
     };
   };
 
