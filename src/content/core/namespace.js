@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v33 for verified scroll choreography. routing-override: skipped — user requested v33 pipeline.
+// plan-exempt — bump buildId to 20261031-v34 for transparent DOM stacking. routing-override: skipped — user requested v34 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v33' });
+    sendResponse({ success: true, buildId: '20261031-v34' });
     return true;
   }
 });
