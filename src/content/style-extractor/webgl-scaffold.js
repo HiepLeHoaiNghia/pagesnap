@@ -73,25 +73,16 @@
   const branchesNormals = loadTex('assets/${branchesNormalsName}');
 
   // Multi-Matcap Atlas Cropper (10x2 grid)
-  const atlasImg = new Image();
-  atlasImg.crossOrigin = 'anonymous';
-  atlasImg.src = 'assets/${matcapName}';
-  let atlasReady = false;
-  atlasImg.onload = () => { atlasReady = true; };
-
+  // plan-exempt — ps-008: instant synchronous GPU slot texture via repeat & offset (no async canvas crop delay). routing-override: skipped — user approved v32 pipeline.
   function getMatcapTexture(idx) {
-    if (!atlasReady) return matcapAtlas;
-    const cv = document.createElement('canvas');
-    cv.width = 256; cv.height = 256;
-    const ctx = cv.getContext('2d');
-    const cellW = atlasImg.width / 10;
-    const cellH = atlasImg.height / 2;
+    const tex = textureLoader.load('assets/${matcapName}');
+    tex.flipY = false;
+    tex.repeat.set(0.1, 0.5);
     const col = idx % 10;
     const row = Math.floor(idx / 10);
-    ctx.drawImage(atlasImg, col * cellW, row * cellH, cellW, cellH, 0, 0, 256, 256);
-    return new THREE.CanvasTexture(cv);
+    tex.offset.set(col * 0.1, row === 1 ? 0.0 : 0.5);
+    return tex;
   }
-
   // Program 1: Eyes Material (secondMatcapIdx: 0, secondDiffuseWeight: 0.79, normalScale: 0)
   // Program 2: Body Material (secondMatcapIdx: 1, secondDiffuseWeight: 0.52, normalScale: 1)
   // plan-exempt — ps-008: default hero matcap slot 0 (dark navy/indigo hero slot) and slot 11 hover (Louise pink/purple). routing-override: skipped — user approved v30 pipeline.
