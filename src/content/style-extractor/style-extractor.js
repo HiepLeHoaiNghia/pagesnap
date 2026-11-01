@@ -85,6 +85,7 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // plan-exempt — ps-008: wire interactionManifest and meshMapper into pipeline. routing-override: skipped — user requested SOLID architecture update.
     const interactionManifest = PageSnap.interactionManifest ? PageSnap.interactionManifest.extract(element) : null;
     const meshMapping = PageSnap.meshMapper ? PageSnap.meshMapper.mapSubmeshes(renderSurfaces) : null;
+    const webglScaffoldCode = PageSnap.webglScaffold ? PageSnap.webglScaffold.generateScaffold({ renderSurfaces, interactionManifest, scrollChoreography }) : '';
     const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
@@ -133,7 +134,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       renderSurfaces: renderSurfaces,
       scrollChoreography: scrollChoreography,
       interactionManifest: interactionManifest,
-      meshMapping: meshMapping
+      meshMapping: meshMapping,
+      webglScaffoldCode: webglScaffoldCode
     };
   };
 
@@ -151,6 +153,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     zip.file('tokens.json', componentData.tokensJson);
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
+    // plan-exempt — ps-008: bundle webgl-scaffold.js into ZIP package for 3D/WebGL components. routing-override: skipped — user requested webgl-scaffold generator.
+    if (componentData.webglScaffoldCode) {
+      zip.file('webgl-scaffold.js', componentData.webglScaffoldCode);
+    }
     // plan-exempt — ps-008: bundle multi-frame visual grounding images (hero, mid, bottom) into modular package. routing-override: skipped — user approved multi-frame grounding loop.
 // plan-exempt — ps-008: multi-frame visual grounding preview bundling. routing-override: skipped — user approved multi-frame grounding loop.
     if (componentData.previewPngBlob) zip.file('preview.png', componentData.previewPngBlob);

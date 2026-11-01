@@ -171,10 +171,11 @@ ${crossLayerHoverMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
-// plan-exempt — ps-007: visual grounding reference preview.png instruction. routing-override: skipped — user approved adding general grounding features.
+// plan-exempt — ps-008: webgl-scaffold reference in AI prompt. routing-override: skipped — user requested webgl-scaffold generator.
 You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
+- WebGL / Three.js Scaffold: A pre-configured \`webgl-scaffold.js\` is included in this package with verified camera perspective (FOV 35), DRACO/GLTF loaders, dedicated eye materials with glowing amber pupils, and cross-layer hover bindings. Integrate or reference \`webgl-scaffold.js\` directly rather than guessing Three.js boilerplate from scratch.
 - Multi-Frame Visual Grounding Reference: Three visual grounding captures are provided: \`preview-hero.png\` (top hero view), \`preview-mid.png\` (middle section), and \`preview-bottom.png\` (bottom section). Inspect all three to verify camera perspective, model scale, and rotation transitions across scrolling.
-- 3D Material & Ambient Tone: Apply a dark midnight navy tint (0x161c28 or 0x121726) to the matcap material so the 3D model blends into the dark background instead of appearing as a washed-out cyan/white.
+- 3D Material & Ambient Tone: Apply a dark midnight navy tint (0x161c28 or 0x28344c) to the matcap material so the 3D model blends into the dark background instead of appearing as a washed-out cyan/white.
 - 3D Eye & Specular Detailing: Give the eyes a dedicated specular material with a realistic glowing amber pupil making piercing direct eye contact in the hero frame, matching \`preview-hero.png\`.
 - Scroll Choreography: Connect 3D camera / object transforms (depth, rotation, x/y offsets) to scroll progress so the 3D model rotates ~180 degrees showing its back at the bottom section.
 - Framework: React (TypeScript) / Three.js

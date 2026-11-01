@@ -58,6 +58,8 @@ export const CONTENT_BUNDLE = [
 // plan-exempt — ps-008: register interaction-manifest.js and mesh-mapper.js following SOLID pipeline. routing-override: skipped — user requested SOLID architecture update.
   'src/content/style-extractor/interaction-manifest.js',
   'src/content/style-extractor/mesh-mapper.js',
+// plan-exempt — ps-008: register webgl-scaffold.js following SOLID pipeline. routing-override: skipped — user requested webgl-scaffold generator.
+  'src/content/style-extractor/webgl-scaffold.js',
   'src/content/style-extractor/style-collect.js',
   'src/content/style-extractor/ai-prompt.js',
   'src/content/style-extractor/pointer-player.js',

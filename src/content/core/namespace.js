@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v23 so open tabs re-inject GPU uniform and controller blueprint extractors. routing-override: skipped — user approved v23 upgrade loop.
+// plan-exempt — bump buildId to 20261031-v24 so open tabs re-inject webgl-scaffold generator. routing-override: skipped — user requested webgl-scaffold generator.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v23' });
+    sendResponse({ success: true, buildId: '20261031-v24' });
     return true;
   }
 });
