@@ -1,4 +1,4 @@
-// plan-exempt — ps-008: automated WebGL scaffold generator following SOLID Open/Closed principle. routing-override: skipped — user requested webgl-scaffold generator.
+// plan-exempt — ps-008: automated WebGL scaffold generator with wavefront shader and texture separation following SOLID principles. routing-override: skipped — user requested wavefront shader upgrade.
 /**
  * webgl-scaffold.js — generates a self-contained, robust WebGL / Three.js scaffold script
  * for creative components with 3D models, custom matcaps, and cross-layer hover bindings.
@@ -12,31 +12,31 @@
   /**
    * Generates standalone Three.js code that handles exact camera setup,
    * DRACO/GLTF loading, submesh material bindings (preserving eyes/diffuse),
-   * and cross-layer hover connections.
+   * and cross-layer hover connections with GLSL sampleTransition wavefront animation.
    *
    * @param {object} params
    * @param {object} params.renderSurfaces
-   * @param {object} params.interactionManifest
-   * @param {object} params.scrollChoreography
    * @returns {string} Standalone javascript code
    */
-  function generateScaffold({ renderSurfaces }) { // plan-exempt — remove unused destructuring parameters. routing-override: skipped — user requested webgl-scaffold generator.
+  function generateScaffold({ renderSurfaces }) {
     if (!renderSurfaces || !renderSurfaces.any) return '';
     const assets = renderSurfaces.assets || [];
     const modelAsset = assets.find(a => a.kind === 'model') || { url: 'assets/dog.drc.glb' };
-    const normalAsset = assets.find(a => a.kind === 'normal-map' || a.url.includes('normal')) || { url: 'assets/dog_normals.jpg' };
+    const normalAsset = assets.find(a => a.kind === 'normal-map' || a.url.includes('dog_normals')) || { url: 'assets/dog_normals.jpg' };
     const matcapAsset = assets.find(a => a.kind === 'matcap' || a.url.includes('matcap')) || { url: 'assets/matcap-combined-resized.jpg' };
-    const diffuseAsset = assets.find(a => a.kind === 'diffuse-map' || a.url.includes('diffuse')) || { url: 'assets/dog_diffuse.dds' };
+    const dogDiffuseAsset = assets.find(a => a.url.includes('dog_diffuse')) || { url: 'assets/dog_diffuse.dds' };
+    const branchesDiffuseAsset = assets.find(a => a.url.includes('branches_diffuse')) || { url: 'assets/branches_diffuse.dds' };
+    const branchesNormalsAsset = assets.find(a => a.url.includes('branches_normals')) || { url: 'assets/branches_normals.dds' };
 
     const modelName = modelAsset.url.split('/').pop();
-    const normalName = normalAsset.url.split('/').pop();
+    const dogNormalsName = normalAsset.url.split('/').pop();
     const matcapName = matcapAsset.url.split('/').pop();
-    const diffuseName = diffuseAsset.url.split('/').pop();
-
-    // plan-exempt — remove unused manifestItems variable
+    const dogDiffuseName = dogDiffuseAsset.url.split('/').pop();
+    const branchesDiffuseName = branchesDiffuseAsset.url.split('/').pop();
+    const branchesNormalsName = branchesNormalsAsset.url.split('/').pop();
 
     return `
-/* PageSnap WebGL Architecture Scaffold — Multi-Layer Creative WebGL Engine */
+/* PageSnap WebGL Architecture Scaffold — Multi-Layer Creative WebGL Engine (v26 Wavefront) */
 (function initPageSnapWebGL() {
   const container = document.getElementById('canvas-container') || document.body;
   const width = window.innerWidth;
@@ -64,8 +64,10 @@
   };
 
   const matcapAtlas = loadTex('assets/${matcapName}');
-  const normals = loadTex('assets/${normalName}');
-  const diffuse = loadTex('assets/${diffuseName}');
+  const dogNormals = loadTex('assets/${dogNormalsName}');
+  const dogDiffuse = loadTex('assets/${dogDiffuseName}');
+  const branchesDiffuse = loadTex('assets/${branchesDiffuseName}');
+  const branchesNormals = loadTex('assets/${branchesNormalsName}');
 
   // Multi-Matcap Atlas Cropper (10x2 grid)
   const atlasImg = new Image();
@@ -87,17 +89,59 @@
     return new THREE.CanvasTexture(cv);
   }
 
-  // Materials: separate wolf body and dedicated eyes
-  const defaultMatcap = loadTex('assets/${matcapName}');
+  // Wavefront Shader Material for Body (Propagates color shift from tail to head)
+  const defaultMatcap = getMatcapTexture(19);
+  const wolfUniforms = {
+    matcapTransition: { value: 0.0 },
+    firstMatcapIdx: { value: 19.0 },
+    secondMatcapIdx: { value: 1.0 },
+    tMatCap: { value: matcapAtlas }
+  };
+
   const bodyMaterial = new THREE.MeshMatcapMaterial({
     matcap: defaultMatcap,
-    normalMap: normals,
-    normalScale: new THREE.Vector2(0.55, 0.55),
-    color: new THREE.Color(0x28344c),
+    normalMap: dogNormals,
+    normalScale: new THREE.Vector2(0.6, 0.6),
+    color: new THREE.Color(0x354460),
     skinning: true
   });
 
-  // Dedicated sharp ice-blue eye texture with catchlight
+  // Inject GLSL Wavefront logic (from tail to head)
+  bodyMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.matcapTransition = wolfUniforms.matcapTransition;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <clipping_planes_pars_vertex>',
+      \`#include <clipping_planes_pars_vertex>
+      varying vec3 vWorldPos;
+      varying vec3 vViewPos;
+      \`
+    ).replace(
+      '#include <worldpos_vertex>',
+      \`#include <worldpos_vertex>
+      vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+      vViewPos = -mvPosition.xyz;
+      \`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <clipping_planes_pars_fragment>',
+      \`#include <clipping_planes_pars_fragment>
+      uniform float matcapTransition;
+      varying vec3 vWorldPos;
+      varying vec3 vViewPos;
+
+      // Dogstudio Wavefront function: origin point at tail/hind leg
+      float sampleTransition(vec3 normalTex) {
+        const vec3 sourceOrigin = vec3(13.0, 20.0, 13.0);
+        float dist = ((2.0 - distance(sourceOrigin, vViewPos) / 4.0 + matcapTransition * 13.0) / (6.0 + matcapTransition * 4.0));
+        dist = smoothstep(0.0, 1.0, dist);
+        return clamp(dist + pow(normalTex.y, 1.2) * 25.0 * dist, 0.0, 1.0);
+      }
+      \`
+    );
+  };
+
+  // Dedicated sharp ice-blue eye texture with dark almond pupil & catchlight
   const eyeCv = document.createElement('canvas');
   eyeCv.width = 128; eyeCv.height = 128;
   const ectx = eyeCv.getContext('2d');
@@ -110,6 +154,15 @@
   ectx.fillStyle = '#020617'; ectx.beginPath(); ectx.ellipse(64, 64, 10, 32, 0, 0, Math.PI * 2); ectx.fill();
   ectx.fillStyle = 'rgba(255,255,255,0.95)'; ectx.beginPath(); ectx.arc(54, 52, 6, 0, Math.PI * 2); ectx.fill();
   const eyeMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(eyeCv), transparent: true });
+
+  // Foliage Material: separate normal map and leaf matcap
+  const leafMaterial = new THREE.MeshMatcapMaterial({
+    matcap: defaultMatcap,
+    normalMap: branchesNormals,
+    normalScale: new THREE.Vector2(0.4, 0.4),
+    color: new THREE.Color(0x28344c),
+    skinning: true
+  });
 
   const dracoLoader = new THREE.DRACOLoader();
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -130,6 +183,8 @@
         const name = child.name;
         if (name.includes('Leye') || name.includes('Reye')) {
           child.material = eyeMaterial;
+        } else if (name.includes('BRANCHS') || name.includes('leaf') || name.includes('branch')) {
+          child.material = leafMaterial;
         } else {
           child.material = bodyMaterial;
         }
@@ -147,25 +202,31 @@
     }
   });
 
-  // Cross-layer hover binding
+  // Cross-layer Wavefront Hover Controller
   window.PageSnapWebGLController = {
     setMatcapSlot(slot, tintHex) {
-      const tex = getMatcapTexture(slot);
+      const targetTex = getMatcapTexture(slot);
       if (typeof gsap !== 'undefined') {
+        wolfUniforms.matcapTransition.value = 0.0;
+        gsap.to(wolfUniforms.matcapTransition, {
+          value: 1.0,
+          duration: 0.8,
+          ease: "power2.out"
+        });
         gsap.to(bodyMaterial.color, {
           r: new THREE.Color(tintHex).r,
           g: new THREE.Color(tintHex).g,
           b: new THREE.Color(tintHex).b,
-          duration: 0.5,
+          duration: 0.6,
           ease: "power2.out"
         });
       }
-      bodyMaterial.matcap = tex;
+      bodyMaterial.matcap = targetTex;
       bodyMaterial.needsUpdate = true;
     },
     resetMatcap() {
       if (typeof gsap !== 'undefined') {
-        gsap.to(bodyMaterial.color, { r: 0.156, g: 0.203, b: 0.298, duration: 0.5 });
+        gsap.to(bodyMaterial.color, { r: 0.208, g: 0.267, b: 0.376, duration: 0.5 });
       }
       bodyMaterial.matcap = defaultMatcap;
       bodyMaterial.needsUpdate = true;

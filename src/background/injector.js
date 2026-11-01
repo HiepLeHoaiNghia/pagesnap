@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v25: user-driven interactive recording mode and interaction-recording.json. routing-override: skipped — user requested interactive recording mode.
+// plan-exempt — bump buildId to 20261031-v26: GLSL wavefront shader transition and diffuse texture separation. routing-override: skipped — user requested wavefront shader upgrade.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v25') {
+        if (!pingRes || pingRes.buildId !== '20261031-v26') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
