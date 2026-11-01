@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v27 so open tabs re-inject on-screen walkthrough guide. routing-override: skipped — user requested on-screen interactive guide.
+// plan-exempt — bump buildId to 20261031-v28 so open tabs re-inject exact shader scaffold. routing-override: skipped — user requested 100% exact shader match.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v27' });
+    sendResponse({ success: true, buildId: '20261031-v28' });
     return true;
   }
 });
