@@ -87,26 +87,27 @@
   // Program 2: Body Material (secondMatcapIdx: 1, secondDiffuseWeight: 0.52, normalScale: 1)
   // plan-exempt — ps-008: default hero matcap slot 0 (dark navy/indigo hero slot) and slot 11 hover (Louise pink/purple). routing-override: skipped — user approved v30 pipeline.
   // plan-exempt — ps-008: dynamic dual-matcap shader blending for tail-to-head wavefront. routing-override: skipped — user requested true wavefront wave.
-  const defaultMatcap = getMatcapTexture(0);
-  const targetMatcap = getMatcapTexture(18); // default to Tomorrowland Gold slot 18
+  // plan-exempt — ps-008: mathematical atlas UV slot mapping in GLSL fragment shader. routing-override: skipped — user approved v35 pipeline.
   const wolfUniforms = {
     matcapTransition: { value: 0.0 },
-    tMatCapOld: { value: defaultMatcap },
-    tMatCapNew: { value: targetMatcap }
+    tMatCapAtlas: { value: matcapAtlas },
+    firstSlot: { value: 0.0 },
+    secondSlot: { value: 18.0 } // default Tomorrowland Gold slot 18
   };
   const bodyMaterial = new THREE.MeshMatcapMaterial({
-    matcap: defaultMatcap,
+    matcap: matcapAtlas,
     normalMap: dogNormals,
     normalScale: new THREE.Vector2(0.65, 0.65),
     skinning: true
   });
 
-  // Inject GLSL Wavefront logic (from tail to head) with dual-matcap blending
+  // Inject GLSL Wavefront logic with exact mathematical UV slot mapping
   bodyMaterial.onBeforeCompile = (shader) => {
     shader.uniforms.matcapTransition = wolfUniforms.matcapTransition;
-    shader.uniforms.tMatCapOld = wolfUniforms.tMatCapOld;
-    shader.uniforms.tMatCapNew = wolfUniforms.tMatCapNew;
-    // plan-exempt — ps-008: escaped template literals in scaffold generator. routing-override: skipped — user requested true wavefront wave.
+    shader.uniforms.tMatCapAtlas = wolfUniforms.tMatCapAtlas;
+    shader.uniforms.firstSlot = wolfUniforms.firstSlot;
+    shader.uniforms.secondSlot = wolfUniforms.secondSlot;
+
     shader.vertexShader = shader.vertexShader.replace(
       '#include <clipping_planes_pars_vertex>',
       \`#include <clipping_planes_pars_vertex>
@@ -125,8 +126,9 @@
       '#include <clipping_planes_pars_fragment>',
       \`#include <clipping_planes_pars_fragment>
       uniform float matcapTransition;
-      uniform sampler2D tMatCapOld;
-      uniform sampler2D tMatCapNew;
+      uniform sampler2D tMatCapAtlas;
+      uniform float firstSlot;
+      uniform float secondSlot;
       varying vec3 vWorldPos;
       varying vec3 vViewPos;
 
@@ -137,6 +139,14 @@
         dist = smoothstep(0.0, 1.0, dist);
         return clamp(dist + pow(max(0.0, normalTex.y), 1.2) * 25.0 * dist, 0.0, 1.0);
       }
+
+      vec2 getAtlasUv(vec2 rawUv, float slot) {
+        float col = mod(slot, 10.0);
+        float row = floor(slot / 10.0);
+        float u = (rawUv.x + col) * 0.1;
+        float v = rawUv.y * 0.5 + (row > 0.5 ? 0.0 : 0.5);
+        return vec2(u, v);
+      }
       \`
     ).replace(
       '#include <matcap_fragment>',
@@ -146,8 +156,10 @@
       vec3 y = cross( viewDir, x );
       vec2 matUv = vec2( dot( x, normal ), dot( y, normal ) ) * 0.495 + 0.5;
 
-      vec4 oldColor = texture2D( tMatCapOld, matUv );
-      vec4 newColor = texture2D( tMatCapNew, matUv );
+      vec2 uvOld = getAtlasUv(matUv, firstSlot);
+      vec2 uvNew = getAtlasUv(matUv, secondSlot);
+      vec4 oldColor = texture2D( tMatCapAtlas, uvOld );
+      vec4 newColor = texture2D( tMatCapAtlas, uvNew );
       float waveFactor = sampleTransition(normal);
       vec4 matcapColor = mix(oldColor, newColor, waveFactor);
       matcapColor = matcapTexelToLinear( matcapColor );
@@ -209,39 +221,36 @@
     }
   });
 
-  // plan-exempt — ps-008: dynamic wavefront controller with old->new texture blending. routing-override: skipped — user requested true wavefront wave.
+  // plan-exempt — ps-008: dynamic wavefront controller updating slot indices. routing-override: skipped — user requested true wavefront wave.
   window.PageSnapWebGLController = {
     setMatcapSlot(slot) {
-      const targetTex = getMatcapTexture(slot);
-      wolfUniforms.tMatCapOld.value = wolfUniforms.tMatCapNew.value;
-      wolfUniforms.tMatCapNew.value = targetTex;
+      wolfUniforms.firstSlot.value = wolfUniforms.secondSlot.value;
+      wolfUniforms.secondSlot.value = slot;
       wolfUniforms.matcapTransition.value = 0.0;
       if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(wolfUniforms.matcapTransition);
         gsap.to(wolfUniforms.matcapTransition, {
           value: 1.0,
           duration: 1.2,
           ease: "power2.out"
         });
-      }
-      if (leafMaterial) {
-        leafMaterial.matcap = targetTex;
-        leafMaterial.needsUpdate = true;
+      } else {
+        wolfUniforms.matcapTransition.value = 1.0;
       }
     },
     resetMatcap() {
-      wolfUniforms.tMatCapOld.value = wolfUniforms.tMatCapNew.value;
-      wolfUniforms.tMatCapNew.value = defaultMatcap;
+      wolfUniforms.firstSlot.value = wolfUniforms.secondSlot.value;
+      wolfUniforms.secondSlot.value = 0.0; // reset to hero slot 0
       wolfUniforms.matcapTransition.value = 0.0;
       if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(wolfUniforms.matcapTransition);
         gsap.to(wolfUniforms.matcapTransition, {
           value: 1.0,
           duration: 0.8,
           ease: "power2.out"
         });
-      }
-      if (leafMaterial) {
-        leafMaterial.matcap = defaultMatcap;
-        leafMaterial.needsUpdate = true;
+      } else {
+        wolfUniforms.matcapTransition.value = 1.0;
       }
     }
   };

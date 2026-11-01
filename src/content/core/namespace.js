@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v34 for transparent DOM stacking. routing-override: skipped — user requested v34 pipeline.
+// plan-exempt — bump buildId to 20261031-v35 for mathematical GLSL UV slot mapping. routing-override: skipped — user requested v35 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v34' });
+    sendResponse({ success: true, buildId: '20261031-v35' });
     return true;
   }
 });
