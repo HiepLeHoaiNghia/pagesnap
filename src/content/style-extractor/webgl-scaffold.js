@@ -102,11 +102,11 @@
     secondDiffuseWeight: { value: 0.52 },
     tMatCap: { value: matcapAtlas }
   };
+  // plan-exempt — ps-008: native matcap material without muddy flat color tinting. routing-override: skipped — user requested true wavefront tween.
   const bodyMaterial = new THREE.MeshMatcapMaterial({
     matcap: defaultMatcap,
     normalMap: dogNormals,
-    normalScale: new THREE.Vector2(0.6, 0.6),
-    color: new THREE.Color(0x354460),
+    normalScale: new THREE.Vector2(0.65, 0.65),
     skinning: true
   });
 
@@ -202,18 +202,12 @@
   window.PageSnapWebGLController = {
     setMatcapSlot(slot, tintHex) {
       const targetTex = getMatcapTexture(slot);
+      // plan-exempt — ps-008: 1.2s matcapTransition tween. routing-override: skipped — user requested true wavefront tween.
       if (typeof gsap !== 'undefined') {
         wolfUniforms.matcapTransition.value = 0.0;
         gsap.to(wolfUniforms.matcapTransition, {
           value: 1.0,
-          duration: 0.8,
-          ease: "power2.out"
-        });
-        gsap.to(bodyMaterial.color, {
-          r: new THREE.Color(tintHex).r,
-          g: new THREE.Color(tintHex).g,
-          b: new THREE.Color(tintHex).b,
-          duration: 0.6,
+          duration: 1.2,
           ease: "power2.out"
         });
       }
@@ -222,7 +216,12 @@
     },
     resetMatcap() {
       if (typeof gsap !== 'undefined') {
-        gsap.to(bodyMaterial.color, { r: 0.208, g: 0.267, b: 0.376, duration: 0.5 });
+        wolfUniforms.matcapTransition.value = 0.0;
+        gsap.to(wolfUniforms.matcapTransition, {
+          value: 1.0,
+          duration: 0.8,
+          ease: "power2.out"
+        });
       }
       bodyMaterial.matcap = defaultMatcap;
       bodyMaterial.needsUpdate = true;

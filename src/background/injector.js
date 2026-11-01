@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v28: exact Program 1 (Eyes) vs Program 2 (Body) shader separation and flipY=true UV mapping. routing-override: skipped — user requested 100% exact shader match.
+// plan-exempt — bump buildId to 20261031-v29: 1.2s GLSL wavefront matcapTransition tween without flat color tinting. routing-override: skipped — user requested true wavefront tween.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v28') {
+        if (!pingRes || pingRes.buildId !== '20261031-v29') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

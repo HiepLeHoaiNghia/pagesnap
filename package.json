@@ -27,7 +27,8 @@
     "test:e2e:scaffold": "node tests/e2e/e2e-solid-extraction.mjs",
     "test:e2e:recording": "node tests/e2e/e2e-interactive-recording.mjs",
     "test:e2e:guide": "node tests/e2e/e2e-walkthrough-guide.mjs",
-    "test:e2e:exact": "node tests/e2e/e2e-exact-shader-programs.mjs"
+    "test:e2e:exact": "node tests/e2e/e2e-exact-shader-programs.mjs",
+    "test:e2e:tween": "node tests/e2e/e2e-wavefront-tween.mjs"
   },
   "keywords": [
     "pagesnap",
