@@ -30,7 +30,7 @@
       inset: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 1;
+      z-index: -1;
       pointer-events: none;
     }
     canvas {
@@ -39,12 +39,12 @@
       height: 100%;
     }
     /* Fixed Interactive Case Artwork Layer */
-    #case-art-layer {
+    #case-art-layer { z-index: -2;
       position: fixed;
       inset: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 0;
+      
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.5s ease;
@@ -131,7 +131,7 @@
 
       const dogNormals = loadTex('assets/dog_normals.jpg');
       const branchesNormals = loadTex('assets/branches_normals.dds');
-      const dogDiffusePng = loadTex('assets/dog_diffuse.png');
+      const dogDiffusePng = textureLoader.load("assets/dog_diffuse.png"); dogDiffusePng.flipY = true;
       const branchesDiffusePng = loadTex('assets/branches_diffuse.png');
 
       // Crop Matcaps for color shifts:
