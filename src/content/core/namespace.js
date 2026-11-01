@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v24 so open tabs re-inject webgl-scaffold generator. routing-override: skipped — user requested webgl-scaffold generator.
+// plan-exempt — bump buildId to 20261031-v25 so open tabs re-inject interactive recording mode. routing-override: skipped — user requested interactive recording mode.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v24' });
+    sendResponse({ success: true, buildId: '20261031-v25' });
     return true;
   }
 });

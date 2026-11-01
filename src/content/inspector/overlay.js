@@ -457,6 +457,23 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     if (surfaces && surfaces.any) {
       bar.appendChild(dockNotice(PageSnap.renderSurfaces.badge(surfaces), `This region is partly drawn by: ${PageSnap.renderSurfaces.describe(surfaces)}. The export cannot contain it, so that area comes out blank. AI-PROMPT.md lists what the page loaded (3D files, libraries) so an agent can rebuild it.`));
     }
+
+    // plan-exempt — ps-008: user-driven interactive recording button on dock. routing-override: skipped — user requested interactive recording mode.
+    const isRecording = PageSnap.motionSniffer && PageSnap.motionSniffer._activeUserSession;
+    bar.appendChild(dockButton(isRecording ? '⏹ Stop Record' : '🔴 Record', {
+      slot: 'record-motion',
+      title: isRecording ? 'Stop interactive recording session' : 'Record real scroll and hover interactions across the page',
+      onClick: () => {
+        if (isRecording) {
+          PageSnap.motionSniffer.stopInteractiveRecording();
+          if (typeof Web2MD.showToast === 'function') Web2MD.showToast('⏹ Interaction recording saved to export package!');
+        } else {
+          PageSnap.motionSniffer.startInteractiveRecording();
+          if (typeof Web2MD.showToast === 'function') Web2MD.showToast('🔴 Recording started! Scroll and hover through the page, then click Stop.');
+        }
+        renderFloatingBar(bar);
+      }
+    }));
     bar.appendChild(dockDivider());
 
     // ✨ Live Studio

@@ -9,8 +9,8 @@
   'use strict';
 
   /** @returns {string} the markdown document */
-  // plan-exempt — ps-008: support interactionManifest and meshMapping parameters. routing-override: skipped — user requested SOLID architecture update.
-  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping }) {
+  // plan-exempt — ps-008: support userSessionRecording in AI prompt. routing-override: skipped — user requested interactive recording mode.
+  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping, userSessionRecording }) {
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
     const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
@@ -18,6 +18,15 @@
     const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
     const manifestMd = (PageSnap.interactionManifest && PageSnap.interactionManifest.promptSection(interactionManifest)) || '';
     const meshMappingMd = (PageSnap.meshMapper && PageSnap.meshMapper.promptSection(meshMapping)) || '';
+    const userRecordingMd = userSessionRecording && (userSessionRecording.scrollTrail.length || userSessionRecording.hoverEvents.length)
+      ? [
+          '### Empirical Human Interaction Log (Recorded Live Session)',
+          `During the live inspection session, real user interactions were recorded:`,
+          `- **Scroll Trail (${userSessionRecording.scrollTrail.length} samples):** Max scroll reached: ${Math.max(...userSessionRecording.scrollTrail.map(s => s.scrollY), 0)}px`,
+          `- **Hover Events (${userSessionRecording.hoverEvents.length} events):** ${userSessionRecording.hoverEvents.map(h => `\`${h.text}\`${h.dataMatcap ? ` (matcap: ${h.dataMatcap})` : ''}`).join(', ')}`,
+          '> **Note for AI:** Use \`interaction-recording.json\` to calibrate real user-triggered state transitions.'
+        ].join('\n')
+      : '';
 // plan-exempt — ps-008: clean duplicate declaration. routing-override: skipped — user requested SOLID architecture update.
     // plan-exempt — ps-008: add scroll choreography section if tracked with multi-pose rotation guidance. routing-override: skipped — user approved multi-frame grounding loop.
     const scrollChoreoMd = scrollChoreography && scrollChoreography.checkpoints && scrollChoreography.checkpoints.length
@@ -168,6 +177,8 @@ ${manifestMd}
 ${meshMappingMd}
 
 ${crossLayerHoverMd}
+
+${userRecordingMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`

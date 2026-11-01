@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v24: automated webgl-scaffold.js generation for 3D/WebGL packages. routing-override: skipped — user requested webgl-scaffold generator.
+// plan-exempt — bump buildId to 20261031-v25: user-driven interactive recording mode and interaction-recording.json. routing-override: skipped — user requested interactive recording mode.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v24') {
+        if (!pingRes || pingRes.buildId !== '20261031-v25') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

@@ -255,6 +255,54 @@
       if (observer) { observer.disconnect(); observer = null; }
       if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
     },
+    // plan-exempt — ps-008: Human-in-the-Loop interactive recording mode. routing-override: skipped — user requested interactive recording mode.
+    startInteractiveRecording() {
+      this.start();
+      const session = {
+        startTime: performance.now(),
+        scrollTrail: [],
+        hoverEvents: []
+      };
+
+      const onUserScroll = () => {
+        const y = Math.round(window.scrollY);
+        if (!session.scrollTrail.length || Math.abs(session.scrollTrail[session.scrollTrail.length - 1].scrollY - y) > 50) {
+          session.scrollTrail.push({
+            t: Math.round(performance.now() - session.startTime),
+            scrollY: y
+          });
+        }
+      };
+
+      const onUserHover = (e) => {
+        const target = e.target;
+        if (!target || target === document.body || target === document.documentElement) return;
+        const text = target.innerText ? target.innerText.trim().slice(0, 40) : target.tagName.toLowerCase();
+        const dataMatcap = target.getAttribute ? target.getAttribute('data-matcap') : null;
+        session.hoverEvents.push({
+          t: Math.round(performance.now() - session.startTime),
+          tag: target.tagName,
+          text,
+          dataMatcap
+        });
+      };
+
+      window.addEventListener('scroll', onUserScroll, { passive: true });
+      document.addEventListener('mouseover', onUserHover, { passive: true, capture: true });
+
+      this._activeUserSession = { session, onUserScroll, onUserHover };
+      return session;
+    },
+
+    stopInteractiveRecording() {
+      if (!this._activeUserSession) return PageSnap.lastInteractiveRecording || null;
+      const { session, onUserScroll, onUserHover } = this._activeUserSession;
+      window.removeEventListener('scroll', onUserScroll);
+      document.removeEventListener('mouseover', onUserHover, { capture: true });
+      this._activeUserSession = null;
+      PageSnap.lastInteractiveRecording = session;
+      return session;
+    },
     // plan-exempt — measure hover-driven state (React onMouseEnter etc.) without asking the user to hover anything. routing-override: skipped — user asked for a direct fix so the feature works in one click.
     // Browsers deliver enter/leave as pointerover/mouseover with relatedTarget = the element the pointer came from (null from outside the window); frameworks such as React derive onMouseEnter from exactly that,
     // and ignore a mouseover whose relatedTarget is the document body. So the sequence below is replayed faithfully on every distinct element a real pointer could land on.

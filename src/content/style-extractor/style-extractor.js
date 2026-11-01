@@ -85,8 +85,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // plan-exempt — ps-008: wire interactionManifest and meshMapper into pipeline. routing-override: skipped — user requested SOLID architecture update.
     const interactionManifest = PageSnap.interactionManifest ? PageSnap.interactionManifest.extract(element) : null;
     const meshMapping = PageSnap.meshMapper ? PageSnap.meshMapper.mapSubmeshes(renderSurfaces) : null;
+    const userSessionRecording = PageSnap.lastInteractiveRecording || null;
     const webglScaffoldCode = PageSnap.webglScaffold ? PageSnap.webglScaffold.generateScaffold({ renderSurfaces, interactionManifest, scrollChoreography }) : '';
-    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping });
+    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping, userSessionRecording });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
       sourceUrl: window.location.href,
@@ -106,7 +107,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       renderSurfaces: renderSurfaces,
       scrollChoreography: scrollChoreography,
       interactionManifest: interactionManifest,
-      meshMapping: meshMapping
+      meshMapping: meshMapping,
+      userSessionRecording: userSessionRecording
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -135,7 +137,8 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       scrollChoreography: scrollChoreography,
       interactionManifest: interactionManifest,
       meshMapping: meshMapping,
-      webglScaffoldCode: webglScaffoldCode
+      webglScaffoldCode: webglScaffoldCode,
+      userSessionRecording: userSessionRecording
     };
   };
 
@@ -156,6 +159,10 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     // plan-exempt — ps-008: bundle webgl-scaffold.js into ZIP package for 3D/WebGL components. routing-override: skipped — user requested webgl-scaffold generator.
     if (componentData.webglScaffoldCode) {
       zip.file('webgl-scaffold.js', componentData.webglScaffoldCode);
+    }
+    // plan-exempt — ps-008: bundle interaction-recording.json into ZIP if recording session exists. routing-override: skipped — user requested interactive recording mode.
+    if (componentData.userSessionRecording) {
+      zip.file('interaction-recording.json', JSON.stringify(componentData.userSessionRecording, null, 2));
     }
     // plan-exempt — ps-008: bundle multi-frame visual grounding images (hero, mid, bottom) into modular package. routing-override: skipped — user approved multi-frame grounding loop.
 // plan-exempt — ps-008: multi-frame visual grounding preview bundling. routing-override: skipped — user approved multi-frame grounding loop.
