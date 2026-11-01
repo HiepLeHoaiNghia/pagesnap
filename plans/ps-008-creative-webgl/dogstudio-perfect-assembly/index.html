@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dogstudio Master Assembly - Exact Visual Alignment</title>
+  <title>Dogstudio Master Assembly - Exact Ground Truth</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     body {
@@ -104,9 +104,21 @@
 
       const scene = new THREE.Scene();
 
+      // Atmospheric lights matching Dogstudio mood:
+      // Ambient light tuned to dark navy/cyan
+      scene.add(new THREE.AmbientLight(0x405575, 0.7));
+      // Key directional light: soft lavender/white
+      const dl = new THREE.DirectionalLight(0xa5b4fc, 0.9);
+      dl.position.set(5, 10, 7);
+      scene.add(dl);
+      // Rim light: electric cyan catching the wolf's spine and back
+      const rimLight = new THREE.DirectionalLight(0x0284c7, 1.4);
+      rimLight.position.set(-6, 3, -4);
+      scene.add(rimLight);
+
       // Camera: close-up FOV 35 perfectly framed on wolf
       const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
-      camera.position.set(0.15, 1.35, 16.5); // Moved closer (z=16.5) so wolf head & chest are huge and dominant!
+      camera.position.set(0.15, 1.35, 16.5);
       scene.add(camera);
       camera.lookAt(new THREE.Vector3(0.95, 1.45, 0));
 
@@ -119,9 +131,10 @@
 
       const dogNormals = loadTex('assets/dog_normals.jpg');
       const branchesNormals = loadTex('assets/branches_normals.dds');
-      const dogDiffuse = loadTex('assets/dog_diffuse.dds');
+      const dogDiffusePng = loadTex('assets/dog_diffuse.png');
+      const branchesDiffusePng = loadTex('assets/branches_diffuse.png');
 
-      // Crop Matcaps:
+      // Crop Matcaps for color shifts:
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = 'assets/matcap-combined-resized.jpg';
@@ -140,55 +153,34 @@
         return new THREE.CanvasTexture(cv);
       }
 
-      // Slot 19: Midnight navy hero matcap
-      const matcapHero = cropMatcap(19);
       // Slot 11: Vibrant iridescent pink/purple (Louise's Phone)
       const matcapLouise = cropMatcap(11);
 
-      // Eye Material: Authentic ice-blue with sharp pupil and catchlight
-      const eyeCanvas = document.createElement('canvas');
-      eyeCanvas.width = 128; eyeCanvas.height = 128;
-      const ectx = eyeCanvas.getContext('2d');
-      
-      const rad = ectx.createRadialGradient(64, 64, 2, 64, 64, 52);
-      rad.addColorStop(0, '#7dd3fc'); // bright sky-blue
-      rad.addColorStop(0.35, '#38bdf8'); // ice blue
-      rad.addColorStop(0.7, '#0369a1'); // sapphire rim
-      rad.addColorStop(1, '#082f49');
-      ectx.fillStyle = rad;
-      ectx.fillRect(0, 0, 128, 128);
-
-      ectx.fillStyle = '#020617';
-      ectx.beginPath();
-      ectx.ellipse(64, 64, 10, 32, 0, 0, Math.PI * 2);
-      ectx.fill();
-
-      ectx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      ectx.beginPath();
-      ectx.arc(54, 52, 6, 0, Math.PI * 2);
-      ectx.fill();
-
-      const eyeTex = new THREE.CanvasTexture(eyeCanvas);
+      // Eye Material: Dedicated material using authentic dog_diffuse eye
       const eyeMaterial = new THREE.MeshBasicMaterial({
-        map: eyeTex,
-        transparent: true
+        map: dogDiffusePng,
+        transparent: false
       });
 
-      // Wolf Body Material: Slot 19 matcap + subtle navy tint
-      const wolfMaterial = new THREE.MeshMatcapMaterial({
-        matcap: matcapHero,
+      // Wolf Body Material: MeshStandardMaterial with deep midnight navy base color + diffuse fur map!
+      const wolfMaterial = new THREE.MeshStandardMaterial({
+        map: dogDiffusePng,
+        color: new THREE.Color(0x384c6c), // Deep navy indigo tone matching Image #1!
         normalMap: dogNormals,
-        normalScale: new THREE.Vector2(0.65, 0.65),
-        color: new THREE.Color(0x354460),
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughness: 0.55,
+        metalness: 0.15,
         skinning: true
       });
 
-      const leafMaterial = new THREE.MeshMatcapMaterial({
-        matcap: matcapHero,
+      const leafMaterial = new THREE.MeshStandardMaterial({
+        map: branchesDiffusePng,
         normalMap: branchesNormals,
-        normalScale: new THREE.Vector2(0.4, 0.4),
-        color: new THREE.Color(0x28344c),
-        skinning: true
+        normalScale: new THREE.Vector2(0.5, 0.5),
+        roughness: 0.8,
+        metalness: 0.1,
+        skinning: true,
+        alphaTest: 0.2
       });
 
       const dracoLoader = new THREE.DRACOLoader();
@@ -221,8 +213,6 @@
         });
 
         dogContainer.add(dogModel);
-
-        // Hero baseline pose: calibrated to match Image #1 framing
         dogContainer.rotation.y = 0.62;
         dogContainer.rotation.x = -0.15;
         dogContainer.position.set(0.0, -0.2, 0);
@@ -233,10 +223,10 @@
           action.play();
         }
 
-        window.__VISUAL_MATCH_READY__ = true;
+        window.__HERO_MATCH_READY__ = true;
       });
 
-      const DEPTH_CURVE = [16.5, 24, 30, 36, 28, 22]; // closer zoom curve
+      const DEPTH_CURVE = [16.5, 24, 30, 36, 28, 22];
       const V_ROT_CURVE = [35, 20, 30, 30, -50, -145];
 
       function getSplineValue(arr, t) {
@@ -282,21 +272,15 @@
       });
 
       dogApp = {
-        setMatcap(targetMatcap, tintHex) {
+        setMatcap(tintHex) {
           gsap.to(wolfMaterial.color, {
             r: new THREE.Color(tintHex).r,
             g: new THREE.Color(tintHex).g,
             b: new THREE.Color(tintHex).b,
-            duration: 0.5,
+            duration: 0.6,
             ease: "power2.out"
           });
-          wolfMaterial.matcap = targetMatcap;
-          leafMaterial.matcap = targetMatcap;
-          wolfMaterial.needsUpdate = true;
-          leafMaterial.needsUpdate = true;
-        },
-        matcapHero,
-        matcapLouise
+        }
       };
     })();
 
@@ -315,11 +299,11 @@
           if (text.includes('louise')) {
             artLayer.style.backgroundImage = "url('https://dogstudio.co/app/themes/portfolio-2018/static/assets/images/cases/this-was-louises-phone/background-1440.png')";
             artLayer.classList.add('is-visible');
-            dogApp.setMatcap(dogApp.matcapLouise, 0xd946ef);
+            dogApp.setMatcap(0xf472b6); // Vibrant neon pink/purple!
           } else {
             artLayer.style.backgroundImage = "url('https://dogstudio.co/app/themes/portfolio-2018/static/assets/images/cases/tomorrowland/background-1440.png')";
             artLayer.classList.add('is-visible');
-            dogApp.setMatcap(dogApp.matcapLouise, 0x38bdf8);
+            dogApp.setMatcap(0x38bdf8); // Cyan blue
           }
         });
 
@@ -328,7 +312,7 @@
           document.body.classList.remove('is-case-hovered');
           link.classList.remove('is-hovered');
           artLayer.classList.remove('is-visible');
-          dogApp.setMatcap(dogApp.matcapHero, 0x354460);
+          dogApp.setMatcap(0x384c6c); // Restore midnight navy
         });
       });
     }

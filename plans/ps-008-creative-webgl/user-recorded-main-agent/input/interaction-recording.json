@@ -1,0 +1,1281 @@
+{
+  "startTime": 247411.90000000596,
+  "scrollTrail": [
+    {
+      "t": 1366,
+      "scrollY": 4
+    },
+    {
+      "t": 1489,
+      "scrollY": 55
+    },
+    {
+      "t": 1564,
+      "scrollY": 107
+    },
+    {
+      "t": 1631,
+      "scrollY": 159
+    },
+    {
+      "t": 1731,
+      "scrollY": 212
+    },
+    {
+      "t": 1956,
+      "scrollY": 263
+    },
+    {
+      "t": 2047,
+      "scrollY": 315
+    },
+    {
+      "t": 2139,
+      "scrollY": 367
+    },
+    {
+      "t": 2447,
+      "scrollY": 420
+    },
+    {
+      "t": 2538,
+      "scrollY": 471
+    },
+    {
+      "t": 2639,
+      "scrollY": 525
+    },
+    {
+      "t": 2698,
+      "scrollY": 577
+    },
+    {
+      "t": 2806,
+      "scrollY": 629
+    },
+    {
+      "t": 3156,
+      "scrollY": 680
+    },
+    {
+      "t": 3379,
+      "scrollY": 731
+    },
+    {
+      "t": 3547,
+      "scrollY": 783
+    },
+    {
+      "t": 3606,
+      "scrollY": 840
+    },
+    {
+      "t": 3656,
+      "scrollY": 891
+    },
+    {
+      "t": 3722,
+      "scrollY": 947
+    },
+    {
+      "t": 3814,
+      "scrollY": 999
+    },
+    {
+      "t": 4164,
+      "scrollY": 1050
+    },
+    {
+      "t": 4389,
+      "scrollY": 1102
+    },
+    {
+      "t": 4630,
+      "scrollY": 1153
+    },
+    {
+      "t": 7872,
+      "scrollY": 1205
+    },
+    {
+      "t": 8097,
+      "scrollY": 1256
+    },
+    {
+      "t": 9314,
+      "scrollY": 1307
+    },
+    {
+      "t": 9514,
+      "scrollY": 1358
+    },
+    {
+      "t": 10648,
+      "scrollY": 1409
+    },
+    {
+      "t": 10881,
+      "scrollY": 1460
+    },
+    {
+      "t": 11106,
+      "scrollY": 1511
+    },
+    {
+      "t": 12382,
+      "scrollY": 1562
+    },
+    {
+      "t": 12539,
+      "scrollY": 1615
+    },
+    {
+      "t": 12789,
+      "scrollY": 1666
+    },
+    {
+      "t": 14097,
+      "scrollY": 1717
+    },
+    {
+      "t": 14181,
+      "scrollY": 1771
+    },
+    {
+      "t": 14248,
+      "scrollY": 1833
+    },
+    {
+      "t": 14322,
+      "scrollY": 1886
+    },
+    {
+      "t": 14447,
+      "scrollY": 1939
+    },
+    {
+      "t": 14797,
+      "scrollY": 1997
+    },
+    {
+      "t": 14872,
+      "scrollY": 2051
+    },
+    {
+      "t": 14947,
+      "scrollY": 2102
+    },
+    {
+      "t": 15131,
+      "scrollY": 2153
+    },
+    {
+      "t": 15214,
+      "scrollY": 2207
+    },
+    {
+      "t": 15280,
+      "scrollY": 2260
+    },
+    {
+      "t": 15322,
+      "scrollY": 2311
+    },
+    {
+      "t": 15372,
+      "scrollY": 2364
+    },
+    {
+      "t": 15439,
+      "scrollY": 2420
+    },
+    {
+      "t": 15548,
+      "scrollY": 2473
+    },
+    {
+      "t": 15772,
+      "scrollY": 2524
+    },
+    {
+      "t": 15847,
+      "scrollY": 2575
+    },
+    {
+      "t": 15898,
+      "scrollY": 2627
+    },
+    {
+      "t": 15939,
+      "scrollY": 2689
+    },
+    {
+      "t": 15981,
+      "scrollY": 2749
+    },
+    {
+      "t": 16023,
+      "scrollY": 2805
+    },
+    {
+      "t": 16089,
+      "scrollY": 2861
+    },
+    {
+      "t": 16188,
+      "scrollY": 2912
+    },
+    {
+      "t": 16347,
+      "scrollY": 2964
+    },
+    {
+      "t": 20655,
+      "scrollY": 2909
+    },
+    {
+      "t": 20755,
+      "scrollY": 2853
+    },
+    {
+      "t": 20822,
+      "scrollY": 2802
+    },
+    {
+      "t": 20930,
+      "scrollY": 2749
+    },
+    {
+      "t": 21122,
+      "scrollY": 2697
+    },
+    {
+      "t": 22322,
+      "scrollY": 2761
+    },
+    {
+      "t": 22363,
+      "scrollY": 2816
+    },
+    {
+      "t": 22389,
+      "scrollY": 2875
+    },
+    {
+      "t": 22414,
+      "scrollY": 2943
+    },
+    {
+      "t": 24515,
+      "scrollY": 2887
+    },
+    {
+      "t": 24555,
+      "scrollY": 2831
+    },
+    {
+      "t": 24597,
+      "scrollY": 2768
+    },
+    {
+      "t": 24639,
+      "scrollY": 2710
+    },
+    {
+      "t": 24689,
+      "scrollY": 2657
+    },
+    {
+      "t": 25255,
+      "scrollY": 2606
+    },
+    {
+      "t": 25331,
+      "scrollY": 2553
+    },
+    {
+      "t": 25389,
+      "scrollY": 2495
+    },
+    {
+      "t": 25440,
+      "scrollY": 2441
+    },
+    {
+      "t": 25522,
+      "scrollY": 2386
+    },
+    {
+      "t": 27631,
+      "scrollY": 2335
+    },
+    {
+      "t": 27697,
+      "scrollY": 2276
+    },
+    {
+      "t": 27739,
+      "scrollY": 2220
+    },
+    {
+      "t": 27789,
+      "scrollY": 2161
+    },
+    {
+      "t": 27847,
+      "scrollY": 2108
+    },
+    {
+      "t": 27931,
+      "scrollY": 2056
+    },
+    {
+      "t": 28156,
+      "scrollY": 2004
+    },
+    {
+      "t": 30881,
+      "scrollY": 1953
+    },
+    {
+      "t": 31014,
+      "scrollY": 1902
+    },
+    {
+      "t": 33439,
+      "scrollY": 1849
+    },
+    {
+      "t": 33589,
+      "scrollY": 1798
+    },
+    {
+      "t": 34564,
+      "scrollY": 1746
+    },
+    {
+      "t": 34656,
+      "scrollY": 1690
+    },
+    {
+      "t": 34723,
+      "scrollY": 1639
+    },
+    {
+      "t": 36181,
+      "scrollY": 1584
+    },
+    {
+      "t": 36289,
+      "scrollY": 1533
+    },
+    {
+      "t": 36389,
+      "scrollY": 1482
+    },
+    {
+      "t": 37872,
+      "scrollY": 1431
+    },
+    {
+      "t": 38023,
+      "scrollY": 1377
+    },
+    {
+      "t": 38131,
+      "scrollY": 1323
+    },
+    {
+      "t": 38264,
+      "scrollY": 1272
+    },
+    {
+      "t": 39339,
+      "scrollY": 1221
+    },
+    {
+      "t": 39406,
+      "scrollY": 1167
+    },
+    {
+      "t": 39464,
+      "scrollY": 1113
+    },
+    {
+      "t": 39548,
+      "scrollY": 1061
+    },
+    {
+      "t": 39680,
+      "scrollY": 1010
+    },
+    {
+      "t": 39939,
+      "scrollY": 951
+    },
+    {
+      "t": 39988,
+      "scrollY": 895
+    },
+    {
+      "t": 40021,
+      "scrollY": 843
+    },
+    {
+      "t": 40063,
+      "scrollY": 785
+    },
+    {
+      "t": 40114,
+      "scrollY": 732
+    },
+    {
+      "t": 40180,
+      "scrollY": 678
+    },
+    {
+      "t": 42332,
+      "scrollY": 627
+    },
+    {
+      "t": 42373,
+      "scrollY": 572
+    },
+    {
+      "t": 42413,
+      "scrollY": 506
+    },
+    {
+      "t": 42438,
+      "scrollY": 448
+    },
+    {
+      "t": 42463,
+      "scrollY": 381
+    },
+    {
+      "t": 42488,
+      "scrollY": 316
+    },
+    {
+      "t": 42513,
+      "scrollY": 259
+    },
+    {
+      "t": 42538,
+      "scrollY": 207
+    },
+    {
+      "t": 42572,
+      "scrollY": 150
+    },
+    {
+      "t": 42614,
+      "scrollY": 91
+    },
+    {
+      "t": 42664,
+      "scrollY": 35
+    }
+  ],
+  "hoverEvents": [
+    {
+      "t": 8,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 8,
+      "tag": "BUTTON",
+      "text": "⏹ Stop Record",
+      "dataMatcap": null
+    },
+    {
+      "t": 54,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 245,
+      "tag": "BUTTON",
+      "text": "⏹ Stop Record",
+      "dataMatcap": null
+    },
+    {
+      "t": 271,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 2021,
+      "tag": "SPAN",
+      "text": "Dogstudio is a multidisciplinary",
+      "dataMatcap": null
+    },
+    {
+      "t": 2078,
+      "tag": "SPAN",
+      "text": "creative studio at the intersection",
+      "dataMatcap": null
+    },
+    {
+      "t": 2145,
+      "tag": "SPAN",
+      "text": "of art, design and technology.",
+      "dataMatcap": null
+    },
+    {
+      "t": 2412,
+      "tag": "DIV",
+      "text": "Dogstudio is a multidisciplinary\ncreativ",
+      "dataMatcap": null
+    },
+    {
+      "t": 2454,
+      "tag": "SPAN",
+      "text": "Our goal is to deliver amazing experienc",
+      "dataMatcap": null
+    },
+    {
+      "t": 2496,
+      "tag": "SPAN",
+      "text": "people talk, and build strategic value f",
+      "dataMatcap": null
+    },
+    {
+      "t": 2536,
+      "tag": "SPAN",
+      "text": "entertainment, arts & culture.",
+      "dataMatcap": null
+    },
+    {
+      "t": 2587,
+      "tag": "DIV",
+      "text": "Dogstudio is a multidisciplinary\ncreativ",
+      "dataMatcap": null
+    },
+    {
+      "t": 2688,
+      "tag": "A",
+      "text": "Instagram",
+      "dataMatcap": null
+    },
+    {
+      "t": 2696,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 3046,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 3746,
+      "tag": "A",
+      "text": "2020 - ONGOING\nTomorrowland",
+      "dataMatcap": "18, 18"
+    },
+    {
+      "t": 4379,
+      "tag": "A",
+      "text": "2018 - TODAY\nNavy Pier",
+      "dataMatcap": "7, 7"
+    },
+    {
+      "t": 5205,
+      "tag": "A",
+      "text": "2020 - ONGOING\nTomorrowland",
+      "dataMatcap": "18, 18"
+    },
+    {
+      "t": 6145,
+      "tag": "A",
+      "text": "2018 - TODAY\nNavy Pier",
+      "dataMatcap": "7, 7"
+    },
+    {
+      "t": 7012,
+      "tag": "A",
+      "text": "2015 - TODAY\nMSI Chicago",
+      "dataMatcap": "8, 8"
+    },
+    {
+      "t": 8137,
+      "tag": "A",
+      "text": "2016\nThis Was Louise’s Phone",
+      "dataMatcap": "11, 11"
+    },
+    {
+      "t": 9554,
+      "tag": "A",
+      "text": "2012 - TODAY\nKIKK Festival 2018",
+      "dataMatcap": "9, 9"
+    },
+    {
+      "t": 11038,
+      "tag": "A",
+      "text": "2017\nThe Kennedy Center",
+      "dataMatcap": "10, 10"
+    },
+    {
+      "t": 12629,
+      "tag": "A",
+      "text": "2016 - ONGOING\nRoyal Opera Of Wallonia",
+      "dataMatcap": "12, 12"
+    },
+    {
+      "t": 14221,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 14896,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 15122,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 15970,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 15987,
+      "tag": "BUTTON",
+      "text": "⏹ Stop Record",
+      "dataMatcap": null
+    },
+    {
+      "t": 16154,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 16179,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 16229,
+      "tag": "DIV",
+      "text": "Chicago .\nAmsterdam .\nParis .\nContact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 17532,
+      "tag": "H3",
+      "text": "Amsterdam .",
+      "dataMatcap": null
+    },
+    {
+      "t": 17962,
+      "tag": "DIV",
+      "text": "Chicago .\nAmsterdam .\nParis .\nContact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 18579,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 18929,
+      "tag": "H2",
+      "text": "Contact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 18954,
+      "tag": "DIV",
+      "text": "Contact us\nFb\nIns\nDri\nTw",
+      "dataMatcap": null
+    },
+    {
+      "t": 18962,
+      "tag": "A",
+      "text": "Ins",
+      "dataMatcap": null
+    },
+    {
+      "t": 18979,
+      "tag": "DIV",
+      "text": "Chicago .\nAmsterdam .\nParis .\nContact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 19262,
+      "tag": "A",
+      "text": "Dri",
+      "dataMatcap": null
+    },
+    {
+      "t": 19312,
+      "tag": "DIV",
+      "text": "Contact us\nFb\nIns\nDri\nTw",
+      "dataMatcap": null
+    },
+    {
+      "t": 19554,
+      "tag": "A",
+      "text": "Ins",
+      "dataMatcap": null
+    },
+    {
+      "t": 19562,
+      "tag": "A",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19578,
+      "tag": "SPAN",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19587,
+      "tag": "A",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19605,
+      "tag": "UL",
+      "text": "Fb\nIns\nDri\nTw",
+      "dataMatcap": null
+    },
+    {
+      "t": 19795,
+      "tag": "A",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19820,
+      "tag": "SPAN",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19837,
+      "tag": "A",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 19854,
+      "tag": "A",
+      "text": "Ins",
+      "dataMatcap": null
+    },
+    {
+      "t": 20037,
+      "tag": "A",
+      "text": "Fb",
+      "dataMatcap": null
+    },
+    {
+      "t": 20045,
+      "tag": "DIV",
+      "text": "Contact us\nFb\nIns\nDri\nTw",
+      "dataMatcap": null
+    },
+    {
+      "t": 20071,
+      "tag": "H2",
+      "text": "Contact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 20087,
+      "tag": "DIV",
+      "text": "Chicago .\nAmsterdam .\nParis .\nContact us",
+      "dataMatcap": null
+    },
+    {
+      "t": 20121,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 20863,
+      "tag": "DIV",
+      "text": "Dogstudio is a design & technology firm ",
+      "dataMatcap": null
+    },
+    {
+      "t": 21037,
+      "tag": "P",
+      "text": "Dogstudio is a design & technology firm ",
+      "dataMatcap": null
+    },
+    {
+      "t": 21462,
+      "tag": "P",
+      "text": "We’re passionate about moving people and",
+      "dataMatcap": null
+    },
+    {
+      "t": 21679,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 21803,
+      "tag": "P",
+      "text": "We’re passionate about moving people and",
+      "dataMatcap": null
+    },
+    {
+      "t": 21970,
+      "tag": "P",
+      "text": "Dogstudio is a design & technology firm ",
+      "dataMatcap": null
+    },
+    {
+      "t": 22328,
+      "tag": "DIV",
+      "text": "Dogstudio is a design & technology firm ",
+      "dataMatcap": null
+    },
+    {
+      "t": 22378,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 25379,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 25462,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 25488,
+      "tag": "P",
+      "text": "Imagining and designing an oniric\nuniver",
+      "dataMatcap": null
+    },
+    {
+      "t": 25795,
+      "tag": "SPAN",
+      "text": "season of a renown Belgian opera house",
+      "dataMatcap": null
+    },
+    {
+      "t": 25829,
+      "tag": "SPAN",
+      "text": "universe to promote the upcoming",
+      "dataMatcap": null
+    },
+    {
+      "t": 25862,
+      "tag": "SPAN",
+      "text": "Imagining and designing an oniric",
+      "dataMatcap": null
+    },
+    {
+      "t": 26121,
+      "tag": "SPAN",
+      "text": "universe to promote the upcoming",
+      "dataMatcap": null
+    },
+    {
+      "t": 26154,
+      "tag": "SPAN",
+      "text": "season of a renown Belgian opera house",
+      "dataMatcap": null
+    },
+    {
+      "t": 26162,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 26254,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 26612,
+      "tag": "SECTION",
+      "text": "We're crafting emotional experiences aim",
+      "dataMatcap": null
+    },
+    {
+      "t": 26945,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 26995,
+      "tag": "P",
+      "text": "Imagining and designing an oniric\nuniver",
+      "dataMatcap": null
+    },
+    {
+      "t": 27020,
+      "tag": "SPAN",
+      "text": "season of a renown Belgian opera house",
+      "dataMatcap": null
+    },
+    {
+      "t": 27046,
+      "tag": "SPAN",
+      "text": "universe to promote the upcoming",
+      "dataMatcap": null
+    },
+    {
+      "t": 27070,
+      "tag": "SPAN",
+      "text": "Imagining and designing an oniric",
+      "dataMatcap": null
+    },
+    {
+      "t": 27145,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 27746,
+      "tag": "A",
+      "text": "2016 - ONGOING\nRoyal Opera Of Wallonia",
+      "dataMatcap": "12, 12"
+    },
+    {
+      "t": 27946,
+      "tag": "A",
+      "text": "2017\nThe Kennedy Center",
+      "dataMatcap": "10, 10"
+    },
+    {
+      "t": 28804,
+      "tag": "A",
+      "text": "2016 - ONGOING\nRoyal Opera Of Wallonia",
+      "dataMatcap": "12, 12"
+    },
+    {
+      "t": 29314,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 30011,
+      "tag": "A",
+      "text": "2016 - ONGOING\nRoyal Opera Of Wallonia",
+      "dataMatcap": "12, 12"
+    },
+    {
+      "t": 30813,
+      "tag": "A",
+      "text": "2017\nThe Kennedy Center",
+      "dataMatcap": "10, 10"
+    },
+    {
+      "t": 32154,
+      "tag": "A",
+      "text": "2012 - TODAY\nKIKK Festival 2018",
+      "dataMatcap": "9, 9"
+    },
+    {
+      "t": 34254,
+      "tag": "A",
+      "text": "2016\nThis Was Louise’s Phone",
+      "dataMatcap": "11, 11"
+    },
+    {
+      "t": 34696,
+      "tag": "A",
+      "text": "2015 - TODAY\nMSI Chicago",
+      "dataMatcap": "8, 8"
+    },
+    {
+      "t": 34912,
+      "tag": "A",
+      "text": "2016\nThis Was Louise’s Phone",
+      "dataMatcap": "11, 11"
+    },
+    {
+      "t": 36263,
+      "tag": "A",
+      "text": "2015 - TODAY\nMSI Chicago",
+      "dataMatcap": "8, 8"
+    },
+    {
+      "t": 37162,
+      "tag": "A",
+      "text": "2018 - TODAY\nNavy Pier",
+      "dataMatcap": "7, 7"
+    },
+    {
+      "t": 37995,
+      "tag": "A",
+      "text": "2020 - ONGOING\nTomorrowland",
+      "dataMatcap": "18, 18"
+    },
+    {
+      "t": 38836,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 38904,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 39937,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 40346,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 40387,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 40621,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 40703,
+      "tag": "A",
+      "text": "Instagram",
+      "dataMatcap": null
+    },
+    {
+      "t": 40729,
+      "tag": "DIV",
+      "text": "Dogstudio is a multidisciplinary\ncreativ",
+      "dataMatcap": null
+    },
+    {
+      "t": 40903,
+      "tag": "SPAN",
+      "text": "entertainment, arts & culture.",
+      "dataMatcap": null
+    },
+    {
+      "t": 40937,
+      "tag": "SPAN",
+      "text": "people talk, and build strategic value f",
+      "dataMatcap": null
+    },
+    {
+      "t": 40979,
+      "tag": "SPAN",
+      "text": "Our goal is to deliver amazing experienc",
+      "dataMatcap": null
+    },
+    {
+      "t": 41004,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 41229,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 41294,
+      "tag": "IMG",
+      "text": "img",
+      "dataMatcap": null
+    },
+    {
+      "t": 42313,
+      "tag": "DIV",
+      "text": "DESIGN\n\nImagining and designing an oniri",
+      "dataMatcap": null
+    },
+    {
+      "t": 42379,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 43490,
+      "tag": "SECTION",
+      "text": "We Make Good Shit\n\nW\ne\n\n\nM\na\nk\ne\n\n\nG\no\no",
+      "dataMatcap": null
+    },
+    {
+      "t": 43704,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 43812,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 43921,
+      "tag": "A",
+      "text": "Our Showreel",
+      "dataMatcap": null
+    },
+    {
+      "t": 43962,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 44287,
+      "tag": "SECTION",
+      "text": "We Make Good Shit\n\nW\ne\n\n\nM\na\nk\ne\n\n\nG\no\no",
+      "dataMatcap": null
+    },
+    {
+      "t": 44387,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 44519,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 44529,
+      "tag": "SPAN",
+      "text": "⚠ Canvas 1512×1190 not exported",
+      "dataMatcap": null
+    },
+    {
+      "t": 44536,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 44545,
+      "tag": "BUTTON",
+      "text": "⏹ Stop Record",
+      "dataMatcap": null
+    },
+    {
+      "t": 44562,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 44679,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 44778,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 44819,
+      "tag": "BUTTON",
+      "text": "📦 Download ZIP",
+      "dataMatcap": null
+    },
+    {
+      "t": 44828,
+      "tag": "BUTTON",
+      "text": "Copy code · no JS",
+      "dataMatcap": null
+    },
+    {
+      "t": 44845,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 44854,
+      "tag": "SPAN",
+      "text": "Dogstudio is a multidisciplinary",
+      "dataMatcap": null
+    },
+    {
+      "t": 44861,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 44921,
+      "tag": "SECTION",
+      "text": "We Make Good Shit\n\nW\ne\n\n\nM\na\nk\ne\n\n\nG\no\no",
+      "dataMatcap": null
+    },
+    {
+      "t": 45636,
+      "tag": "DIV",
+      "text": "W\ne\n\n\nM\na\nk\ne\n\n\nG\no\no\nd\n\n\nS\nh\ni\nt\n\n\n\n Ou",
+      "dataMatcap": null
+    },
+    {
+      "t": 47254,
+      "tag": "DIV",
+      "text": "[main]\n🔼 Expand\n🔽 Shrink\n🎯 Pick\n⚠ Can",
+      "dataMatcap": null
+    },
+    {
+      "t": 47287,
+      "tag": "BUTTON",
+      "text": "⏹ Stop Record",
+      "dataMatcap": null
+    }
+  ]
+}
