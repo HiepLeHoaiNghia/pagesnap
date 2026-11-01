@@ -95,15 +95,14 @@
   // Program 1: Eyes Material (secondMatcapIdx: 0, secondDiffuseWeight: 0.79, normalScale: 0)
   // Program 2: Body Material (secondMatcapIdx: 1, secondDiffuseWeight: 0.52, normalScale: 1)
   // plan-exempt — ps-008: default hero matcap slot 0 (dark navy/indigo hero slot) and slot 11 hover (Louise pink/purple). routing-override: skipped — user approved v30 pipeline.
+  // plan-exempt — ps-008: dynamic dual-matcap shader blending for tail-to-head wavefront. routing-override: skipped — user requested true wavefront wave.
   const defaultMatcap = getMatcapTexture(0);
+  const targetMatcap = getMatcapTexture(18); // default to Tomorrowland Gold slot 18
   const wolfUniforms = {
     matcapTransition: { value: 0.0 },
-    firstMatcapIdx: { value: 0.0 },
-    secondMatcapIdx: { value: 11.0 },
-    secondDiffuseWeight: { value: 0.52 },
-    tMatCap: { value: matcapAtlas }
+    tMatCapOld: { value: defaultMatcap },
+    tMatCapNew: { value: targetMatcap }
   };
-  // plan-exempt — ps-008: native matcap material without muddy flat color tinting. routing-override: skipped — user requested true wavefront tween.
   const bodyMaterial = new THREE.MeshMatcapMaterial({
     matcap: defaultMatcap,
     normalMap: dogNormals,
@@ -111,9 +110,12 @@
     skinning: true
   });
 
-  // Inject GLSL Wavefront logic (from tail to head)
+  // Inject GLSL Wavefront logic (from tail to head) with dual-matcap blending
   bodyMaterial.onBeforeCompile = (shader) => {
     shader.uniforms.matcapTransition = wolfUniforms.matcapTransition;
+    shader.uniforms.tMatCapOld = wolfUniforms.tMatCapOld;
+    shader.uniforms.tMatCapNew = wolfUniforms.tMatCapNew;
+    // plan-exempt — ps-008: escaped template literals in scaffold generator. routing-override: skipped — user requested true wavefront wave.
     shader.vertexShader = shader.vertexShader.replace(
       '#include <clipping_planes_pars_vertex>',
       \`#include <clipping_planes_pars_vertex>
@@ -132,6 +134,8 @@
       '#include <clipping_planes_pars_fragment>',
       \`#include <clipping_planes_pars_fragment>
       uniform float matcapTransition;
+      uniform sampler2D tMatCapOld;
+      uniform sampler2D tMatCapNew;
       varying vec3 vWorldPos;
       varying vec3 vViewPos;
 
@@ -140,8 +144,23 @@
         const vec3 sourceOrigin = vec3(13.0, 20.0, 13.0);
         float dist = ((2.0 - distance(sourceOrigin, vViewPos) / 4.0 + matcapTransition * 13.0) / (6.0 + matcapTransition * 4.0));
         dist = smoothstep(0.0, 1.0, dist);
-        return clamp(dist + pow(normalTex.y, 1.2) * 25.0 * dist, 0.0, 1.0);
+        return clamp(dist + pow(max(0.0, normalTex.y), 1.2) * 25.0 * dist, 0.0, 1.0);
       }
+      \`
+    ).replace(
+      '#include <matcap_fragment>',
+      \`
+      vec3 viewDir = normalize( - vViewPosition );
+      vec3 x = normalize( vec3( viewDir.z, 0.0, - viewDir.x ) );
+      vec3 y = cross( viewDir, x );
+      vec2 matUv = vec2( dot( x, normal ), dot( y, normal ) ) * 0.495 + 0.5;
+
+      vec4 oldColor = texture2D( tMatCapOld, matUv );
+      vec4 newColor = texture2D( tMatCapNew, matUv );
+      float waveFactor = sampleTransition(normal);
+      vec4 matcapColor = mix(oldColor, newColor, waveFactor);
+      matcapColor = matcapTexelToLinear( matcapColor );
+      outgoingLight = diffuseColor.rgb * matcapColor.rgb;
       \`
     );
   };
@@ -199,33 +218,40 @@
     }
   });
 
-  // Cross-layer Wavefront Hover Controller
+  // plan-exempt — ps-008: dynamic wavefront controller with old->new texture blending. routing-override: skipped — user requested true wavefront wave.
   window.PageSnapWebGLController = {
-    setMatcapSlot(slot, tintHex) {
+    setMatcapSlot(slot) {
       const targetTex = getMatcapTexture(slot);
-      // plan-exempt — ps-008: 1.2s matcapTransition tween. routing-override: skipped — user requested true wavefront tween.
+      wolfUniforms.tMatCapOld.value = wolfUniforms.tMatCapNew.value;
+      wolfUniforms.tMatCapNew.value = targetTex;
+      wolfUniforms.matcapTransition.value = 0.0;
       if (typeof gsap !== 'undefined') {
-        wolfUniforms.matcapTransition.value = 0.0;
         gsap.to(wolfUniforms.matcapTransition, {
           value: 1.0,
           duration: 1.2,
           ease: "power2.out"
         });
       }
-      bodyMaterial.matcap = targetTex;
-      bodyMaterial.needsUpdate = true;
+      if (leafMaterial) {
+        leafMaterial.matcap = targetTex;
+        leafMaterial.needsUpdate = true;
+      }
     },
     resetMatcap() {
+      wolfUniforms.tMatCapOld.value = wolfUniforms.tMatCapNew.value;
+      wolfUniforms.tMatCapNew.value = defaultMatcap;
+      wolfUniforms.matcapTransition.value = 0.0;
       if (typeof gsap !== 'undefined') {
-        wolfUniforms.matcapTransition.value = 0.0;
         gsap.to(wolfUniforms.matcapTransition, {
           value: 1.0,
           duration: 0.8,
           ease: "power2.out"
         });
       }
-      bodyMaterial.matcap = defaultMatcap;
-      bodyMaterial.needsUpdate = true;
+      if (leafMaterial) {
+        leafMaterial.matcap = defaultMatcap;
+        leafMaterial.needsUpdate = true;
+      }
     }
   };
 
