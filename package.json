@@ -25,7 +25,8 @@
     "test:e2e:solid": "node tests/e2e/e2e-solid-extraction.mjs",
     "test:e2e:gpu": "node tests/e2e/e2e-v23-gpu-artwork.mjs",
     "test:e2e:scaffold": "node tests/e2e/e2e-solid-extraction.mjs",
-    "test:e2e:recording": "node tests/e2e/e2e-interactive-recording.mjs"
+    "test:e2e:recording": "node tests/e2e/e2e-interactive-recording.mjs",
+    "test:e2e:guide": "node tests/e2e/e2e-walkthrough-guide.mjs"
   },
   "keywords": [
     "pagesnap",
