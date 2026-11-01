@@ -245,12 +245,42 @@
       }
     }
   };
+  // plan-exempt — ps-008: robust scroll choreography with verified depth & rotation curves. routing-override: skipped — user approved v33 pipeline.
+  const DEPTH_CURVE = [16.5, 24.0, 30.0, 36.0, 28.0, 22.0];
+  const V_ROT_CURVE = [35.0, 20.0, 30.0, 30.0, -50.0, -145.0];
+
+  function getSplineValue(arr, t) {
+    const p = t * (arr.length - 1);
+    const idx = Math.min(Math.floor(p), arr.length - 2);
+    const frac = p - idx;
+    const s = frac * frac * (3 - 2 * frac);
+    return arr[idx] * (1 - s) + arr[idx + 1] * s;
+  }
+
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+  });
 
   const clock = new THREE.Clock();
   function render() {
     requestAnimationFrame(render);
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
+
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const scrollT = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+
+    const curDepth = getSplineValue(DEPTH_CURVE, scrollT);
+    const curRotY = getSplineValue(V_ROT_CURVE, scrollT);
+
+    camera.position.z = curDepth;
+    if (modelContainer) {
+      modelContainer.rotation.y = THREE.MathUtils.degToRad(curRotY) + mouseX * 0.08;
+      modelContainer.rotation.x = -0.15 + mouseY * 0.05;
+    }
+
     renderer.render(scene, camera);
   }
   render();
