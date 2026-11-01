@@ -148,22 +148,16 @@
         return vec2(u, v);
       }
       \`
+    // plan-exempt — ps-008: replace Three.js inline matcap sampling with dual-slot atlas blending. routing-override: skipped — user requested true wavefront wave.
     ).replace(
-      '#include <matcap_fragment>',
+      'vec4 matcapColor = texture2D( matcap, uv );',
       \`
-      vec3 viewDir = normalize( - vViewPosition );
-      vec3 x = normalize( vec3( viewDir.z, 0.0, - viewDir.x ) );
-      vec3 y = cross( viewDir, x );
-      vec2 matUv = vec2( dot( x, normal ), dot( y, normal ) ) * 0.495 + 0.5;
-
-      vec2 uvOld = getAtlasUv(matUv, firstSlot);
-      vec2 uvNew = getAtlasUv(matUv, secondSlot);
-      vec4 oldColor = texture2D( tMatCapAtlas, uvOld );
-      vec4 newColor = texture2D( tMatCapAtlas, uvNew );
+      vec2 uvOld = getAtlasUv(uv, firstSlot);
+      vec2 uvNew = getAtlasUv(uv, secondSlot);
+      vec4 oldColor = texture2D( matcap, uvOld );
+      vec4 newColor = texture2D( matcap, uvNew );
       float waveFactor = sampleTransition(normal);
       vec4 matcapColor = mix(oldColor, newColor, waveFactor);
-      matcapColor = matcapTexelToLinear( matcapColor );
-      outgoingLight = diffuseColor.rgb * matcapColor.rgb;
       \`
     );
   };
