@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v29 so open tabs re-inject true wavefront scaffold generator. routing-override: skipped — user requested true wavefront tween.
+// plan-exempt — bump buildId to 20261031-v30 for v30 pipeline. routing-override: skipped — user requested v30 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v29' });
+    sendResponse({ success: true, buildId: '20261031-v30' });
     return true;
   }
 });

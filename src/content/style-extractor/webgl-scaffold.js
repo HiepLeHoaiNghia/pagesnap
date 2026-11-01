@@ -94,11 +94,12 @@
 
   // Program 1: Eyes Material (secondMatcapIdx: 0, secondDiffuseWeight: 0.79, normalScale: 0)
   // Program 2: Body Material (secondMatcapIdx: 1, secondDiffuseWeight: 0.52, normalScale: 1)
-  const defaultMatcap = getMatcapTexture(19);
+  // plan-exempt — ps-008: default hero matcap slot 0 (dark navy/indigo hero slot) and slot 11 hover (Louise pink/purple). routing-override: skipped — user approved v30 pipeline.
+  const defaultMatcap = getMatcapTexture(0);
   const wolfUniforms = {
     matcapTransition: { value: 0.0 },
-    firstMatcapIdx: { value: 19.0 },
-    secondMatcapIdx: { value: 1.0 },
+    firstMatcapIdx: { value: 0.0 },
+    secondMatcapIdx: { value: 11.0 },
     secondDiffuseWeight: { value: 0.52 },
     tMatCap: { value: matcapAtlas }
   };

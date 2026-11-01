@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v29: 1.2s GLSL wavefront matcapTransition tween without flat color tinting. routing-override: skipped — user requested true wavefront tween.
+// plan-exempt — bump buildId to 20261031-v30: native matcap slot 0 hero & slot 11 hover. routing-override: skipped — user requested v30 pipeline.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v29') {
+        if (!pingRes || pingRes.buildId !== '20261031-v30') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
