@@ -22,7 +22,8 @@
     "test:e2e:multiframe": "node tests/e2e/e2e-multiframe-grounding.mjs",
     "test:e2e:splines": "node tests/e2e/e2e-choreography-splines.mjs",
     "test:e2e:crosslayer": "node tests/e2e/e2e-crosslayer-hover.mjs",
-    "test:e2e:solid": "node tests/e2e/e2e-solid-extraction.mjs"
+    "test:e2e:solid": "node tests/e2e/e2e-solid-extraction.mjs",
+    "test:e2e:gpu": "node tests/e2e/e2e-v23-gpu-artwork.mjs"
   },
   "keywords": [
     "pagesnap",

@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v22 so open tabs re-inject pluggable interactionManifest and meshMapper. routing-override: skipped — user requested SOLID architecture update.
+// plan-exempt — bump buildId to 20261031-v23 so open tabs re-inject GPU uniform and controller blueprint extractors. routing-override: skipped — user approved v23 upgrade loop.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v22' });
+    sendResponse({ success: true, buildId: '20261031-v23' });
     return true;
   }
 });

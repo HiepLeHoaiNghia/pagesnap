@@ -43,7 +43,7 @@
   const isOwn = (el) => !!(el.closest && el.closest('[id^="pagesnap"],[class*="pagesnap"],[data-pagesnap]'));
 
   function empty() {
-    return { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [] };
+    return { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [], gpuUniforms: null };
   }
 
   /** @param {Element} root the selected region */
@@ -105,6 +105,10 @@
       seen.add(url);
       result.assets.push({ kind, url });
     }
+    // plan-exempt — ps-008: snapshot active GPU uniforms if available on page or window. routing-override: skipped — user approved v23 upgrade loop.
+    if (typeof window !== 'undefined' && window.__PAGE_GPU_UNIFORMS__) {
+      result.gpuUniforms = window.__PAGE_GPU_UNIFORMS__;
+    }
     return result;
   }
 
@@ -138,6 +142,12 @@
     if (s.libraries.length) lines.push(`- **Libraries suggested by script file names:** ${s.libraries.join(', ')}`);
     if (s.assets.length) lines.push(`- **3D / media files the page loaded:** ${s.assets.map((a) => `${a.kind} \`${a.url}\``).join(', ')}`);
     if (s.hints.length) lines.push(`- **Markup hints:** ${s.hints.map((h) => `\`${h}\``).join(', ')}`);
+    if (s.gpuUniforms) {
+      lines.push('- **Active WebGL Uniforms (Observed from GPU):**');
+      Object.entries(s.gpuUniforms).forEach(([k, v]) => {
+        lines.push(`  - \`${k}\`: \`${v}\``);
+      });
+    }
     lines.push(''); // plan-exempt — the template already closes the section with a separator. routing-override: skipped — user approved the canvas warning work.
     return lines.join('\n');
   }

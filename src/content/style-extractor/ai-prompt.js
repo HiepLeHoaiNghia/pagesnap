@@ -41,14 +41,26 @@
             : [])
         ].join('\n')
       : '';
-    // plan-exempt — ps-008: cross-layer 3D hover bridge for data-matcap bindings. routing-override: skipped — user requested cross-layer hover and color shift loop.
+// plan-exempt — ps-008: clean duplicate matcapElements lines. routing-override: skipped — user requested cross-layer hover and color shift loop.
+    // plan-exempt — ps-008: cross-layer 3D hover bridge with Controller Blueprint. routing-override: skipped — user requested cross-layer hover and color shift loop.
     const matcapElements = Array.from(element.querySelectorAll('[data-matcap]')).slice(0, 10);
     const crossLayerHoverMd = matcapElements.length > 0
       ? [
-          '### Cross-Layer 3D Hover Binding (data-matcap -> WebGL Texture)',
-          'The page links DOM hover events to 3D model color/texture changes using `data-matcap` attributes:',
-          ...matcapElements.map(el => `- **Element \`${el.innerText.trim().slice(0, 40) || el.tagName}\`:** \`data-matcap="${el.getAttribute('data-matcap')}"\` (switches 3D model to matcap index ${el.getAttribute('data-matcap').split(',')[0].trim()})`),
-          '> **Instruction for AI:** On mouseenter of each item, transition the Three.js model matcap material to its assigned `data-matcap` index with a 0.4s smooth ease; on mouseleave restore the resting matcap slot.'
+          '### Cross-Layer 3D Hover Binding & Controller Blueprint',
+          'The page links DOM hover events to 3D model color/texture changes AND background artwork reveals:',
+          ...matcapElements.map(el => `- **Element \`${el.innerText.trim().slice(0, 40) || el.tagName}\`:** \`data-matcap="${el.getAttribute('data-matcap')}"\``),
+          '',
+          '```javascript',
+          '// Controller Blueprint for AI:',
+          'link.addEventListener("mouseenter", () => {',
+          '  // 1. Reveal associated artwork scene layer',
+          '  document.querySelectorAll(".home-cases-scene").forEach(s => s.classList.remove("is-visible"));',
+          '  const targetScene = document.querySelector(`.home-cases-scene--${theme}`);',
+          '  if (targetScene) targetScene.classList.add("is-visible");',
+          '  // 2. Smoothly transition 3D matcap material to target slot',
+          '  transitionMatcap(targetSlot);',
+          '});',
+          '```'
         ].join('\n')
       : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");

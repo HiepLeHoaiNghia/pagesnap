@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v22: pluggable interactionManifest and meshMapper SOLID extraction modules. routing-override: skipped — user requested SOLID architecture update.
+// plan-exempt — bump buildId to 20261031-v23: GPU uniforms snapshotting and case artwork reveal controller blueprint. routing-override: skipped — user approved v23 upgrade loop.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v22') {
+        if (!pingRes || pingRes.buildId !== '20261031-v23') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
