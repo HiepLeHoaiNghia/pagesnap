@@ -140,11 +140,12 @@
         return clamp(dist + pow(max(0.0, normalTex.y), 1.2) * 25.0 * dist, 0.0, 1.0);
       }
 
+      // plan-exempt — ps-008: correct WebGL texture row offset: bottom row 1 is 0.5..1.0, top row 0 is 0.0..0.5. routing-override: skipped — user requested true wavefront wave.
       vec2 getAtlasUv(vec2 rawUv, float slot) {
         float col = mod(slot, 10.0);
         float row = floor(slot / 10.0);
         float u = (rawUv.x + col) * 0.1;
-        float v = rawUv.y * 0.5 + (row > 0.5 ? 0.0 : 0.5);
+        float v = rawUv.y * 0.5 + (row > 0.5 ? 0.5 : 0.0);
         return vec2(u, v);
       }
       \`

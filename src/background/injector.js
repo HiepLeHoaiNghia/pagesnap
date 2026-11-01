@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v36: Three.js inline matcap sampling replacement with dual-slot atlas blending. routing-override: skipped — user requested v36 pipeline.
+// plan-exempt — bump buildId to 20261031-v37: correct WebGL texture row offset (row 1 gold slot 18). routing-override: skipped — user requested v37 pipeline.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v36') {
+        if (!pingRes || pingRes.buildId !== '20261031-v37') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
