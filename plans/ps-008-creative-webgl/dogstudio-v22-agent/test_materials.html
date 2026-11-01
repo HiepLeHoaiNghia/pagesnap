@@ -1,0 +1,204 @@
+<!-- plan-exempt — materials test -->
+<!-- routing-override: skipped — test script -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Materials Test</title>
+  <style>
+    body { margin: 0; background: #090a0f; overflow: hidden; }
+    #bg {
+      position: absolute;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background-image: url('./assets/background-xl.png');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.85;
+      pointer-events: none;
+    }
+    canvas { position: absolute; top: 0; left: 0; width: 1500px; height: 900px; display: block; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+<div id="bg"></div>
+<canvas id="c"></canvas>
+<script>
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setSize(1500, 900);
+  renderer.setPixelRatio(1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1500 / 900, 0.1, 1000);
+  camera.position.set(0.2, 1.6, 22.0);
+  camera.lookAt(1.1, 1.8, 0);
+
+  window.renderer = renderer;
+  window.scene = scene;
+  window.camera = camera;
+
+  // Helper to extract a 256x256 matcap slot from matcap-combined-resized.jpg
+  function createMatcapTexture(image, slotIndex) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 256;
+    cvs.height = 256;
+    const ctx = cvs.getContext('2d');
+    const col = slotIndex % 10;
+    const row = Math.floor(slotIndex / 10);
+    ctx.drawImage(image, col * 256, row * 256, 256, 256, 0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return { canvas: cvs, context: ctx, texture: tex };
+  }
+
+  // Create amber glowing eye texture
+  function createEyeTexture() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 256;
+    cvs.height = 256;
+    const ctx = cvs.getContext('2d');
+
+    // Sclera
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Glowing amber iris
+    const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 115);
+    grad.addColorStop(0, '#fff3a8');   // Bright glowing center
+    grad.addColorStop(0.25, '#fbbf24'); // Vibrant amber gold
+    grad.addColorStop(0.55, '#d97706'); // Warm gold-orange
+    grad.addColorStop(0.85, '#78350f'); // Deep amber rim
+    grad.addColorStop(1.0, '#1c1917');  // Outer ring
+
+    ctx.beginPath();
+    ctx.arc(128, 128, 110, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Iris details
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 24) {
+      ctx.beginPath();
+      ctx.moveTo(128 + Math.cos(angle) * 30, 128 + Math.sin(angle) * 30);
+      ctx.lineTo(128 + Math.cos(angle) * 105, 128 + Math.sin(angle) * 105);
+      ctx.strokeStyle = (Math.sin(angle * 6) > 0) ? 'rgba(254, 240, 138, 0.5)' : 'rgba(180, 83, 9, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Sharp dark central pupil
+    ctx.beginPath();
+    ctx.arc(128, 128, 40, 0, Math.PI * 2);
+    ctx.fillStyle = '#030712';
+    ctx.fill();
+
+    // Specular highlight / glint
+    const glint = ctx.createRadialGradient(155, 105, 0, 155, 105, 16);
+    glint.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+    glint.addColorStop(0.5, 'rgba(255, 255, 255, 0.7)');
+    glint.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.beginPath();
+    ctx.arc(155, 105, 16, 0, Math.PI * 2);
+    ctx.fillStyle = glint;
+    ctx.fill();
+
+    const tex = new THREE.CanvasTexture(cvs);
+    return tex;
+  }
+
+  // Load normal map
+  const texLoader = new THREE.TextureLoader();
+  const dogNormals = texLoader.load('./assets/dog_normals.jpg');
+  const eyeTexture = createEyeTexture();
+
+  const eyeMaterial = new THREE.MeshBasicMaterial({
+    map: eyeTexture
+  });
+
+  const matcapImg = new Image();
+  matcapImg.src = './assets/matcap-combined-resized.jpg';
+  matcapImg.onload = () => {
+    const slot1 = createMatcapTexture(matcapImg, 1);
+    window.matcapSlot1 = slot1;
+
+    // Body material: MeshMatcapMaterial using matcap slot 1 + normalMap dog_normals.jpg with midnight navy tint (0x28344c)
+    // To preserve the rich iridescent highlights without over-darkening, we use tint color 0x3d4f73 / 0x485e88
+    const bodyMaterial = new THREE.MeshMatcapMaterial({
+      matcap: slot1.texture,
+      normalMap: dogNormals,
+      normalScale: new THREE.Vector2(1.2, 1.2),
+      color: new THREE.Color(0x485e88),
+      skinning: true
+    });
+
+    const foliageMaterial = new THREE.MeshMatcapMaterial({
+      matcap: slot1.texture,
+      normalMap: dogNormals,
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      color: new THREE.Color(0x28344c)
+    });
+
+    const loader = new THREE.GLTFLoader();
+    const dracoLoader = new THREE.DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+    loader.setDRACOLoader(dracoLoader);
+
+    loader.load('./assets/dog.drc.glb', (gltf) => {
+      const model = gltf.scene;
+      scene.add(model);
+      window.model = model;
+
+      model.traverse((child) => {
+        if (child.isMesh || child.isSkinnedMesh) {
+          if (child.name.includes('eye') || child.name.includes('Eye')) {
+            if (child.geometry && child.geometry.attributes && child.geometry.attributes.uv) {
+              const uv = child.geometry.attributes.uv;
+              let minU = 999, maxU = -999, minV = 999, maxV = -999;
+              for (let i = 0; i < uv.count; i++) {
+                minU = Math.min(minU, uv.getX(i));
+                maxU = Math.max(maxU, uv.getX(i));
+                minV = Math.min(minV, uv.getY(i));
+                maxV = Math.max(maxV, uv.getY(i));
+              }
+              for (let i = 0; i < uv.count; i++) {
+                const u = (uv.getX(i) - minU) / (maxU - minU);
+                const v = (uv.getY(i) - minV) / (maxV - minV);
+                uv.setXY(i, u, v);
+              }
+              uv.needsUpdate = true;
+            }
+            child.material = eyeMaterial;
+            console.log('Applied eye material to:', child.name);
+          } else if (child.name.includes('BODY') || child.name.includes('body') || child.isSkinnedMesh) {
+            child.material = bodyMaterial;
+            console.log('Applied body material to:', child.name);
+          } else {
+            child.material = foliageMaterial;
+            console.log('Applied foliage material to:', child.name);
+          }
+        }
+      });
+
+      if (gltf.animations && gltf.animations.length > 0) {
+        window.mixer = new THREE.AnimationMixer(model);
+        const action = window.mixer.clipAction(gltf.animations[0]);
+        action.play();
+        window.mixer.setTime(0.5);
+      }
+
+      model.scale.set(12.5, 12.5, 12.5);
+      model.position.set(2.6, -3.8, 0);
+      model.rotation.y = THREE.MathUtils.degToRad(35);
+
+      renderer.render(scene, camera);
+      window.MAT_READY = true;
+    });
+  };
+</script>
+</body>
+</html>

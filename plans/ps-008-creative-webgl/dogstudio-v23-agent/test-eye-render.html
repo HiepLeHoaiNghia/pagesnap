@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; background: #090a0f; overflow: hidden; }
+    canvas { width: 100vw; height: 100vh; display: block; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+  <script>
+    function createEyeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      
+      const cx = 256, cy = 256, r = 200;
+      
+      // Sclera / outer edge
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Outer iris glow
+      const grad = ctx.createRadialGradient(cx, cy, 30, cx, cy, r);
+      grad.addColorStop(0, '#fef08a');   // Bright warm gold center
+      grad.addColorStop(0.35, '#f59e0b'); // Amber
+      grad.addColorStop(0.7, '#d97706');  // Rich golden orange
+      grad.addColorStop(0.9, '#0284c7');  // Subtle cyan edge matching preview
+      grad.addColorStop(1.0, '#0f172a');  // Deep dark rim
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Iris radial fibers
+      ctx.strokeStyle = 'rgba(254, 240, 138, 0.4)';
+      ctx.lineWidth = 1.5;
+      for (let a = 0; a < Math.PI * 2; a += 0.08) {
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * 45, cy + Math.sin(a) * 45);
+        ctx.lineTo(cx + Math.cos(a) * (r - 15), cy + Math.sin(a) * (r - 15));
+        ctx.stroke();
+      }
+
+      // Pupil
+      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 42);
+      pupilGrad.addColorStop(0, '#000000');
+      pupilGrad.addColorStop(0.85, '#050505');
+      pupilGrad.addColorStop(1, '#1e293b');
+      ctx.beginPath();
+      ctx.arc(cx, cy, 42, 0, Math.PI * 2);
+      ctx.fillStyle = pupilGrad;
+      ctx.fill();
+
+      // Specular highlight / catchlight
+      ctx.beginPath();
+      ctx.arc(cx - 20, cy - 22, 14, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx + 18, cy + 16, 7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      return tex;
+    }
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1500 / 1190, 0.1, 1000);
+    camera.position.set(0.2, 1.6, 22.0);
+    camera.lookAt(1.1, 1.8, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(1500, 1190);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(5, 10, 10);
+    scene.add(dirLight);
+
+    const loader = new THREE.GLTFLoader();
+    const draco = new THREE.DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+    loader.setDRACOLoader(draco);
+
+    const eyeTex = createEyeTexture();
+    const eyeMat = new THREE.MeshBasicMaterial({
+      map: eyeTex,
+    });
+
+    // Body matcap & normalMap
+    const texLoader = new THREE.TextureLoader();
+    const dogNormals = texLoader.load('/assets/dog_normals.jpg');
+    dogNormals.flipY = false;
+
+    // Load matcap slot 1
+    const matcapImg = new Image();
+    matcapImg.src = '/assets/matcap-combined-resized.jpg';
+    matcapImg.onload = () => {
+      const mcCanvas = document.createElement('canvas');
+      mcCanvas.width = 256; mcCanvas.height = 256;
+      const ctx = mcCanvas.getContext('2d');
+      // slot 1 is col 1, row 0
+      ctx.drawImage(matcapImg, 256, 0, 256, 256, 0, 0, 256, 256);
+      const slot1Tex = new THREE.CanvasTexture(mcCanvas);
+
+      const bodyMat = new THREE.MeshMatcapMaterial({
+        matcap: slot1Tex,
+        normalMap: dogNormals,
+        color: new THREE.Color(0x28344c)
+      });
+
+      loader.load('/assets/dog.drc.glb', (gltf) => {
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const center = box.getCenter(new THREE.Vector3());
+        gltf.scene.position.sub(center);
+
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) {
+            const name = child.name.toLowerCase();
+            if (name.includes('eye')) {
+              // Normalize UVs
+              const uvs = child.geometry.attributes.uv;
+              for (let i = 0; i < uvs.count; i++) {
+                const u = (uvs.getX(i) - 0.85396) / (0.98188 - 0.85396);
+                const v = (uvs.getY(i) - 0.64321) / (0.77113 - 0.64321);
+                uvs.setXY(i, u, v);
+              }
+              uvs.needsUpdate = true;
+              child.material = eyeMat;
+            } else if (name.includes('body')) {
+              child.material = bodyMat;
+            }
+          }
+        });
+
+        const wolfGroup = new THREE.Group();
+        wolfGroup.add(gltf.scene);
+        wolfGroup.scale.set(12, 12, 12);
+        wolfGroup.position.set(1.2, 1.2, 0);
+        wolfGroup.rotation.y = 45 * Math.PI / 180;
+        scene.add(wolfGroup);
+
+        renderer.render(scene, camera);
+        window.ready = true;
+      });
+    };
+  </script>
+</body>
+</html>
