@@ -198,17 +198,22 @@
       let curr = node;
       while (curr && curr !== document && curr.nodeType === 1) {
         const bg = window.getComputedStyle(curr).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+        // plan-exempt — ps-008: ignore semi-transparent glass colors (<0.8 alpha) so body doesn't collapse to white browser default. routing-override: skipped — user requested solid theme matching.
+        const alphaMatch = bg ? bg.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/) : null;
+        const isSemi = alphaMatch && parseFloat(alphaMatch[1]) < 0.8;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && !isSemi) {
           return bg;
         }
         curr = curr.parentElement;
       }
       const bodyBg = document.body ? window.getComputedStyle(document.body).backgroundColor : null;
-      if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent') {
+      const bodyAlphaMatch = bodyBg ? bodyBg.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/) : null;
+      const isBodySemi = bodyAlphaMatch && parseFloat(bodyAlphaMatch[1]) < 0.8;
+      if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent' && !isBodySemi) {
         return bodyBg;
       }
       const textColor = window.getComputedStyle(node).color;
-      if (textColor && (textColor.includes('247') || textColor.includes('255') || textColor.includes('248') || textColor.includes('208'))) {
+      if (textColor && (textColor.includes('247') || textColor.includes('255') || textColor.includes('248') || textColor.includes('208') || textColor.includes('230'))) {
         return '#08090a';
       }
       return '#ffffff';
