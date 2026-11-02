@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v50: X_OFFSET tracking, depth calibration, and diffuse map retention for deep case colors. routing-override: skipped — user requested accurate case colors.
+// plan-exempt — bump buildId to 20261031-v51: synchronized spatial tracking (X_OFFSET_CURVE) and deep case matcap diffuse retention. routing-override: skipped — user requested accurate tracking.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v50') {
+        if (!pingRes || pingRes.buildId !== '20261031-v51') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
