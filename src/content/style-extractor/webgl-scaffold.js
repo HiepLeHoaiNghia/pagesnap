@@ -157,7 +157,7 @@
       }
       \`
     // plan-exempt — ps-008: replace Three.js inline matcap sampling with dual-slot atlas blending. routing-override: skipped — user requested true wavefront wave.
-    // plan-exempt — ps-008: blend 0.96 * matcap + 0.42 * dogDiffuse fur texture matching Dogstudio Program 5. routing-override: skipped — user requested accurate fur match.
+    // plan-exempt — ps-008: dynamic fur weight modulation: 0.42 at Hero slot 0, dropping to 0.04 on gold/neon chrome slots. routing-override: skipped — user requested accurate fur match.
     ).replace(
       'vec4 matcapColor = texture2D( matcap, uv );',
       \`
@@ -168,7 +168,9 @@
       float waveFactor = sampleTransition(normal);
       vec4 matcapColor = mix(oldColor, newColor, waveFactor);
       vec4 furTex = texture2D( map, vUv );
-      matcapColor.rgb = matcapColor.rgb * 0.96 + furTex.rgb * 0.42;
+      float curSlot = mix(firstSlot, secondSlot, waveFactor);
+      float furWeight = curSlot < 0.5 ? 0.42 : 0.04;
+      matcapColor.rgb = matcapColor.rgb * 0.96 + furTex.rgb * furWeight;
       \`
     );
   };
@@ -227,6 +229,7 @@
   });
 
   // plan-exempt — ps-008: dynamic wavefront controller updating slot indices. routing-override: skipped — user requested true wavefront wave.
+  // plan-exempt — ps-008: sync leafMaterial with body matcap slot. routing-override: skipped — user requested synchronized foliage gold.
   window.PageSnapWebGLController = {
     setMatcapSlot(slot) {
       wolfUniforms.firstSlot.value = wolfUniforms.secondSlot.value;
@@ -241,6 +244,10 @@
         });
       } else {
         wolfUniforms.matcapTransition.value = 1.0;
+      }
+      if (leafMaterial) {
+        leafMaterial.matcap = getMatcapTexture(slot);
+        leafMaterial.needsUpdate = true;
       }
     },
     resetMatcap() {
@@ -257,10 +264,14 @@
       } else {
         wolfUniforms.matcapTransition.value = 1.0;
       }
+      if (leafMaterial) {
+        leafMaterial.matcap = getMatcapTexture(0);
+        leafMaterial.needsUpdate = true;
+      }
     }
   };
-  // plan-exempt — ps-008: robust scroll choreography with verified depth & rotation curves. routing-override: skipped — user approved v33 pipeline.
-  const DEPTH_CURVE = [16.5, 24.0, 30.0, 36.0, 28.0, 22.0];
+  // plan-exempt — ps-008: calibrated DEPTH_CURVE starting at 21.5 for 1190px canvas framing. routing-override: skipped — user approved v39 pipeline.
+  const DEPTH_CURVE = [21.5, 25.0, 31.0, 36.0, 28.0, 22.0];
   const V_ROT_CURVE = [35.0, 20.0, 30.0, 30.0, -50.0, -145.0];
 
   function getSplineValue(arr, t) {

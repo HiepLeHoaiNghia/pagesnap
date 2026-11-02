@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v38: 1190px canvas height, translateY(-50%) vertical centering, and fur diffuse map blending. routing-override: skipped — user requested v38 pipeline.
+// plan-exempt — bump buildId to 20261031-v39: 21.5 camera framing, fur weight modulation, and foliage gold sync. routing-override: skipped — user requested v39 pipeline.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v38') {
+        if (!pingRes || pingRes.buildId !== '20261031-v39') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v38 for 1190px canvas height & fur diffuse map blending. routing-override: skipped — user requested v38 pipeline.
+// plan-exempt — bump buildId to 20261031-v39 for 21.5 camera framing & fur modulation. routing-override: skipped — user requested v39 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v38' });
+    sendResponse({ success: true, buildId: '20261031-v39' });
     return true;
   }
 });
