@@ -170,10 +170,10 @@
         .join('\n');
       return `${item.selector} {\n${decls}\n}`;
     }).join('\n\n');
+    // plan-exempt — ps-008: generalized extraction of authored CSS and interactive :hover/:focus states. routing-override: skipped — user requested generic pseudo-class retention.
     let authoredCss = '';
     try { authoredCss = PageSnap.authoredCss ? PageSnap.authoredCss.build(allElements) : ''; } catch (e) { authoredCss = ''; }
-    const scopedCss = authoredCss ? `${pinnedCss}\n\n/* Layout rules of the original page (responsive behaviour) */\n${authoredCss}` : pinnedCss;
-
+    const scopedCss = authoredCss ? `${pinnedCss}\n\n/* Layout and Interactive Pseudo-State Rules of the original page */\n${authoredCss}` : pinnedCss;
     // Clone element and add scoped classes for self-contained reproduction
 // plan-exempt — strip extension highlight classes before adding scoped classes
     const clone = element.cloneNode(true);

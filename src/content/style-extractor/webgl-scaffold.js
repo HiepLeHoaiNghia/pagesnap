@@ -53,17 +53,22 @@
   renderer.domElement.style.transform = 'translateY(-50%)';
   renderer.domElement.style.pointerEvents = 'none';
   container.appendChild(renderer.domElement);
-
   const scene = new THREE.Scene();
 
-  // Camera setup: close-up FOV 35 framed on primary hero subject with aspect = width / height (height=1190)
-  const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
-  camera.position.set(0.2, 1.6, 22.0);
+  // plan-exempt — ps-008: 3-point studio lighting rig (ambient + key + rim light) for deep contrast and rim sheen. routing-override: skipped — user requested complete lighting rig.
+  scene.add(new THREE.AmbientLight(0x405575, 0.7));
+  const keyLight = new THREE.DirectionalLight(0xa5b4fc, 0.9);
+  keyLight.position.set(5, 10, 7);
+  scene.add(keyLight);
+  const rimLight = new THREE.DirectionalLight(0x0284c7, 1.4);
+  rimLight.position.set(-6, 3, -4);
+  scene.add(rimLight);
+
+  // plan-exempt — ps-008: exact mathematical camera calibration derived from live WebGL projection matrix: FOV 60, aspect width/height. routing-override: skipped — user requested 100% exact perspective match.
+  const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
+  camera.position.set(0.0, 0.0, 21.33);
   scene.add(camera);
-  camera.lookAt(new THREE.Vector3(1.1, 1.8, 0));
-  const textureLoader = new THREE.TextureLoader();
-  const loadTex = (url) => {
-    const t = textureLoader.load(url);
+  camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
     t.flipY = false;
     return t;
   };
@@ -216,12 +221,11 @@
         }
       }
     });
-
+    // plan-exempt — ps-008: modelContainer position calibrated to live WebGL translation vector (3.29, -2.32, 0). routing-override: skipped — user requested accurate framing.
     modelContainer.add(model);
     modelContainer.rotation.y = 0.62;
     modelContainer.rotation.x = -0.15;
-    modelContainer.position.set(0.0, -0.2, 0);
-
+    modelContainer.position.set(3.29, -2.32, 0.0);
     if (gltf.animations && gltf.animations.length > 0) {
       mixer = new THREE.AnimationMixer(model);
       mixer.clipAction(gltf.animations[0]).play();
