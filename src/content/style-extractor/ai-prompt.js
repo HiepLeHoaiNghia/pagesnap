@@ -182,9 +182,11 @@ ${userRecordingMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
-// plan-exempt — ps-008: explicit DOM stacking & transparent wrapper instruction in AI-PROMPT.md. routing-override: skipped — user approved v34 pipeline.
+// plan-exempt — ps-008: 1190px canvas height, translateY(-50%) centering, and fur diffuse map blending in AI prompt. routing-override: skipped — user approved v38 pipeline.
 You are a senior Frontend Engineer specializing in Tailwind CSS, Framer Motion, and Three.js/WebGL.
 - WebGL / Three.js Scaffold: A pre-configured \\\`webgl-scaffold.js\\\` is included in this package with verified camera perspective (FOV 35), DRACO/GLTF loaders, instant GPU matcap slot textures, dual-matcap shader blending, and verified scroll curves. Integrate \\\`webgl-scaffold.js\\\` directly rather than writing Three.js boilerplate from scratch.
+- Camera Aspect & Canvas Geometry (CRITICAL for Camera Distance): The WebGL canvas MUST be set to \\\`height = Math.max(window.innerHeight, 1190)\\\` and vertically centered with CSS \\\`top: 50%; transform: translateY(-50%)\\\`. Camera aspect ratio MUST be \\\`width / height\\\` (height=1190) matching authentic Dogstudio close-up perspective!
+- Organic Fur Texture & Shading (CRITICAL for Wolf Color): The body material MUST bind \\\`map: dogDiffuse\\\` and blend \\\`0.96 * matcapColor + 0.42 * furTexture\\\` so that realistic black hair strands, snout shading, and facial contours from \\\`dog_diffuse.png\\\` are visible on top of the specular matcap shine!
 - Transparent DOM Stacking (CRITICAL): Ensure \\\`.pagesnap-component-wrapper\\\` has \\\`background: transparent !important\\\` (or no opaque background) so the 3D WebGL canvas fixed behind it (\\\`#canvas-container\\\` at \\\`z-index: 0\\\`) is 100% visible!
 - Hero Title Stacking: The hero title "We Make Good Shit" (\\\`.home-hero-title\\\`) MUST have \\\`position: relative !important; z-index: 10 !important; color: #ffffff !important\\\` so it is prominently visible in front of the 3D canvas and background!
 - Multi-Frame Visual Grounding Reference: Three visual grounding captures are provided: \\\`preview-hero.png\\\` (top hero view), \\\`preview-mid.png\\\` (middle section), and \\\`preview-bottom.png\\\` (bottom section).

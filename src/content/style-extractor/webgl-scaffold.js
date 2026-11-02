@@ -38,24 +38,29 @@
     return `
 /* PageSnap WebGL Architecture Scaffold — Multi-Layer Creative WebGL Engine (v26 Wavefront) */
 (function initPageSnapWebGL() {
+  // plan-exempt — ps-008: canvas vertical pin at Math.max(vh, 1190px) matching authentic Dogstudio camera aspect 1.26. routing-override: skipped — user requested accurate camera and fur match.
   const container = document.getElementById('canvas-container') || document.body;
   const width = window.innerWidth;
-  const height = window.innerHeight;
+  const height = Math.max(window.innerHeight, 1190);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.domElement.style.position = 'fixed';
+  renderer.domElement.style.top = '50%';
+  renderer.domElement.style.left = '0';
+  renderer.domElement.style.transform = 'translateY(-50%)';
+  renderer.domElement.style.pointerEvents = 'none';
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
 
-  // Camera setup: close-up FOV 35 framed on primary hero subject
+  // Camera setup: close-up FOV 35 framed on primary hero subject with aspect = width / height (height=1190)
   const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
   camera.position.set(0.2, 1.6, 22.0);
   scene.add(camera);
   camera.lookAt(new THREE.Vector3(1.1, 1.8, 0));
-
   const textureLoader = new THREE.TextureLoader();
   const loadTex = (url) => {
     const t = textureLoader.load(url);
@@ -94,8 +99,10 @@
     firstSlot: { value: 0.0 },
     secondSlot: { value: 18.0 } // default Tomorrowland Gold slot 18
   };
+  // plan-exempt — ps-008: bind authentic dogDiffuse fur map with 0.42 diffuse weight and 0.65 normal scale. routing-override: skipped — user requested accurate fur match.
   const bodyMaterial = new THREE.MeshMatcapMaterial({
     matcap: matcapAtlas,
+    map: dogDiffuse,
     normalMap: dogNormals,
     normalScale: new THREE.Vector2(0.65, 0.65),
     skinning: true
@@ -150,6 +157,7 @@
       }
       \`
     // plan-exempt — ps-008: replace Three.js inline matcap sampling with dual-slot atlas blending. routing-override: skipped — user requested true wavefront wave.
+    // plan-exempt — ps-008: blend 0.96 * matcap + 0.42 * dogDiffuse fur texture matching Dogstudio Program 5. routing-override: skipped — user requested accurate fur match.
     ).replace(
       'vec4 matcapColor = texture2D( matcap, uv );',
       \`
@@ -159,6 +167,8 @@
       vec4 newColor = texture2D( matcap, uvNew );
       float waveFactor = sampleTransition(normal);
       vec4 matcapColor = mix(oldColor, newColor, waveFactor);
+      vec4 furTex = texture2D( map, vUv );
+      matcapColor.rgb = matcapColor.rgb * 0.96 + furTex.rgb * 0.42;
       \`
     );
   };
@@ -285,9 +295,18 @@
       modelContainer.rotation.x = -0.15 + mouseY * 0.05;
     }
 
+    // plan-exempt — ps-008: resize listener keeping 1190px minimum height for camera aspect ratio. routing-override: skipped — user requested accurate camera match.
     renderer.render(scene, camera);
   }
   render();
+
+  window.addEventListener('resize', () => {
+    const w = window.innerWidth;
+    const h = Math.max(window.innerHeight, 1190);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
 })();
 `;
   }
