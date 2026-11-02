@@ -177,9 +177,16 @@
     // Clone element and add scoped classes for self-contained reproduction
 // plan-exempt — strip extension highlight classes before adding scoped classes
     const clone = element.cloneNode(true);
-    clone.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
-    clone.querySelectorAll('.pagesnap-region-highlighted, .web2md-region-highlighted').forEach(el => {
-      el.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    // plan-exempt — ps-008: strip transient runtime hover, active, and highlight classes so initial state is clean. routing-override: skipped — user reported overlay covering wolf.
+    const transientClasses = ['pagesnap-region-highlighted', 'web2md-region-highlighted', 'is-hovered', 'has-hover', 'is-case-hovered'];
+    transientClasses.forEach(cls => clone.classList.remove(cls));
+    clone.querySelectorAll('*').forEach(el => {
+      transientClasses.forEach(cls => el.classList.remove(cls));
+      // If an overlay scene was captured during hover, reset it to hidden initial state
+      if (el.className && typeof el.className === 'string' && el.className.includes('home-cases-scene')) {
+        el.classList.remove('is-visible');
+        el.classList.add('is-hidden');
+      }
     });
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
     cloneElements.forEach((el, index) => {

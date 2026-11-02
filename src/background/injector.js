@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v43: dual-engine studio PBR and pure chrome matcap generator. routing-override: skipped — user requested v43 pipeline.
+// plan-exempt — bump buildId to 20261031-v45: strip transient runtime hover and scene visibility states from captured DOM. routing-override: skipped — user requested clean state.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v43') {
+        if (!pingRes || pingRes.buildId !== '20261031-v45') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {
