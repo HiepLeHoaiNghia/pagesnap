@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v41: generalized 3-layer architecture, Box3 auto-framing, and studio lighting rig. routing-override: skipped — user requested v41 pipeline.
+// plan-exempt — bump buildId to 20261031-v42: studio-grade PBR material & lighting rig. routing-override: skipped — user requested v42 pipeline.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v41') {
+        if (!pingRes || pingRes.buildId !== '20261031-v42') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

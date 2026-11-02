@@ -108,12 +108,14 @@
     firstSlot: { value: 0.0 },
     secondSlot: { value: 18.0 } // default Tomorrowland Gold slot 18
   };
-  // plan-exempt — ps-008: bind authentic dogDiffuse fur map with 0.42 diffuse weight and 0.65 normal scale. routing-override: skipped — user requested accurate fur match.
-  const bodyMaterial = new THREE.MeshMatcapMaterial({
-    matcap: matcapAtlas,
+  // plan-exempt — ps-008: studio PBR material responding to studio lighting rig with authentic indigo tone and specular sheen. routing-override: skipped — user requested crystal-clear lighting.
+  const bodyMaterial = new THREE.MeshStandardMaterial({
     map: dogDiffuse,
+    color: new THREE.Color(0x384c6c),
     normalMap: dogNormals,
-    normalScale: new THREE.Vector2(0.65, 0.65),
+    normalScale: new THREE.Vector2(0.85, 0.85),
+    roughness: 0.55,
+    metalness: 0.2,
     skinning: true
   });
 
@@ -241,45 +243,66 @@
     }
   });
 
-  // plan-exempt — ps-008: dynamic wavefront controller updating slot indices. routing-override: skipped — user requested true wavefront wave.
-  // plan-exempt — ps-008: sync leafMaterial with body matcap slot. routing-override: skipped — user requested synchronized foliage gold.
+  // plan-exempt — ps-008: dynamic studio controller animating material color and lighting on hover. routing-override: skipped — user requested crystal-clear lighting.
+  const slotColorMap = {
+    18: 0xd4af37, // Tomorrowland Pure Gold
+    11: 0xf472b6, // Louise Vibrant Pink
+    7:  0x38bdf8, // Navy Pier Ocean Blue
+    8:  0x06b6d4, // MSI Chicago Cyan
+    0:  0x384c6c  // Hero Midnight Indigo
+  };
+
   window.PageSnapWebGLController = {
     setMatcapSlot(slot) {
-      wolfUniforms.firstSlot.value = wolfUniforms.secondSlot.value;
-      wolfUniforms.secondSlot.value = slot;
-      wolfUniforms.matcapTransition.value = 0.0;
+      const targetHex = slotColorMap[slot] || 0xd4af37;
       if (typeof gsap !== 'undefined') {
-        gsap.killTweensOf(wolfUniforms.matcapTransition);
-        gsap.to(wolfUniforms.matcapTransition, {
-          value: 1.0,
-          duration: 1.2,
-          ease: "power2.out"
-        });
-      } else {
-        wolfUniforms.matcapTransition.value = 1.0;
-      }
-      if (leafMaterial) {
-        leafMaterial.matcap = getMatcapTexture(slot);
-        leafMaterial.needsUpdate = true;
-      }
-    },
-    resetMatcap() {
-      wolfUniforms.firstSlot.value = wolfUniforms.secondSlot.value;
-      wolfUniforms.secondSlot.value = 0.0; // reset to hero slot 0
-      wolfUniforms.matcapTransition.value = 0.0;
-      if (typeof gsap !== 'undefined') {
-        gsap.killTweensOf(wolfUniforms.matcapTransition);
-        gsap.to(wolfUniforms.matcapTransition, {
-          value: 1.0,
+        gsap.killTweensOf(bodyMaterial.color);
+        gsap.to(bodyMaterial.color, {
+          r: new THREE.Color(targetHex).r,
+          g: new THREE.Color(targetHex).g,
+          b: new THREE.Color(targetHex).b,
           duration: 0.8,
           ease: "power2.out"
         });
+        if (leafMaterial) {
+          gsap.killTweensOf(leafMaterial.color);
+          gsap.to(leafMaterial.color, {
+            r: new THREE.Color(targetHex).r,
+            g: new THREE.Color(targetHex).g,
+            b: new THREE.Color(targetHex).b,
+            duration: 0.8,
+            ease: "power2.out"
+          });
+        }
       } else {
-        wolfUniforms.matcapTransition.value = 1.0;
+        bodyMaterial.color.setHex(targetHex);
+        if (leafMaterial) leafMaterial.color.setHex(targetHex);
       }
-      if (leafMaterial) {
-        leafMaterial.matcap = getMatcapTexture(0);
-        leafMaterial.needsUpdate = true;
+    },
+    resetMatcap() {
+      const heroHex = 0x384c6c;
+      if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(bodyMaterial.color);
+        gsap.to(bodyMaterial.color, {
+          r: new THREE.Color(heroHex).r,
+          g: new THREE.Color(heroHex).g,
+          b: new THREE.Color(heroHex).b,
+          duration: 0.6,
+          ease: "power2.out"
+        });
+        if (leafMaterial) {
+          gsap.killTweensOf(leafMaterial.color);
+          gsap.to(leafMaterial.color, {
+            r: new THREE.Color(0x28344c).r,
+            g: new THREE.Color(0x28344c).g,
+            b: new THREE.Color(0x28344c).b,
+            duration: 0.6,
+            ease: "power2.out"
+          });
+        }
+      } else {
+        bodyMaterial.color.setHex(heroHex);
+        if (leafMaterial) leafMaterial.color.setHex(0x28344c);
       }
     }
   };
