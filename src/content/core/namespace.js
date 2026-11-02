@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v51 for synchronized spatial tracking. routing-override: skipped — user requested accurate tracking.
+// plan-exempt — bump buildId to 20261031-v52 for standalone indexHtml auto-framing. routing-override: skipped — user requested self-contained preview.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v51' });
+    sendResponse({ success: true, buildId: '20261031-v52' });
     return true;
   }
 });
