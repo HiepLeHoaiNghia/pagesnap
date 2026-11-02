@@ -255,8 +255,10 @@
       ctx.drawImage(img, col * cellW, row * cellH, cellW, cellH, 0, 0, 256, 256);
     }
     const tex = new THREE.CanvasTexture(cv);
+    // plan-exempt — ps-008: retain dogDiffuse fur texture on slot materials (except slot 18 pure gold) for authentic deep tones. routing-override: skipped — user requested accurate case colors.
     matcapCache[slot] = new THREE.MeshMatcapMaterial({
       matcap: tex,
+      map: slot === 18 ? null : dogDiffuse,
       normalMap: dogNormals,
       normalScale: new THREE.Vector2(0.85, 0.85),
       skinning: true
@@ -294,10 +296,12 @@
       }
     }
   };
-  // plan-exempt — ps-008: calibrated DEPTH_CURVE, V_ROT_CURVE (yaw), and H_ROT_CURVE (pitch) from Dogstudio truth choreography. routing-override: skipped — user requested accurate wolf scroll rotation.
+  // plan-exempt — ps-008: calibrated DEPTH_CURVE, V_ROT_CURVE, H_ROT_CURVE, and X_OFFSET_CURVE for 100% authentic wolf trajectory. routing-override: skipped — user requested accurate camera tracking.
   const DEPTH_CURVE = [16.5, 18.5, 21.0, 24.0, 21.0, 17.5];
   const V_ROT_CURVE = [35.0, 20.0, 30.0, 30.0, -50.0, -145.0];
   const H_ROT_CURVE = [0.0, -8.0, -2.5, 14.0, 25.0, 12.0];
+  const X_OFFSET_CURVE = [0.0, -1.8, -1.2, -0.4, -1.0, -1.0];
+  const Y_OFFSET_CURVE = [-0.2, 0.4, 0.8, 0.0, 0.0, 0.0];
 
   function getSplineValue(arr, t) {
     const p = t * (arr.length - 1);
@@ -325,11 +329,15 @@
     const curDepth = getSplineValue(DEPTH_CURVE, scrollT);
     const curRotY = getSplineValue(V_ROT_CURVE, scrollT);
     const curRotX = getSplineValue(H_ROT_CURVE, scrollT);
+    const curXOff = getSplineValue(X_OFFSET_CURVE, scrollT);
+    const curYOff = getSplineValue(Y_OFFSET_CURVE, scrollT);
 
     camera.position.z = curDepth;
     if (modelContainer) {
       modelContainer.rotation.y = THREE.MathUtils.degToRad(curRotY) + mouseX * 0.08;
       modelContainer.rotation.x = THREE.MathUtils.degToRad(curRotX) - 0.15 + mouseY * 0.05;
+      modelContainer.position.x = curXOff;
+      modelContainer.position.y = curYOff;
     }
 
     renderer.render(scene, camera);

@@ -192,14 +192,14 @@ You are a senior Creative WebGL & Frontend Engineer specializing in Three.js, Ta
 - Hero Title Typography: Ensure \\\`.home-hero-title\\\` has \\\`display: flex !important; flex-direction: column !important; width: 269px !important; line-height: 107px !important\\\` and \\\`.home-hero-title .fx-word\\\` has \\\`display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; width: auto !important; height: 107px !important\\\` with \\\`.home-hero-title .fx-letter\\\` having \\\`display: inline-block !important; opacity: 1 !important; visibility: visible !important; color: #ffffff !important\\\` and \\\`.home-hero-title, .home-hero-title * { transform: none !important; }\\\` so words and letters stack vertically into 4 elegant lines ("We", "Make", "Good", "Shit") matching the original live site!
 - WebGL / Three.js Scaffold: A complete pre-configured \\\`webgl-scaffold.js\\\` is included with automatic 3D Box3 bounding-box camera framing (FOV 35, camera at \\\`(0.15, 1.35, 16.5)\\\`, looking at \\\`(0.95, 1.45, 0)\\\`), 3-point studio lighting rig (ambient + key + rim lights), DRACO/GLTF loaders, and dual-engine PBR / matcap architecture. Integrate \\\`webgl-scaffold.js\\\` directly.
 - 3-Point Lighting Rig (CRITICAL): The scene includes ambient light (0x405575, 0.75), key directional light (0xa5b4fc, 0.95), and electric rim light (0x0284c7, 1.4) catching the model's spine and silhouette against the dark background.
-- Dual-Engine Material Architecture:
+// plan-exempt — ps-008: dual-engine material architecture with diffuse retention on slot materials and X_OFFSET tracking. routing-override: skipped — user requested accurate case colors.
   * Hero resting state: Studio-grade MeshStandardMaterial with \\\`map: dogDiffuse\\\`, authentic indigo tone (\\\`0x384c6c\\\`), roughness 0.55, metalness 0.2.
   * Dedicated eye material with authentic pupil texture (\\\`flipY = true\\\`).
-  * Hover states: \\\`PageSnapWebGLController.setMatcapSlot(slot)\\\` smoothly swaps to vibrant chrome matcaps (Tomorrowland slot 18 pure gold, Louise slot 11 neon pink, Navy Pier slot 7 blue, MSI Chicago slot 8 cyan). On mouseleave, \\\`resetMatcap()\\\` restores the resting PBR material.
+  * Hover states: \\\`PageSnapWebGLController.setMatcapSlot(slot)\\\` swaps to slot matcaps. Case materials (Slot 7, 8, 11) retain \\\`map: dogDiffuse\\\` to maintain deep dark navy and purple body fur tones with specular highlights, while Tomorrowland (Slot 18) sets \\\`map: null\\\` for 100% pure gold chrome!
 - Background Artwork Reveal on Hover:
   * Hovering case items reveals their artwork on \\\`#case-art-layer\\\` (e.g. Louise's Phone reveals \\\`background-1440.png\\\`, Tomorrowland reveals its background).
   * Active hovered link turns bright white (\\\`color: #ffffff !important; opacity: 1 !important\\\`) while other links dim to \\\`opacity: 0.18\\\`.
-- Scroll Choreography: Connect 3D camera / object transforms to scroll progress matching \\\`DEPTH_CURVE\\\` and \\\`V_ROT_CURVE\\\`.
+- Scroll Choreography (CRITICAL): Connect 3D model transforms to scroll progress using \\\`DEPTH_CURVE\\\`, \\\`V_ROT_CURVE\\\` (yaw), \\\`H_ROT_CURVE\\\` (pitch), and \\\`X_OFFSET_CURVE\\\` so the model shifts smoothly from right (Hero) to left (Cases) and stays large, prominent, and perfectly framed throughout the page!
 ### Suggested Framer Motion Patterns:
 
 export function MorphingSvgPath({ initialD, targetD }: { initialD: string, targetD: string }) {
