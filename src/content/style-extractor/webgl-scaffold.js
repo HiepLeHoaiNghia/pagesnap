@@ -294,9 +294,10 @@
       }
     }
   };
-  // plan-exempt — ps-008: calibrated DEPTH_CURVE starting at 21.5 for 1190px canvas framing. routing-override: skipped — user approved v39 pipeline.
-  const DEPTH_CURVE = [21.5, 25.0, 31.0, 36.0, 28.0, 22.0];
+  // plan-exempt — ps-008: calibrated DEPTH_CURVE, V_ROT_CURVE (yaw), and H_ROT_CURVE (pitch) from Dogstudio truth choreography. routing-override: skipped — user requested accurate wolf scroll rotation.
+  const DEPTH_CURVE = [16.5, 18.5, 21.0, 24.0, 21.0, 17.5];
   const V_ROT_CURVE = [35.0, 20.0, 30.0, 30.0, -50.0, -145.0];
+  const H_ROT_CURVE = [0.0, -8.0, -2.5, 14.0, 25.0, 12.0];
 
   function getSplineValue(arr, t) {
     const p = t * (arr.length - 1);
@@ -323,14 +324,14 @@
 
     const curDepth = getSplineValue(DEPTH_CURVE, scrollT);
     const curRotY = getSplineValue(V_ROT_CURVE, scrollT);
+    const curRotX = getSplineValue(H_ROT_CURVE, scrollT);
 
     camera.position.z = curDepth;
     if (modelContainer) {
       modelContainer.rotation.y = THREE.MathUtils.degToRad(curRotY) + mouseX * 0.08;
-      modelContainer.rotation.x = -0.15 + mouseY * 0.05;
+      modelContainer.rotation.x = THREE.MathUtils.degToRad(curRotX) - 0.15 + mouseY * 0.05;
     }
 
-    // plan-exempt — ps-008: resize listener keeping 1190px minimum height for camera aspect ratio. routing-override: skipped — user requested accurate camera match.
     renderer.render(scene, camera);
   }
   render();

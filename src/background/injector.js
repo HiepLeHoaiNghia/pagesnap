@@ -31,10 +31,10 @@ export function ensureContentInjected(tabId, frameId = 0) {
   const injection = (async () => {
     try {
 // plan-exempt — force re-injection if content script buildId is outdated
-// plan-exempt — bump buildId to 20261031-v48: reset to battle-tested 3fe6b8d architecture with clean PBR and auto-framing. routing-override: skipped — user requested clean reset.
+// plan-exempt — bump buildId to 20261031-v49: 3D rotation coupling (H_ROT_CURVE + V_ROT_CURVE) and calibrated depth. routing-override: skipped — user requested accurate wolf scroll rotation.
       try {
         const pingRes = await chrome.tabs.sendMessage(tabId, { action: ACTIONS.PING }, { frameId });
-        if (!pingRes || pingRes.buildId !== '20261031-v48') {
+        if (!pingRes || pingRes.buildId !== '20261031-v49') {
           await injectFiles(tabId, frameId, CONTENT_BUNDLE);
         }
       } catch (err) {

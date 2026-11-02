@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v48 for clean architecture reset. routing-override: skipped — user requested clean reset.
+// plan-exempt — bump buildId to 20261031-v49 for 3D rotation coupling. routing-override: skipped — user requested accurate wolf scroll rotation.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v48' });
+    sendResponse({ success: true, buildId: '20261031-v49' });
     return true;
   }
 });
