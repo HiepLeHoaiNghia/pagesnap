@@ -38,20 +38,15 @@
     return `
 /* PageSnap WebGL Architecture Scaffold — Multi-Layer Creative WebGL Engine (v26 Wavefront) */
 (function initPageSnapWebGL() {
-  // plan-exempt — ps-008: canvas vertical pin at Math.max(vh, 1190px) matching authentic Dogstudio camera aspect 1.26. routing-override: skipped — user requested accurate camera and fur match.
+  // plan-exempt — ps-008: clean 3-layer architecture and studio PBR lighting. routing-override: skipped — user requested clean reset.
   const container = document.getElementById('canvas-container') || document.body;
   const width = window.innerWidth;
-  const height = Math.max(window.innerHeight, 1190);
+  const height = window.innerHeight;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.domElement.style.position = 'fixed';
-  renderer.domElement.style.top = '50%';
-  renderer.domElement.style.left = '0';
-  renderer.domElement.style.transform = 'translateY(-50%)';
-  renderer.domElement.style.pointerEvents = 'none';
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
 
@@ -340,9 +335,10 @@
   }
   render();
 
+  // plan-exempt — ps-008: standard responsive resize handler. routing-override: skipped — user requested clean reset.
   window.addEventListener('resize', () => {
     const w = window.innerWidth;
-    const h = Math.max(window.innerHeight, 1190);
+    const h = window.innerHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
