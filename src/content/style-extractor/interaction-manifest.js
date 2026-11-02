@@ -20,23 +20,30 @@
   function extract(root) {
     if (!root || !root.querySelectorAll) return empty();
 
-    const targets = Array.from(root.querySelectorAll('[data-matcap], [data-theme]')).slice(0, 20);
+    // plan-exempt — ps-008: generic interactive state detector matching any data-* attributes, hover cards, or project links. routing-override: skipped — user requested generalized architecture.
+    const targets = Array.from(root.querySelectorAll('[data-matcap], [data-theme], [data-target], [data-scene], [data-bg], a[data-case], [data-project]')).slice(0, 30);
     if (!targets.length) return empty();
 
-    const items = targets.map((el) => { // plan-exempt — remove unused idx parameter. routing-override: skipped — user requested SOLID architecture update.
+    const items = targets.map((el) => {
       const matcapAttr = el.getAttribute('data-matcap') || '';
-      const theme = el.getAttribute('data-theme') || '';
+      const theme = el.getAttribute('data-theme') || el.getAttribute('data-scene') || el.getAttribute('data-target') || el.getAttribute('data-case') || '';
       const rawIdx = matcapAttr ? parseInt(matcapAttr.split(',')[0].trim(), 10) : 0;
       const matcapIndex = isNaN(rawIdx) ? 0 : rawIdx;
       const text = el.innerText ? el.innerText.trim().replace(/\s+/g, ' ').slice(0, 60) : el.tagName.toLowerCase();
 
-      // Find associated artwork image if present
-      let artworkUrl = null;
-      if (theme) {
-        const sceneEl = document.querySelector(`[class*="${theme}"]`);
+      // Find associated artwork image generically from background, sibling scene, or data-bg
+      let artworkUrl = el.getAttribute('data-bg') || null;
+      if (!artworkUrl && theme) {
+        const sceneEl = document.querySelector(`[class*="${theme}"], [data-scene="${theme}"], [id*="${theme}"]`);
         if (sceneEl) {
           const img = sceneEl.querySelector('img');
           if (img) artworkUrl = img.currentSrc || img.src || null;
+          else {
+            const bg = window.getComputedStyle(sceneEl).backgroundImage;
+            if (bg && bg.startsWith('url(')) {
+              artworkUrl = bg.slice(4, -1).replace(/["']/g, '');
+            }
+          }
         }
       }
 

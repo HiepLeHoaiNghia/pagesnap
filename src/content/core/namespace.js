@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v40 for generalized studio lighting & FOV 60. routing-override: skipped — user requested v40 pipeline.
+// plan-exempt — bump buildId to 20261031-v41 for generalized 3-layer architecture & Box3 framing. routing-override: skipped — user requested v41 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v40' });
+    sendResponse({ success: true, buildId: '20261031-v41' });
     return true;
   }
 });

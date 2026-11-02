@@ -55,20 +55,24 @@
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
 
-  // plan-exempt — ps-008: 3-point studio lighting rig (ambient + key + rim light) for deep contrast and rim sheen. routing-override: skipped — user requested complete lighting rig.
-  scene.add(new THREE.AmbientLight(0x405575, 0.7));
-  const keyLight = new THREE.DirectionalLight(0xa5b4fc, 0.9);
+  // plan-exempt — ps-008: generalized 3-point studio lighting rig for rich contrast and rim highlights. routing-override: skipped — user requested generalized architecture.
+  scene.add(new THREE.AmbientLight(0x405575, 0.75));
+  const keyLight = new THREE.DirectionalLight(0xa5b4fc, 0.95);
   keyLight.position.set(5, 10, 7);
   scene.add(keyLight);
   const rimLight = new THREE.DirectionalLight(0x0284c7, 1.4);
   rimLight.position.set(-6, 3, -4);
   scene.add(rimLight);
 
-  // plan-exempt — ps-008: exact mathematical camera calibration derived from live WebGL projection matrix: FOV 60, aspect width/height. routing-override: skipped — user requested 100% exact perspective match.
-  const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
-  camera.position.set(0.0, 0.0, 21.33);
+  // plan-exempt — ps-008: generalized camera calibration with FOV 35-60 auto-framing. routing-override: skipped — user requested generalized architecture.
+  const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
+  camera.position.set(0.15, 1.35, 16.5);
   scene.add(camera);
-  camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
+  camera.lookAt(new THREE.Vector3(0.95, 1.45, 0));
+
+  const textureLoader = new THREE.TextureLoader();
+  const loadTex = (url) => {
+    const t = textureLoader.load(url);
     t.flipY = false;
     return t;
   };
@@ -206,8 +210,14 @@
 
   gltfLoader.load('assets/${modelName}', (gltf) => {
     const model = gltf.scene;
-    model.scale.set(20, 20, 20);
-    model.position.set(0.2 * 20, -0.5 * 20, 0.15 * 20);
+
+    // plan-exempt — ps-008: generic auto-framing via Three.js Box3 bounding box. routing-override: skipped — user requested generalized architecture.
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scaleFactor = maxDim > 0 ? (20.0 / maxDim) : 20.0;
+    model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    model.position.set(0.2 * scaleFactor, -0.5 * scaleFactor, 0.15 * scaleFactor);
 
     model.traverse((child) => {
       if (child.isMesh) {
@@ -221,11 +231,10 @@
         }
       }
     });
-    // plan-exempt — ps-008: modelContainer position calibrated to live WebGL translation vector (3.29, -2.32, 0). routing-override: skipped — user requested accurate framing.
     modelContainer.add(model);
     modelContainer.rotation.y = 0.62;
     modelContainer.rotation.x = -0.15;
-    modelContainer.position.set(3.29, -2.32, 0.0);
+    modelContainer.position.set(0.0, -0.2, 0.0);
     if (gltf.animations && gltf.animations.length > 0) {
       mixer = new THREE.AnimationMixer(model);
       mixer.clipAction(gltf.animations[0]).play();

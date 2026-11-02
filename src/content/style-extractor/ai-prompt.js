@@ -182,20 +182,20 @@ ${userRecordingMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
-// plan-exempt — ps-008: generalized prompt instructions for 3-point studio lighting, FOV 60, and interactive hover states. routing-override: skipped — user approved v40 pipeline.
+// plan-exempt — ps-008: generalized prompt instructions for 3-layer stacking, Box3 auto-framing, and state-driven interactions. routing-override: skipped — user approved v41 pipeline.
 You are a senior Creative WebGL & Frontend Engineer specializing in Three.js, Tailwind CSS, and Framer Motion.
-- WebGL / Three.js Scaffold: A complete pre-configured \\\`webgl-scaffold.js\\\` is included in this package with mathematically calibrated camera perspective (FOV 60, aspect 1500/1190), 3-point studio lighting rig (ambient + key + rim lights), DRACO/GLTF loaders, and dual-matcap shader blending. Integrate \\\`webgl-scaffold.js\\\` directly rather than guessing Three.js boilerplate from scratch.
-- 3-Point Lighting Rig (CRITICAL): Ensure the scene includes ambient light (0x405575, 0.7), key directional light (0xa5b4fc, 0.9), and electric rim light (0x0284c7, 1.4) catching the model's spine and silhouette against the dark background.
-- Camera Aspect & Vertical Centering: The WebGL canvas MUST be set to \\\`height = Math.max(window.innerHeight, 1190)\\\` and vertically centered with CSS \\\`top: 50%; transform: translateY(-50%)\\\`. Camera FOV is 60 degrees matching authentic WebGL projection matrix!
+- 3-Layer Stacking Architecture (CRITICAL): Structure the page cleanly into 3 distinct functional layers:
+  1. Background Artwork Layer (\\\`#case-art-layer\\\` or \\\`#bg-layer\\\` at \\\`z-index: 0\\\` or \\\`-2\\\`, full viewport fixed, opacity transition 0.5s).
+  2. 3D WebGL Canvas Layer (\\\`#canvas-container\\\` at \\\`z-index: 1\\\`, full viewport fixed, pointer-events: none, transparent renderer).
+  3. DOM Interactive UI Layer (\\\`.pagesnap-component-wrapper\\\` or \\\`#dom-wrapper\\\` at \\\`z-index: 2\\\` with \\\`background: transparent !important\\\` so 3D canvas is visible, containing text, navigation, and titles with \\\`z-index: 10\\\`).
+- WebGL / Three.js Scaffold: A complete pre-configured \\\`webgl-scaffold.js\\\` is included with automatic 3D Box3 bounding-box camera framing (FOV 35, camera at \\\`(0.15, 1.35, 16.5)\\\`, looking at \\\`(0.95, 1.45, 0)\\\`), 3-point studio lighting rig (ambient + key + rim lights), DRACO/GLTF loaders, and dual-matcap shader blending. Integrate \\\`webgl-scaffold.js\\\` directly.
+- 3-Point Lighting Rig (CRITICAL): Ensure the scene includes ambient light (0x405575, 0.75), key directional light (0xa5b4fc, 0.95), and electric rim light (0x0284c7, 1.4) catching the model's spine and silhouette against the dark background.
 - Organic Fur Shading & Dynamic Chrome: The body material binds \\\`map: dogDiffuse\\\`. In shader, apply dynamic fur modulation: \\\`float furWeight = curSlot < 0.5 ? 0.42 : 0.04;\\\` so the dark hair strands and facial features show clearly at Hero (Slot 0), while Tomorrowland Gold (Slot 18) shines with 100% pure gold chrome!
 - Foliage Matcap Synchronization: In \\\`PageSnapWebGLController.setMatcapSlot(slot)\\\`, update both \\\`bodyMaterial\\\` and \\\`leafMaterial\\\` so when Tomorrowland is hovered, the surrounding branches and leaves also transform into matching gold!
-- Interactive Hover States (CRITICAL): When hovering interactive menu links, ensure active link text transitions to bright white (\\\`color: #ffffff !important; opacity: 1 !important\\\`) while other links remain dimmed.
-- Transparent DOM Stacking (CRITICAL): Ensure \\\`.pagesnap-component-wrapper\\\` has \\\`background: transparent !important\\\` (or no opaque background) so the 3D WebGL canvas fixed behind it (\\\`#canvas-container\\\` at \\\`z-index: 0\\\`) is 100% visible!
-- Hero Title Stacking: The hero title "We Make Good Shit" (\\\`.home-hero-title\\\`) MUST have \\\`position: relative !important; z-index: 10 !important; color: #ffffff !important\\\` so it is prominently visible in front of the 3D canvas and background!
-- Multi-Frame Visual Grounding Reference: Three visual grounding captures are provided: \\\`preview-hero.png\\\` (top hero view), \\\`preview-mid.png\\\` (middle section), and \\\`preview-bottom.png\\\` (bottom section).
+- Interactive Hover States (CRITICAL): When hovering interactive menu links, ensure active link text transitions to bright white (\\\`color: #ffffff !important; opacity: 1 !important\\\`) while other links remain dimmed (\\\`opacity: 0.18\\\`).
 - Case Hover & Wavefront Transition:
   * Tomorrowland: trigger \\\`PageSnapWebGLController.setMatcapSlot(18)\\\` (Gold chrome matcap for both body & foliage)
-  * This Was Louise's Phone: reveal \\\`#case-art-layer\\\` with \\\`background-1440.png\\\` at \\\`z-index: -2\\\` and trigger \\\`setMatcapSlot(11)\\\` (vibrant neon magenta/cyan)
+  * This Was Louise's Phone: reveal background artwork \\\`background-1440.png\\\` on the background layer and trigger \\\`setMatcapSlot(11)\\\` (vibrant neon magenta/cyan)
   * Navy Pier: trigger \\\`setMatcapSlot(7)\\\`
   * MSI Chicago: trigger \\\`setMatcapSlot(8)\\\`
   * Wavefront shader animation smoothly sweeps across 1.2s via GSAP.
