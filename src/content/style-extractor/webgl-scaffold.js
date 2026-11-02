@@ -243,66 +243,59 @@
     }
   });
 
-  // plan-exempt — ps-008: dynamic studio controller animating material color and lighting on hover. routing-override: skipped — user requested crystal-clear lighting.
-  const slotColorMap = {
-    18: 0xd4af37, // Tomorrowland Pure Gold
-    11: 0xf472b6, // Louise Vibrant Pink
-    7:  0x38bdf8, // Navy Pier Ocean Blue
-    8:  0x06b6d4, // MSI Chicago Cyan
-    0:  0x384c6c  // Hero Midnight Indigo
-  };
+  // plan-exempt — ps-008: dynamic matcap material generator for pure gold/neon chrome hover states. routing-override: skipped — user requested pure gold match.
+  const matcapCache = {};
+  function getSlotMatcapMaterial(slot) {
+    if (matcapCache[slot]) return matcapCache[slot];
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    const ctx = cv.getContext('2d');
+    const img = new Image();
+    img.src = 'assets/${matcapName}';
+    if (img.complete && img.naturalWidth > 0) {
+      const cellW = img.naturalWidth / 10;
+      const cellH = img.naturalHeight / 2;
+      const col = slot % 10;
+      const row = Math.floor(slot / 10);
+      ctx.drawImage(img, col * cellW, row * cellH, cellW, cellH, 0, 0, 256, 256);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    matcapCache[slot] = new THREE.MeshMatcapMaterial({
+      matcap: tex,
+      normalMap: dogNormals,
+      normalScale: new THREE.Vector2(0.85, 0.85),
+      skinning: true
+    });
+    return matcapCache[slot];
+  }
 
   window.PageSnapWebGLController = {
     setMatcapSlot(slot) {
-      const targetHex = slotColorMap[slot] || 0xd4af37;
-      if (typeof gsap !== 'undefined') {
-        gsap.killTweensOf(bodyMaterial.color);
-        gsap.to(bodyMaterial.color, {
-          r: new THREE.Color(targetHex).r,
-          g: new THREE.Color(targetHex).g,
-          b: new THREE.Color(targetHex).b,
-          duration: 0.8,
-          ease: "power2.out"
-        });
-        if (leafMaterial) {
-          gsap.killTweensOf(leafMaterial.color);
-          gsap.to(leafMaterial.color, {
-            r: new THREE.Color(targetHex).r,
-            g: new THREE.Color(targetHex).g,
-            b: new THREE.Color(targetHex).b,
-            duration: 0.8,
-            ease: "power2.out"
+      if (slot === 18 || slot === 11 || slot === 7 || slot === 8) {
+        const goldMat = getSlotMatcapMaterial(slot);
+        if (dogModel) {
+          dogModel.traverse((child) => {
+            if (child.isMesh && !child.name.includes('eye') && !child.name.includes('Eye')) {
+              child.material = goldMat;
+            }
           });
         }
-      } else {
-        bodyMaterial.color.setHex(targetHex);
-        if (leafMaterial) leafMaterial.color.setHex(targetHex);
       }
     },
     resetMatcap() {
-      const heroHex = 0x384c6c;
-      if (typeof gsap !== 'undefined') {
-        gsap.killTweensOf(bodyMaterial.color);
-        gsap.to(bodyMaterial.color, {
-          r: new THREE.Color(heroHex).r,
-          g: new THREE.Color(heroHex).g,
-          b: new THREE.Color(heroHex).b,
-          duration: 0.6,
-          ease: "power2.out"
+      if (dogModel) {
+        dogModel.traverse((child) => {
+          if (child.isMesh) {
+            const name = child.name;
+            if (name.includes('eye') || name.includes('Eye')) {
+              child.material = eyeMaterial;
+            } else if (name.includes('BRANCHS') || name.includes('leaf') || name.includes('branch')) {
+              child.material = leafMaterial;
+            } else {
+              child.material = bodyMaterial;
+            }
+          }
         });
-        if (leafMaterial) {
-          gsap.killTweensOf(leafMaterial.color);
-          gsap.to(leafMaterial.color, {
-            r: new THREE.Color(0x28344c).r,
-            g: new THREE.Color(0x28344c).g,
-            b: new THREE.Color(0x28344c).b,
-            duration: 0.6,
-            ease: "power2.out"
-          });
-        }
-      } else {
-        bodyMaterial.color.setHex(heroHex);
-        if (leafMaterial) leafMaterial.color.setHex(0x28344c);
       }
     }
   };

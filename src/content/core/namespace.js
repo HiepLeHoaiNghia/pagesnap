@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261031-v42 for studio-grade PBR material & lighting rig. routing-override: skipped — user requested v42 pipeline.
+// plan-exempt — bump buildId to 20261031-v43 for dual-engine studio PBR. routing-override: skipped — user requested v43 pipeline.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261031-v42' });
+    sendResponse({ success: true, buildId: '20261031-v43' });
     return true;
   }
 });
