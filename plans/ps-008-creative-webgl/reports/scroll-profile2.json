@@ -1,0 +1,75 @@
+Continuous profiling completed:
+[
+  {
+    "scrollY": 0,
+    "uniforms": {
+      "matcapTransition": 1,
+      "matcapNumber": 0.1,
+      "matcapPerRow": 10,
+      "firstMatcapIdx": 19,
+      "secondMatcapIdx": 1,
+      "firstNormalScale": 1,
+      "secondNormalScale": 1,
+      "firstDiffuseWeight": 0,
+      "secondDiffuseWeight": 0.52,
+      "firstSpecularWeight": 0,
+      "secondSpecularWeight": 0.52,
+      "specularAttenuation": 0.48,
+      "opacity": 0.26171875
+    }
+  },
+  {
+    "scrollY": 600,
+    "uniforms": {
+      "matcapTransition": 1,
+      "matcapNumber": 0.1,
+      "matcapPerRow": 10,
+      "firstMatcapIdx": 19,
+      "secondMatcapIdx": 1,
+      "firstNormalScale": 1,
+      "secondNormalScale": 1,
+      "firstDiffuseWeight": 0,
+      "secondDiffuseWeight": 0.52,
+      "firstSpecularWeight": 0,
+      "secondSpecularWeight": 0.52,
+      "specularAttenuation": 0.48,
+      "opacity": 0.26171875
+    }
+  },
+  {
+    "scrollY": 1400,
+    "uniforms": {
+      "matcapTransition": 1,
+      "matcapNumber": 0.1,
+      "matcapPerRow": 10,
+      "firstMatcapIdx": 19,
+      "secondMatcapIdx": 1,
+      "firstNormalScale": 1,
+      "secondNormalScale": 1,
+      "firstDiffuseWeight": 0,
+      "secondDiffuseWeight": 0.52,
+      "firstSpecularWeight": 0,
+      "secondSpecularWeight": 0.52,
+      "specularAttenuation": 0.48,
+      "opacity": 0.26171875
+    }
+  },
+  {
+    "scrollY": 2400,
+    "uniforms": {
+      "matcapTransition": 1,
+      "matcapNumber": 0.1,
+      "matcapPerRow": 10,
+      "firstMatcapIdx": 19,
+      "secondMatcapIdx": 1,
+      "firstNormalScale": 1,
+      "secondNormalScale": 1,
+      "firstDiffuseWeight": 0,
+      "secondDiffuseWeight": 0.52,
+      "firstSpecularWeight": 0,
+      "secondSpecularWeight": 0.52,
+      "specularAttenuation": 0.48,
+      "opacity": 0.26171875
+    }
+  }
+]

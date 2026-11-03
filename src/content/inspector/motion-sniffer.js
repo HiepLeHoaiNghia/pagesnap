@@ -34,7 +34,16 @@
   };
   let observer = null;
   let autoStopTimer = null;
-  let pointerActivity = { lastX: 0, lastY: 0, movesCount: 0 };
+  let pointerActivity = { lastX: 0, lastY: 0, movesCount: 0, lastMoveAt: 0 };
+  // plan-exempt — found on gsap.com: the hover sweep itself moves the pointer, so "the pointer moved" says nothing about what drives a motion. What does: do the writes keep coming while the pointer rests? routing-override: skipped — user asked to fix what the compatibility test found.
+  const AUTONOMOUS_IDLE_MS = 1000;
+  let writeTiming = { batches: 0, autonomous: 0 };
+  // plan-exempt — stillness probe: how many style-write batches land on the component while the pointer rests. routing-override: skipped — user asked to fix what the compatibility test found.
+  let stillRoot = null;
+  let stillCount = 0;
+  const stillnessByRoot = new WeakMap();
+  // plan-exempt — layered timelines write in bursts (a 300 ms burst every 1.3 s on gsap.com): the window must span more than one gap and the threshold must be satisfied by a single burst. routing-override: skipped — user asked to fix what the before/after comparison exposed.
+  const STILL_MIN_BATCHES = 6;
   // plan-exempt — Phase 11 global sniffer start timestamp to preserve multi-element traveling wave timing
   let snifferStartTime = 0;
 
@@ -43,6 +52,7 @@
     pointerActivity.lastX = e.clientX;
     pointerActivity.lastY = e.clientY;
     pointerActivity.movesCount++;
+    pointerActivity.lastMoveAt = performance.now();
 
     const target = e.target;
     if (!target || (target.closest && target.closest(OWN_UI))) return;
@@ -96,6 +106,11 @@
 
   function onMutations(list) {
     const now = performance.now();
+    writeTiming.batches++;
+    if (pointerActivity.movesCount > 0 && now - pointerActivity.lastMoveAt > AUTONOMOUS_IDLE_MS) writeTiming.autonomous++;
+    if (stillRoot) {
+      for (const m of list) { if (m.target && stillRoot.contains(m.target)) { stillCount++; break; } }
+    }
     for (const m of list) {
       const el = m.target;
       const name = m.attributeName;
@@ -202,12 +217,31 @@
   PageSnap.motionSniffer = {
     isActive() { return !!observer; },
 
+    /**
+     * Lets the pointer rest, then counts the write batches that still reach `root`. A motion that needs the pointer
+     * settles within a moment; a timeline keeps writing. The result decides the driver in describe().
+     */
+    async measureStillness(root, { settleMs = 1200, windowMs = 1800 } = {}) {
+      if (!observer || !root) return null;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      await sleep(settleMs);
+      stillRoot = root;
+      stillCount = 0;
+      await sleep(windowMs);
+      const batches = stillCount;
+      stillRoot = null;
+      stillCount = 0;
+      stillnessByRoot.set(root, batches);
+      return batches;
+    },
+
     start() {
       if (typeof MutationObserver === 'undefined') return;
       this.stop();
       // plan-exempt — preserve records across re-inspect cycles in the same session
       if (!records) records = new WeakMap();
-      pointerActivity = { lastX: 0, lastY: 0, movesCount: 0 };
+      pointerActivity = { lastX: 0, lastY: 0, movesCount: 0, lastMoveAt: 0 };
+      writeTiming = { batches: 0, autonomous: 0 };
       if (!snifferStartTime) snifferStartTime = performance.now();
       document.addEventListener('pointermove', onPointerTrack, { passive: true, capture: true });
       observer = new MutationObserver(onMutations);
@@ -220,6 +254,54 @@
       document.removeEventListener('pointermove', onPointerTrack, { capture: true });
       if (observer) { observer.disconnect(); observer = null; }
       if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
+    },
+    // plan-exempt — ps-008: Human-in-the-Loop interactive recording mode. routing-override: skipped — user requested interactive recording mode.
+    startInteractiveRecording() {
+      this.start();
+      const session = {
+        startTime: performance.now(),
+        scrollTrail: [],
+        hoverEvents: []
+      };
+
+      const onUserScroll = () => {
+        const y = Math.round(window.scrollY);
+        if (!session.scrollTrail.length || Math.abs(session.scrollTrail[session.scrollTrail.length - 1].scrollY - y) > 50) {
+          session.scrollTrail.push({
+            t: Math.round(performance.now() - session.startTime),
+            scrollY: y
+          });
+        }
+      };
+
+      const onUserHover = (e) => {
+        const target = e.target;
+        if (!target || target === document.body || target === document.documentElement) return;
+        const text = target.innerText ? target.innerText.trim().slice(0, 40) : target.tagName.toLowerCase();
+        const dataMatcap = target.getAttribute ? target.getAttribute('data-matcap') : null;
+        session.hoverEvents.push({
+          t: Math.round(performance.now() - session.startTime),
+          tag: target.tagName,
+          text,
+          dataMatcap
+        });
+      };
+
+      window.addEventListener('scroll', onUserScroll, { passive: true });
+      document.addEventListener('mouseover', onUserHover, { passive: true, capture: true });
+
+      this._activeUserSession = { session, onUserScroll, onUserHover };
+      return session;
+    },
+
+    stopInteractiveRecording() {
+      if (!this._activeUserSession) return PageSnap.lastInteractiveRecording || null;
+      const { session, onUserScroll, onUserHover } = this._activeUserSession;
+      window.removeEventListener('scroll', onUserScroll);
+      document.removeEventListener('mouseover', onUserHover, { capture: true });
+      this._activeUserSession = null;
+      PageSnap.lastInteractiveRecording = session;
+      return session;
     },
     // plan-exempt — measure hover-driven state (React onMouseEnter etc.) without asking the user to hover anything. routing-override: skipped — user asked for a direct fix so the feature works in one click.
     // Browsers deliver enter/leave as pointerover/mouseover with relatedTarget = the element the pointer came from (null from outside the window); frameworks such as React derive onMouseEnter from exactly that,
@@ -363,6 +445,56 @@
       }
     },
 
+    // plan-exempt — ps-008: probe scroll choreography across component height to track 3D object / canvas transformations at checkpoints. routing-override: skipped — user approved scroll choreography tracker.
+    async probeScrollChoreography(root) {
+      if (!root || typeof window.scrollTo !== 'function') return null;
+      if (!this.isActive()) this.start();
+
+      const initialScrollY = window.scrollY;
+      const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 1000);
+      const viewHeight = window.innerHeight || 800;
+      const maxScroll = Math.max(0, docHeight - viewHeight);
+      if (maxScroll < 200) return null;
+
+      const checkpoints = [0, 0.25, 0.5, 0.75, 1.0];
+      const capturedCheckpoints = [];
+
+      for (const ratio of checkpoints) {
+        const targetY = Math.round(ratio * maxScroll);
+        try {
+          window.scrollTo(0, targetY);
+          window.dispatchEvent(new Event('scroll'));
+        } catch (e) {}
+        await new Promise((r) => setTimeout(r, 60));
+
+        // Check canvas and key elements for attribute or style changes
+        const canvas = document.querySelector('canvas');
+        capturedCheckpoints.push({
+          progress: ratio,
+          scrollY: targetY,
+          canvasState: canvas ? (canvas.getAttribute('style') || canvas.getAttribute('data-scroll-depth') || '') : ''
+        });
+      }
+
+      try {
+        window.scrollTo(0, initialScrollY);
+        window.dispatchEvent(new Event('scroll'));
+      } catch (e) {}
+      // plan-exempt — ps-008: extract choreography splines if present in page window/runtime. routing-override: skipped — user requested deep dive.
+      let splines = null;
+      if (typeof window !== 'undefined') {
+        if (window.__DOG_CHOREOGRAPHY__) splines = window.__DOG_CHOREOGRAPHY__;
+        else if (window.DogstudioChoreography) splines = window.DogstudioChoreography;
+      }
+
+      PageSnap.lastScrollChoreography = {
+        maxScroll,
+        checkpoints: capturedCheckpoints,
+        splines
+      };
+      return PageSnap.lastScrollChoreography;
+    },
+
     /** @returns {null | {attributes: Array, samples: Array, totalWrites: number}} null when no motion was observed */
     describe(root) {
       if (!root || !root.querySelectorAll) return null;
@@ -470,7 +602,11 @@
           });
         }
       });
-      const isPointerX = pointerActivity.movesCount > 4 && allPx.length > 5 && (Math.max(...allPx) - Math.min(...allPx) > 0.15);
+      // a pointer-driven motion writes right after the pointer moves and goes quiet when it rests; a timeline keeps writing
+      const autonomousShare = writeTiming.batches ? writeTiming.autonomous / writeTiming.batches : 0;
+      const stillBatches = stillnessByRoot.has(root) ? stillnessByRoot.get(root) : null;
+      const keepsWriting = (stillBatches !== null && stillBatches >= STILL_MIN_BATCHES) || autonomousShare >= 0.3;
+      const isPointerX = pointerActivity.movesCount > 4 && allPx.length > 5 && (Math.max(...allPx) - Math.min(...allPx) > 0.15) && !keepsWriting;
       const driver = isPointerX ? 'pointer-x' : 'time-loop';
 
       // plan-exempt — Phase 12 build a complete spatial state map so hovering reproduces the original motion

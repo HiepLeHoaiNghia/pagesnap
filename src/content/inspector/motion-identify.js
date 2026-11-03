@@ -789,6 +789,12 @@
     try {
       say(0, 'hover sweep, then spring fit · about 40 s');
       await sniffer.sweepHover(root, { ctrl, onProgress: (p) => say((30 * (p.done + 1)) / Math.max(1, p.total), 'hover sweep, then spring fit · about 40 s') });
+      // plan-exempt — found on gsap.com: the sweep moves the pointer, so a timeline looked pointer-driven. Before trusting "pointer-x", let the pointer rest and see whether the component keeps writing. routing-override: skipped — user asked to fix what the compatibility test found.
+      const suspected = sniffer.describe(root);
+      if (suspected && suspected.driver === 'pointer-x' && typeof sniffer.measureStillness === 'function' && !ctrl.cancelled) {
+        say(30, 'checking whether the motion follows the pointer');
+        await sniffer.measureStillness(root);
+      }
       const motion = sniffer.describe(root);
       if (o.analyze && motion && motion.driver === 'pointer-x' && !models.get(root) && !ctrl.cancelled) {
         try {

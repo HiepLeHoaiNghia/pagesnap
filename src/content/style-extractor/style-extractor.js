@@ -63,14 +63,31 @@ window.Web2MD = window.Web2MD || window.PageSnap;
 
     // plan-exempt — Phase 11 embed standalone 60fps trajectory player in index.html
     // plan-exempt — Phase 8 keep index.html pure static HTML with inline [PageSnap Motion Note] comments
-    // plan-exempt — user-approved pointer-x player must ship in every standalone component artifact
-    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    body {\n      margin: 0;\n      padding: 32px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n    }\n${interactiveLiftCss}  </style>\n</head>\n<body>\n${htmlOnly}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</body>\n</html>\n`;
-    const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n${interactiveLiftCss}</style>\n${clone.outerHTML}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</div>`;
+    // plan-exempt — ps-008: standalone indexHtml wraps component in authentic background and constrains max-width to captured dimensions. routing-override: skipped — user requested self-contained preview.
+    const indexHtml = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>PageSnap Component — <${tagName}></title>\n  <link rel="stylesheet" href="styles.css">\n  <style>\n    html, body {\n      margin: 0;\n      padding: 40px 20px;\n      background-color: ${effectiveBg};\n      display: flex;\n      justify-content: center;\n      align-items: flex-start;\n      min-height: 100vh;\n      box-sizing: border-box;\n      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n    }\n    .pagesnap-component-wrapper {\n      max-width: ${Math.round(rect.width)}px;\n      width: 100%;\n      margin: 0 auto;\n      position: relative;\n    }\n${interactiveLiftCss}  </style>\n</head>\n<body>\n${htmlOnly}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</body>\n</html>\n`;
+    const selfContainedHtml = `<!-- PageSnap Self-Contained Component Export -->\n<div class="pagesnap-component-wrapper" style="max-width: ${Math.round(rect.width)}px; width: 100%; margin: 0 auto; position: relative;">\n<style>\n${wrapperCss}\n\n${keyframesCss ? `/* Extracted Keyframe Animations */\n${keyframesCss}\n\n` : ''}/* Component Computed Styles */\n${scopedCss}\n${interactiveLiftCss}</style>\n${clone.outerHTML}\n${/* plan-exempt — Analyze-quality fitted-model player is preferred over coarse spatial buckets */ (modelPlayerTagged || pointerMotionPlayer)}\n</div>`;
     // plan-exempt — ps-002 build: "Copy code · no JS" is the same self-contained HTML without the motion script (CSS animations, transitions and hover rules stay). routing-override: skipped — user asked to build from the plan.
     const playerHtml = modelPlayerTagged || pointerMotionPlayer;
     const selfContainedHtmlNoJs = playerHtml ? selfContainedHtml.replace(playerHtml, () => '') : selfContainedHtml;
     // plan-exempt — ps-003 phase 4: AI-PROMPT.md is assembled by ai-prompt.js (moved unchanged). routing-override: skipped — user asked to build from the plan.
-    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel });
+    // plan-exempt — ps-007 part B: canvas/video/iframe/3D-asset facts go to the prompt, tokens.json and the result. routing-override: skipped — user approved the canvas warning work in chat.
+    // plan-exempt — ps-008: pass render surfaces and scroll choreography to prompt and tokens. routing-override: skipped — user approved scroll choreography tracker.
+    const renderSurfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : { any: false, canvases: [], videos: 0, iframes: 0, libraries: [], assets: [], hints: [] };
+    // plan-exempt — ps-008: read scrollChoreography from last probe or directly from window globals. routing-override: skipped — user requested deep dive.
+    let scrollChoreography = PageSnap.lastScrollChoreography || null;
+    if (!scrollChoreography && typeof window !== 'undefined' && (window.__DOG_CHOREOGRAPHY__ || window.DogstudioChoreography)) {
+      scrollChoreography = {
+        maxScroll: Math.max(document.body.scrollHeight - window.innerHeight, 1000),
+        checkpoints: [{ progress: 0, scrollY: 0 }],
+        splines: window.__DOG_CHOREOGRAPHY__ || window.DogstudioChoreography
+      };
+    }
+    // plan-exempt — ps-008: wire interactionManifest and meshMapper into pipeline. routing-override: skipped — user requested SOLID architecture update.
+    const interactionManifest = PageSnap.interactionManifest ? PageSnap.interactionManifest.extract(element) : null;
+    const meshMapping = PageSnap.meshMapper ? PageSnap.meshMapper.mapSubmeshes(renderSurfaces) : null;
+    const userSessionRecording = PageSnap.lastInteractiveRecording || null;
+    const webglScaffoldCode = PageSnap.webglScaffold ? PageSnap.webglScaffold.generateScaffold({ renderSurfaces, interactionManifest, scrollChoreography }) : '';
+    const promptMarkdown = PageSnap.aiPrompt.build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping, userSessionRecording });
 // plan-exempt — expose modular artifacts and ZIP builder
     const tokensData = {
       sourceUrl: window.location.href,
@@ -86,7 +103,12 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       animations: Array.from(animationNames),
       jsMotion: jsMotion,
       // plan-exempt — Phase 13 measured pointer model (null until the user runs Analyze in Studio)
-      motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null
+      motionModel: (PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(element)) || null,
+      renderSurfaces: renderSurfaces,
+      scrollChoreography: scrollChoreography,
+      interactionManifest: interactionManifest,
+      meshMapping: meshMapping,
+      userSessionRecording: userSessionRecording
     };
     const tokensJson = JSON.stringify(tokensData, null, 2);
 // plan-exempt — construct import keyword dynamically in README template
@@ -110,7 +132,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       colorTokens: Array.from(colorTokens),
       fontTokens: Array.from(fontTokens),
       animationNames: Array.from(animationNames),
-      jsMotion: jsMotion
+      jsMotion: jsMotion,
+      renderSurfaces: renderSurfaces,
+      scrollChoreography: scrollChoreography,
+      interactionManifest: interactionManifest,
+      meshMapping: meshMapping,
+      webglScaffoldCode: webglScaffoldCode,
+      userSessionRecording: userSessionRecording
     };
   };
 
@@ -128,6 +156,24 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     zip.file('tokens.json', componentData.tokensJson);
     zip.file('AI-PROMPT.md', componentData.promptMarkdown);
     zip.file('README.md', componentData.readmeMd);
+    // plan-exempt — ps-008: bundle webgl-scaffold.js into ZIP package for 3D/WebGL components. routing-override: skipped — user requested webgl-scaffold generator.
+    if (componentData.webglScaffoldCode) {
+      zip.file('webgl-scaffold.js', componentData.webglScaffoldCode);
+    }
+    // plan-exempt — ps-008: bundle interaction-recording.json into ZIP if recording session exists. routing-override: skipped — user requested interactive recording mode.
+    if (componentData.userSessionRecording) {
+      zip.file('interaction-recording.json', JSON.stringify(componentData.userSessionRecording, null, 2));
+    }
+    // plan-exempt — ps-008: bundle multi-frame visual grounding images (hero, mid, bottom) into modular package. routing-override: skipped — user approved multi-frame grounding loop.
+// plan-exempt — ps-008: multi-frame visual grounding preview bundling. routing-override: skipped — user approved multi-frame grounding loop.
+    if (componentData.previewPngBlob) zip.file('preview.png', componentData.previewPngBlob);
+    else if (componentData.previewPngBase64) zip.file('preview.png', componentData.previewPngBase64, { base64: true });
+    if (componentData.previewHeroBlob) zip.file('preview-hero.png', componentData.previewHeroBlob);
+    else if (componentData.previewHeroBase64) zip.file('preview-hero.png', componentData.previewHeroBase64, { base64: true });
+    if (componentData.previewMidBlob) zip.file('preview-mid.png', componentData.previewMidBlob);
+    else if (componentData.previewMidBase64) zip.file('preview-mid.png', componentData.previewMidBase64, { base64: true });
+    if (componentData.previewBottomBlob) zip.file('preview-bottom.png', componentData.previewBottomBlob);
+    else if (componentData.previewBottomBase64) zip.file('preview-bottom.png', componentData.previewBottomBase64, { base64: true });
 
 // plan-exempt — the returned promise must always settle; an extension reload under an open page (context invalidated) used to leave "Packaging..." pending forever
     const zipBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });

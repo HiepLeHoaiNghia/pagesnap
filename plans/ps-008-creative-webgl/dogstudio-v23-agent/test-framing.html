@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; background: #090a0f; overflow: hidden; }
+    canvas { width: 100vw; height: 100vh; display: block; position: absolute; top:0; left:0; }
+    .bg { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; opacity: 0.85; pointer-events: none; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+  <img src="/assets/background-xl.png" class="bg">
+  <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1500 / 1190, 0.1, 1000);
+    camera.position.set(0.2, 1.6, 22.0);
+    camera.lookAt(1.1, 1.8, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(1500, 1190);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 10, 10);
+    scene.add(dirLight);
+
+    const loader = new THREE.GLTFLoader();
+    const draco = new THREE.DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+    loader.setDRACOLoader(draco);
+
+    let wolfPivot = new THREE.Group();
+    scene.add(wolfPivot);
+
+    loader.load('/assets/dog.drc.glb', (gltf) => {
+      // First center the gltf scene at origin
+      const box = new THREE.Box3().setFromObject(gltf.scene);
+      const center = box.getCenter(new THREE.Vector3());
+      gltf.scene.position.sub(center);
+
+      wolfPivot.add(gltf.scene);
+      
+      window.renderPose = (scale, posX, posY, rotYDeg) => {
+        wolfPivot.scale.set(scale, scale, scale);
+        wolfPivot.position.set(posX, posY, 0);
+        wolfPivot.rotation.y = rotYDeg * Math.PI / 180;
+        renderer.render(scene, camera);
+      };
+
+      window.ready = true;
+    });
+  </script>
+</body>
+</html>

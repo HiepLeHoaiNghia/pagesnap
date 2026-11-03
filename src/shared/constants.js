@@ -52,6 +52,14 @@ export const CONTENT_BUNDLE = [
   'src/content/markdown/extractor.js',
 // plan-exempt — ps-003 phases 3-4: the extractor is a thin facade over these modules (markup, style collection, AI prompt, pointer player, measured lift model); they must load before it. routing-override: skipped — user asked to build from the plan.
   'src/content/style-extractor/markup-export.js',
+  'src/content/style-extractor/authored-css.js',
+// plan-exempt — ps-007 part B: render-surface detection must load before the extractor and prompt builder that use it. routing-override: skipped — user approved the canvas warning work in chat.
+  'src/content/style-extractor/render-surfaces.js',
+// plan-exempt — ps-008: register interaction-manifest.js and mesh-mapper.js following SOLID pipeline. routing-override: skipped — user requested SOLID architecture update.
+  'src/content/style-extractor/interaction-manifest.js',
+  'src/content/style-extractor/mesh-mapper.js',
+// plan-exempt — ps-008: register webgl-scaffold.js following SOLID pipeline. routing-override: skipped — user requested webgl-scaffold generator.
+  'src/content/style-extractor/webgl-scaffold.js',
   'src/content/style-extractor/style-collect.js',
   'src/content/style-extractor/ai-prompt.js',
   'src/content/style-extractor/pointer-player.js',

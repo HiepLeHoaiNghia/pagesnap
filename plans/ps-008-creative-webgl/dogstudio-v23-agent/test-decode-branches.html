@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <canvas id="c" width="1024" height="1024"></canvas>
+  <script>
+    async function decode(url) {
+      const resp = await fetch(url);
+      const buf = await resp.arrayBuffer();
+      const u8 = new Uint8Array(buf);
+      
+      const gl = document.getElementById('c').getContext('webgl');
+      const ext = gl.getExtension('WEBGL_compressed_texture_astc');
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.compressedTexImage2D(gl.TEXTURE_2D, 0, ext.COMPRESSED_RGBA_ASTC_8x8_KHR, 1024, 1024, 0, u8.subarray(16));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      
+      const vs = `
+        attribute vec2 position;
+        varying vec2 uv;
+        void main() {
+          uv = position * 0.5 + 0.5;
+          uv.y = 1.0 - uv.y;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+      const fs = `
+        precision mediump float;
+        varying vec2 uv;
+        uniform sampler2D tex;
+        void main() {
+          gl_FragColor = texture2D(tex, uv);
+        }
+      `;
+      const prog = gl.createProgram();
+      const shVs = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(shVs, vs); gl.compileShader(shVs); gl.attachShader(prog, shVs);
+      const shFs = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(shFs, fs); gl.compileShader(shFs); gl.attachShader(prog, shFs);
+      gl.linkProgram(prog); gl.useProgram(prog);
+      
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, 'position');
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+    window.decode = decode;
+  </script>
+</body>
+</html>

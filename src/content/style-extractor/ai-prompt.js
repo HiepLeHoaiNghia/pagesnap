@@ -9,16 +9,75 @@
   'use strict';
 
   /** @returns {string} the markdown document */
-  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel }) {
+  // plan-exempt — ps-008: support userSessionRecording in AI prompt. routing-override: skipped — user requested interactive recording mode.
+  function build({ element, tagName, rect, rootComputed, colorTokens, fontTokens, keyframesCss, jsMotion, identifiedModel, renderSurfaces, scrollChoreography, interactionManifest, meshMapping, userSessionRecording }) {
     // ─── Generate Markdown AI Prompt ──────────────────────────────────────────
     // plan-exempt — Phase 13 measured pointer-system section (identifiedModel is resolved next to the motion player above)
     const identifiedMd = (identifiedModel && PageSnap.motionIdentify.describeModel(identifiedModel)) || '';
+    // plan-exempt — ps-007 part B: a "Render surfaces" section when the region is partly drawn outside HTML/CSS. routing-override: skipped — user approved the canvas warning work in chat.
+    const renderSurfacesMd = (PageSnap.renderSurfaces && PageSnap.renderSurfaces.promptSection(renderSurfaces)) || '';
+    const manifestMd = (PageSnap.interactionManifest && PageSnap.interactionManifest.promptSection(interactionManifest)) || '';
+    const meshMappingMd = (PageSnap.meshMapper && PageSnap.meshMapper.promptSection(meshMapping)) || '';
+    const userRecordingMd = userSessionRecording && (userSessionRecording.scrollTrail.length || userSessionRecording.hoverEvents.length)
+      ? [
+          '### Empirical Human Interaction Log (Recorded Live Session)',
+          `During the live inspection session, real user interactions were recorded:`,
+          `- **Scroll Trail (${userSessionRecording.scrollTrail.length} samples):** Max scroll reached: ${Math.max(...userSessionRecording.scrollTrail.map(s => s.scrollY), 0)}px`,
+          `- **Hover Events (${userSessionRecording.hoverEvents.length} events):** ${userSessionRecording.hoverEvents.map(h => `\`${h.text}\`${h.dataMatcap ? ` (matcap: ${h.dataMatcap})` : ''}`).join(', ')}`,
+          '> **Note for AI:** Use \`interaction-recording.json\` to calibrate real user-triggered state transitions.'
+        ].join('\n')
+      : '';
+// plan-exempt — ps-008: clean duplicate declaration. routing-override: skipped — user requested SOLID architecture update.
+    // plan-exempt — ps-008: add scroll choreography section if tracked with multi-pose rotation guidance. routing-override: skipped — user approved multi-frame grounding loop.
+    const scrollChoreoMd = scrollChoreography && scrollChoreography.checkpoints && scrollChoreography.checkpoints.length
+      ? [
+          '### Scroll Choreography & Multi-Pose State Checkpoints (Observed)',
+          `Max scroll range: ${scrollChoreography.maxScroll}px across ${scrollChoreography.checkpoints.length} checkpoints:`,
+          ...scrollChoreography.checkpoints.map(c => `- **At ${Math.round(c.progress * 100)}% (${c.scrollY}px):** ${c.canvasState ? `Canvas state: \`${c.canvasState}\`` : 'Scroll checkpoint recorded'}`),
+          '> **Choreography Rules for AI:**',
+          '> 1. Connect 3D Camera depth/FOV and object rotation to `window.scrollY`.',
+          '> 2. At bottom scroll (100%), the 3D model rotates ~180 degrees showing its back, matching `preview-bottom.png`.',
+          '> 3. At middle scroll (40-60%), the model recedes and slides left/right to yield room for content, matching `preview-mid.png`.',
+          ...(scrollChoreography.splines
+            ? [
+                '',
+                '#### Exact Choreography Spline Poses (Observed):',
+                '```json',
+                JSON.stringify(scrollChoreography.splines, null, 2),
+                '```',
+                '> **Note for AI:** Interpolate `camera.position.z` using `DEPTH`, `object.rotation.y` using `V_ROTATION` (deg), and `x/y` offsets matching this exact spline curve.'
+              ]
+            : [])
+        ].join('\n')
+      : '';
+// plan-exempt — ps-008: clean duplicate matcapElements lines. routing-override: skipped — user requested cross-layer hover and color shift loop.
+    // plan-exempt — ps-008: cross-layer 3D hover bridge with Controller Blueprint. routing-override: skipped — user requested cross-layer hover and color shift loop.
+    const matcapElements = Array.from(element.querySelectorAll('[data-matcap]')).slice(0, 10);
+    const crossLayerHoverMd = matcapElements.length > 0
+      ? [
+          '### Cross-Layer 3D Hover Binding & Controller Blueprint',
+          'The page links DOM hover events to 3D model color/texture changes AND background artwork reveals:',
+          ...matcapElements.map(el => `- **Element \`${el.innerText.trim().slice(0, 40) || el.tagName}\`:** \`data-matcap="${el.getAttribute('data-matcap')}"\``),
+          '',
+          '```javascript',
+          '// Controller Blueprint for AI:',
+          'link.addEventListener("mouseenter", () => {',
+          '  // 1. Reveal associated artwork scene layer',
+          '  document.querySelectorAll(".home-cases-scene").forEach(s => s.classList.remove("is-visible"));',
+          '  const targetScene = document.querySelector(`.home-cases-scene--${theme}`);',
+          '  if (targetScene) targetScene.classList.add("is-visible");',
+          '  // 2. Smoothly transition 3D matcap material to target slot',
+          '  transitionMatcap(targetSlot);',
+          '});',
+          '```'
+        ].join('\n')
+      : '';
     const mdSafe = (s) => String(s).replace(/`/g, "'");
     const jsMotionMd = jsMotion
       ? [
           '### JavaScript-driven motion (observed)',
           // plan-exempt — Phase 12 driver-aware interactive motion spec in AI-PROMPT.md
-          ...(jsMotion.driver ? [`- **Interactive Driver:** \`${jsMotion.driver}\` (${jsMotion.driver.startsWith('pointer') ? 'Pointer-Reactive: coordinates across component bounding box scrub the wave' : 'Autonomous Time-Loop'})`] : []),
+          ...(jsMotion.driver ? [`- **Interactive Driver:** \`${jsMotion.driver}\` (${jsMotion.driver.startsWith('pointer') ? 'Pointer-Reactive: coordinates across component bounding box scrub the wave' : 'Autonomous Time-Loop: runs on its own, not tied to the pointer. The exported HTML shows the first frame only; rebuild the timeline from the states and cadence listed below'})`] : []),
           // plan-exempt — Phase 12 advertise the complete spatial state map for pointer-driven reconstruction
           ...(jsMotion.spatialMap && jsMotion.spatialMap.length
             ? [`- **Spatial State Map:** ${jsMotion.spatialMap.length} pointer buckets in \`tokens.json\` (\`jsMotion.spatialMap\`), each holding every animated path at that cursor X. Scrub this map from \`pointermove\` instead of replaying a fixed timeline.`]
@@ -98,6 +157,10 @@ ${jsMotionMd}
 
 ${identifiedMd}
 
+${renderSurfacesMd}
+
+${scrollChoreoMd}
+
 ---
 
 ## 4. Original HTML Markup
@@ -105,20 +168,39 @@ ${identifiedMd}
 ${element.outerHTML}
 \`\`\`
 
+${renderSurfacesMd}
+
+${scrollChoreoMd}
+
+${manifestMd}
+
+${meshMappingMd}
+
+${crossLayerHoverMd}
+
+${userRecordingMd}
 ---
 ## 5. Instruction for AI Agent (Implementation Blueprint for Cursor / Claude / v0)
 \`\`\`
-You are a senior Frontend Engineer specializing in Tailwind CSS and Framer Motion.
-Recreate this component cleanly and faithfully based on the design tokens, layout, and motion specifications above.
-- Framework: React (TypeScript)
-- Styling: Tailwind CSS
-- Animation: Framer Motion (matching the keyframes/transitions above)
-- Produce clean, modern, accessible, and responsive component code.
-
+// plan-exempt — ps-008: clean architectural prompt preserving natural CSS typography, studio PBR lighting, and background artwork reveal. routing-override: skipped — user requested clean prompt.
+You are a senior Creative WebGL & Frontend Engineer specializing in Three.js, Tailwind CSS, and Framer Motion.
+- 3-Layer Stacking Architecture (CRITICAL): Structure the page cleanly into 3 distinct functional layers:
+  1. Background Artwork Layer (\\\`#case-art-layer\\\` at \\\`z-index: 0\\\`, full viewport fixed, opacity transition 0.5s ease, background-size cover).
+  2. 3D WebGL Canvas Layer (\\\`#canvas-container\\\` at \\\`z-index: 1\\\`, full viewport fixed, pointer-events: none, transparent renderer).
+  3. DOM Interactive UI Layer (\\\`.pagesnap-component-wrapper\\\` or \\\`#dom-wrapper\\\` at \\\`z-index: 2\\\` with \\\`background: transparent !important\\\` so 3D canvas is visible).
+// plan-exempt — ps-008: clean flex column title and flex row words typography. routing-override: skipped — user requested clean typography.
+- Hero Title Typography: Ensure \\\`.home-hero-title\\\` has \\\`display: flex !important; flex-direction: column !important; width: 269px !important; line-height: 107px !important\\\` and \\\`.home-hero-title .fx-word\\\` has \\\`display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; width: auto !important; height: 107px !important\\\` with \\\`.home-hero-title .fx-letter\\\` having \\\`display: inline-block !important; opacity: 1 !important; visibility: visible !important; color: #ffffff !important\\\` and \\\`.home-hero-title, .home-hero-title * { transform: none !important; }\\\` so words and letters stack vertically into 4 elegant lines ("We", "Make", "Good", "Shit") matching the original live site!
+- WebGL / Three.js Scaffold: A complete pre-configured \\\`webgl-scaffold.js\\\` is included with automatic 3D Box3 bounding-box camera framing (FOV 35, camera at \\\`(0.15, 1.35, 16.5)\\\`, looking at \\\`(0.95, 1.45, 0)\\\`), 3-point studio lighting rig (ambient + key + rim lights), DRACO/GLTF loaders, and dual-engine PBR / matcap architecture. Integrate \\\`webgl-scaffold.js\\\` directly.
+- 3-Point Lighting Rig (CRITICAL): The scene includes ambient light (0x405575, 0.75), key directional light (0xa5b4fc, 0.95), and electric rim light (0x0284c7, 1.4) catching the model's spine and silhouette against the dark background.
+// plan-exempt — ps-008: dual-engine material architecture with diffuse retention on slot materials and X_OFFSET tracking. routing-override: skipped — user requested accurate case colors.
+  * Hero resting state: Studio-grade MeshStandardMaterial with \\\`map: dogDiffuse\\\`, authentic indigo tone (\\\`0x384c6c\\\`), roughness 0.55, metalness 0.2.
+  * Dedicated eye material with authentic pupil texture (\\\`flipY = true\\\`).
+  * Hover states: \\\`PageSnapWebGLController.setMatcapSlot(slot)\\\` swaps to slot matcaps. Case materials (Slot 7, 8, 11) retain \\\`map: dogDiffuse\\\` to maintain deep dark navy and purple body fur tones with specular highlights, while Tomorrowland (Slot 18) sets \\\`map: null\\\` for 100% pure gold chrome!
+- Background Artwork Reveal on Hover:
+  * Hovering case items reveals their artwork on \\\`#case-art-layer\\\` (e.g. Louise's Phone reveals \\\`background-1440.png\\\`, Tomorrowland reveals its background).
+  * Active hovered link turns bright white (\\\`color: #ffffff !important; opacity: 1 !important\\\`) while other links dim to \\\`opacity: 0.18\\\`.
+- Scroll Choreography (CRITICAL): Connect 3D model transforms to scroll progress using \\\`DEPTH_CURVE\\\`, \\\`V_ROT_CURVE\\\` (yaw), \\\`H_ROT_CURVE\\\` (pitch), and \\\`X_OFFSET_CURVE\\\` so the model shifts smoothly from right (Hero) to left (Cases) and stays large, prominent, and perfectly framed throughout the page!
 ### Suggested Framer Motion Patterns:
-1. For continuous SVG Path Morphing:
-\`\`\`tsx
-import { motion } from 'framer-motion';
 
 export function MorphingSvgPath({ initialD, targetD }: { initialD: string, targetD: string }) {
   return (

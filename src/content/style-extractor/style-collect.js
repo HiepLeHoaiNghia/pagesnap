@@ -29,8 +29,25 @@
     'backdrop-filter', '-webkit-backdrop-filter',
     'transform', 'transform-origin', 'transition',
     'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay', 'animation-iteration-count',
-    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin'
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
+    // plan-exempt — ps-006: found on a real clone (cursor.com): link underlines, list bullets, italics, nowrap, object-fit and cursor were never captured, and a computed "none" was dropped so the browser default came back. routing-override: skipped — user asked to see a real clone and fix what shows.
+    'text-decoration-line', 'list-style-type', 'list-style-position', 'font-style', 'white-space', 'text-transform', 'text-overflow',
+    'text-indent', 'vertical-align', 'object-fit', 'object-position', 'aspect-ratio', 'filter', 'mix-blend-mode', 'clip-path',
+    'cursor', 'pointer-events', 'overflow-wrap', 'word-break'
   ];
+
+  // A computed "none"/"normal" says something only where the browser default is different: a link is underlined, a list has
+  // bullets, <em> is italic, <pre> keeps its spaces. Elsewhere it is noise and is left out.
+  const NEUTRAL_MATTERS_ON = {
+    'text-decoration-line': ['A', 'U', 'INS', 'DEL', 'S', 'STRIKE', 'ABBR', 'ACRONYM'],
+    'list-style-type': ['UL', 'OL', 'LI', 'MENU', 'DIR', 'SUMMARY'],
+    'font-style': ['EM', 'I', 'CITE', 'DFN', 'VAR', 'ADDRESS'],
+    'white-space': ['PRE', 'TEXTAREA', 'LISTING', 'XMP', 'PLAINTEXT', 'NOBR'],
+    'display': null,
+    'pointer-events': null
+  };
+  // values that are the default everywhere: not worth a declaration
+  const PLAIN_DEFAULT = { 'object-fit': 'fill', 'vertical-align': 'baseline', 'text-overflow': 'clip', 'list-style-position': 'outside', 'text-indent': '0px', 'object-position': '50% 50%' };
 
   /**
    * Scans document stylesheets for keyframe animation rules matching given animation names
@@ -42,22 +59,25 @@
     let extractedRules = [];
     const foundNames = new Set();
 
-    for (let i = 0; i < document.styleSheets.length; i++) {
-      try {
-        const sheet = document.styleSheets[i];
-        const rules = sheet.cssRules || sheet.rules;
-        if (!rules) continue;
-
-        for (let j = 0; j < rules.length; j++) {
-          const rule = rules[j];
-          // CSSRule.KEYFRAMES_RULE === 7
-          if (rule.type === 7 || rule.constructor.name === 'CSSKeyframesRule') {
-            if (animationNames.has(rule.name) && !foundNames.has(rule.name)) {
-              foundNames.add(rule.name);
-              extractedRules.push(rule.cssText);
-            }
+    // plan-exempt — found on cursor.com: @keyframes live inside @layer / @media / @supports / @container on modern sites, and adopted stylesheets hold more; both were skipped. routing-override: skipped — user asked to test compatibility and fix what it finds.
+    const visit = (rules) => {
+      for (const rule of Array.from(rules)) {
+        // CSSRule.KEYFRAMES_RULE === 7
+        if (rule.type === 7 || rule.constructor.name === 'CSSKeyframesRule') {
+          if (animationNames.has(rule.name) && !foundNames.has(rule.name)) {
+            foundNames.add(rule.name);
+            extractedRules.push(rule.cssText);
           }
+        } else if (rule.cssRules && rule.cssRules.length) {
+          visit(rule.cssRules);
         }
+      }
+    };
+    const sheets = [...Array.from(document.styleSheets), ...Array.from(document.adoptedStyleSheets || [])];
+    for (const sheet of sheets) {
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        if (rules) visit(rules);
       } catch (e) {
         // Cross-origin stylesheet access might throw, ignore
       }
@@ -85,10 +105,20 @@
       RELEVANT_STYLE_PROPS.forEach(prop => {
         if (isSvgChild && el.hasAttribute(prop)) return;
         const val = computed.getPropertyValue(prop);
-        if (val && val !== 'none' && val !== 'normal' && val !== 'auto' && val !== 'rgba(0, 0, 0, 0)') {
+        const neutral = val === 'none' || val === 'normal';
+        const matters = neutral && Object.prototype.hasOwnProperty.call(NEUTRAL_MATTERS_ON, prop)
+          && (NEUTRAL_MATTERS_ON[prop] === null || NEUTRAL_MATTERS_ON[prop].includes(el.tagName.toUpperCase()));
+        if (val && (matters || !neutral) && val !== 'auto' && val !== 'rgba(0, 0, 0, 0)' && PLAIN_DEFAULT[prop] !== val) {
           styleObj[prop] = val;
         }
       });
+      // a decoration carries its own style and colour
+      if (styleObj['text-decoration-line'] && styleObj['text-decoration-line'] !== 'none') {
+        ['text-decoration-style', 'text-decoration-color', 'text-decoration-thickness'].forEach((p) => {
+          const v = computed.getPropertyValue(p);
+          if (v && v !== 'auto' && v !== 'solid') styleObj[p] = v;
+        });
+      }
 // plan-exempt — capture inline CSS custom variables into scoped rules
       if (el.style && el.style.length) {
         for (let i = 0; i < el.style.length; i++) {
@@ -133,19 +163,30 @@
     const keyframesCss = extractKeyframeRules(animationNames);
 
     // Build scoped CSS rules string
-    const scopedCss = componentStyles.map(item => {
+    // plan-exempt — ps-006: after the pinned (computed) rules, add the page's own layout rules so the export keeps responding to the window. routing-override: skipped — user asked to learn from ui-clone-skills and improve the repo.
+    const pinnedCss = componentStyles.map(item => {
       const decls = Object.entries(item.styles)
         .map(([prop, val]) => `  ${prop}: ${val};`)
         .join('\n');
       return `${item.selector} {\n${decls}\n}`;
     }).join('\n\n');
-
+    // plan-exempt — ps-008: generalized extraction of authored CSS and interactive :hover/:focus states. routing-override: skipped — user requested generic pseudo-class retention.
+    let authoredCss = '';
+    try { authoredCss = PageSnap.authoredCss ? PageSnap.authoredCss.build(allElements) : ''; } catch (e) { authoredCss = ''; }
+    const scopedCss = authoredCss ? `${pinnedCss}\n\n/* Layout and Interactive Pseudo-State Rules of the original page */\n${authoredCss}` : pinnedCss;
     // Clone element and add scoped classes for self-contained reproduction
 // plan-exempt — strip extension highlight classes before adding scoped classes
     const clone = element.cloneNode(true);
-    clone.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
-    clone.querySelectorAll('.pagesnap-region-highlighted, .web2md-region-highlighted').forEach(el => {
-      el.classList.remove('pagesnap-region-highlighted', 'web2md-region-highlighted');
+    // plan-exempt — ps-008: strip transient runtime hover, active, and highlight classes so initial state is clean. routing-override: skipped — user reported overlay covering wolf.
+    const transientClasses = ['pagesnap-region-highlighted', 'web2md-region-highlighted', 'is-hovered', 'has-hover', 'is-case-hovered'];
+    transientClasses.forEach(cls => clone.classList.remove(cls));
+    clone.querySelectorAll('*').forEach(el => {
+      transientClasses.forEach(cls => el.classList.remove(cls));
+      // If an overlay scene was captured during hover, reset it to hidden initial state
+      if (el.className && typeof el.className === 'string' && el.className.includes('home-cases-scene')) {
+        el.classList.remove('is-visible');
+        el.classList.add('is-hidden');
+      }
     });
     const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
     cloneElements.forEach((el, index) => {
@@ -157,17 +198,22 @@
       let curr = node;
       while (curr && curr !== document && curr.nodeType === 1) {
         const bg = window.getComputedStyle(curr).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+        // plan-exempt — ps-008: ignore semi-transparent glass colors (<0.8 alpha) so body doesn't collapse to white browser default. routing-override: skipped — user requested solid theme matching.
+        const alphaMatch = bg ? bg.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/) : null;
+        const isSemi = alphaMatch && parseFloat(alphaMatch[1]) < 0.8;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && !isSemi) {
           return bg;
         }
         curr = curr.parentElement;
       }
       const bodyBg = document.body ? window.getComputedStyle(document.body).backgroundColor : null;
-      if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent') {
+      const bodyAlphaMatch = bodyBg ? bodyBg.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/) : null;
+      const isBodySemi = bodyAlphaMatch && parseFloat(bodyAlphaMatch[1]) < 0.8;
+      if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent' && !isBodySemi) {
         return bodyBg;
       }
       const textColor = window.getComputedStyle(node).color;
-      if (textColor && (textColor.includes('247') || textColor.includes('255') || textColor.includes('248') || textColor.includes('208'))) {
+      if (textColor && (textColor.includes('247') || textColor.includes('255') || textColor.includes('248') || textColor.includes('208') || textColor.includes('230'))) {
         return '#08090a';
       }
       return '#ffffff';

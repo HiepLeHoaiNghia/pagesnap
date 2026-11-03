@@ -340,6 +340,75 @@ window.Web2MD = window.Web2MD || window.PageSnap;
     return line;
   }
 
+  // plan-exempt — ps-007 part B: a notice, not a button, for what the export cannot carry. routing-override: skipped — user approved the canvas warning work in chat.
+  /** A one-line notice in the dock row (not clickable). */
+  function dockNotice(text, title) {
+    const n = document.createElement('span');
+    n.dataset.notice = 'render-surface';
+    n.textContent = text;
+    n.title = title;
+    Object.assign(n.style, { whiteSpace: 'nowrap', color: '#fbbf24', fontSize: '12px', fontWeight: '500', padding: '6px 4px', cursor: 'help' });
+    return n;
+  }
+
+  // plan-exempt — ps-008: on-screen walkthrough guide pill showing real-time interaction steps to the user. routing-override: skipped — user requested on-screen interactive guide.
+  let walkthroughPill = null;
+  let walkthroughPollTimer = null;
+  function showWalkthroughGuide() {
+    removeWalkthroughGuide();
+    walkthroughPill = document.createElement('div');
+    walkthroughPill.id = 'pagesnap-walkthrough-guide';
+    Object.assign(walkthroughPill.style, {
+      position: 'fixed',
+      bottom: '24px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '2147483647',
+      background: '#111827',
+      border: '1px solid #374151',
+      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
+      borderRadius: '24px',
+      padding: '10px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      color: '#f3f4f6',
+      font: '600 13px system-ui, sans-serif',
+      pointerEvents: 'none'
+    });
+
+    const updateGuideContent = () => {
+      if (!walkthroughPill) return;
+      const session = PageSnap.motionSniffer && PageSnap.motionSniffer._activeUserSession && PageSnap.motionSniffer._activeUserSession.session;
+      const scrollCount = session ? session.scrollTrail.length : 0;
+      const hoverCount = session ? session.hoverEvents.length : 0;
+
+      let stepText = '';
+      // plan-exempt — ps-008: advance guide step when scroll activity is registered. routing-override: skipped — user requested on-screen interactive guide.
+      if (scrollCount < 1) {
+        stepText = '📍 Step 1/3: Scroll down through the page (top to bottom) to capture 3D transforms...';
+      } else if (hoverCount < 2) {
+        stepText = `📍 Step 2/3: Hover over interactive project links / menu items (${hoverCount} captured)...`;
+      } else {
+        stepText = `✅ Step 3/3: Captured ${scrollCount} scroll points & ${hoverCount} hovers! Click "⏹ Stop Record" to finish.`;
+      }
+
+      walkthroughPill.innerHTML = `
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;animation:pulse 1.2s infinite"></span>
+        <span>${stepText}</span>
+      `;
+    };
+
+    updateGuideContent();
+    document.body.appendChild(walkthroughPill);
+    walkthroughPollTimer = setInterval(updateGuideContent, 100);
+  }
+
+  function removeWalkthroughGuide() {
+    if (walkthroughPollTimer) { clearInterval(walkthroughPollTimer); walkthroughPollTimer = null; }
+    if (walkthroughPill) { walkthroughPill.remove(); walkthroughPill = null; }
+  }
+
 // plan-exempt — position floating bar and sync on scroll
   function positionFloatingBar(bar, element) {
     if (!bar || !element) return;
@@ -441,6 +510,30 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       }));
     }
 
+    // plan-exempt — ps-007 part B: say it when the region is partly drawn by a canvas, video or iframe. routing-override: skipped — user approved the canvas warning work in chat.
+    const surfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.detect(element) : null;
+    if (surfaces && surfaces.any) {
+      bar.appendChild(dockNotice(PageSnap.renderSurfaces.badge(surfaces), `This region is partly drawn by: ${PageSnap.renderSurfaces.describe(surfaces)}. The export cannot contain it, so that area comes out blank. AI-PROMPT.md lists what the page loaded (3D files, libraries) so an agent can rebuild it.`));
+    }
+
+    // plan-exempt — ps-008: user-driven interactive recording button on dock. routing-override: skipped — user requested interactive recording mode.
+    const isRecording = PageSnap.motionSniffer && PageSnap.motionSniffer._activeUserSession;
+    bar.appendChild(dockButton(isRecording ? '⏹ Stop Record' : '🔴 Record', {
+      slot: 'record-motion',
+      title: isRecording ? 'Stop interactive recording session' : 'Record real scroll and hover interactions across the page',
+      onClick: () => {
+        // plan-exempt — ps-008: interactive walkthrough guide toggle. routing-override: skipped — user requested on-screen interactive guide.
+        if (isRecording) {
+          PageSnap.motionSniffer.stopInteractiveRecording();
+          removeWalkthroughGuide();
+          if (typeof Web2MD.showToast === 'function') Web2MD.showToast('⏹ Recording saved! Now click "📦 Download ZIP" to export.');
+        } else {
+          PageSnap.motionSniffer.startInteractiveRecording();
+          showWalkthroughGuide();
+        }
+        renderFloatingBar(bar);
+      }
+    }));
     bar.appendChild(dockDivider());
 
     // ✨ Live Studio

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; background: #090a0f; overflow: hidden; }
+    canvas { width: 100vw; height: 100vh; display: block; position: absolute; top:0; left:0; }
+    .bg { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; opacity: 0.85; pointer-events: none; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+  <img src="/assets/background-xl.png" class="bg">
+  <script>
+    function createEyeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      const cx = 256, cy = 256, r = 210;
+      ctx.fillStyle = '#080d1a';
+      ctx.fillRect(0, 0, 512, 512);
+
+      const grad = ctx.createRadialGradient(cx, cy, 25, cx, cy, r);
+      grad.addColorStop(0, '#fef08a');
+      grad.addColorStop(0.3, '#f59e0b');
+      grad.addColorStop(0.65, '#d97706');
+      grad.addColorStop(0.88, '#0284c7');
+      grad.addColorStop(1.0, '#080d1a');
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+
+      ctx.strokeStyle = 'rgba(254, 240, 138, 0.45)';
+      ctx.lineWidth = 1.5;
+      for (let a = 0; a < Math.PI * 2; a += 0.08) {
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * 45, cy + Math.sin(a) * 45);
+        ctx.lineTo(cx + Math.cos(a) * (r - 12), cy + Math.sin(a) * (r - 12));
+        ctx.stroke();
+      }
+
+      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 46);
+      pupilGrad.addColorStop(0, '#000000');
+      pupilGrad.addColorStop(0.85, '#050505');
+      pupilGrad.addColorStop(1, '#0f172a');
+      ctx.beginPath(); ctx.arc(cx, cy, 46, 0, Math.PI * 2); ctx.fillStyle = pupilGrad; ctx.fill();
+
+      ctx.beginPath(); ctx.arc(cx - 22, cy - 24, 15, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 20, cy + 18, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      return tex;
+    }
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1500 / 1190, 0.1, 1000);
+    camera.position.set(0.2, 1.6, 22.0);
+    camera.lookAt(1.1, 1.8, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(1500, 1190);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0x446688, 1.2));
+    const dirLight = new THREE.DirectionalLight(0xaaccff, 1.5);
+    dirLight.position.set(5, 10, 10);
+    scene.add(dirLight);
+
+    const texLoader = new THREE.TextureLoader();
+    const dogNormals = texLoader.load('/assets/dog_normals.jpg');
+    dogNormals.flipY = false;
+
+    const eyeMat = new THREE.MeshBasicMaterial({ map: createEyeTexture() });
+
+    const matcapImg = new Image();
+    matcapImg.src = '/assets/matcap-combined-resized.jpg';
+    matcapImg.onload = async () => {
+      // Extract matcap textures 0..19
+      const matcaps = [];
+      for (let i = 0; i < 20; i++) {
+        const col = i % 10;
+        const row = Math.floor(i / 10);
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 256;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(matcapImg, col * 256, row * 256, 256, 256, 0, 0, 256, 256);
+        matcaps.push(new THREE.CanvasTexture(c));
+      }
+      window.matcaps = matcaps;
+
+      const bodyMat = new THREE.MeshMatcapMaterial({
+        matcap: matcaps[1],
+        normalMap: dogNormals,
+        color: new THREE.Color(0x28344c)
+      });
+      window.bodyMat = bodyMat;
+
+      // Foliage matcap
+      const foliageMat = new THREE.MeshMatcapMaterial({
+        matcap: matcaps[1],
+        color: new THREE.Color(0x1a2638)
+      });
+
+      // Try load ASTC normal map for branches
+      const gl = renderer.getContext();
+      const ext = gl.getExtension('WEBGL_compressed_texture_astc');
+      if (ext) {
+        const resp = await fetch('/assets/branches_normals.dds');
+        const buf = await resp.arrayBuffer();
+        const u8 = new Uint8Array(buf);
+        const w = u8[7] | (u8[8] << 8) | (u8[9] << 16);
+        const h = u8[10] | (u8[11] << 8) | (u8[12] << 16);
+        const compTex = new THREE.CompressedTexture(
+          [{ data: u8.subarray(16), width: w, height: h }],
+          w, h, ext.COMPRESSED_RGBA_ASTC_8x8_KHR
+        );
+        compTex.needsUpdate = true;
+        foliageMat.normalMap = compTex;
+      }
+
+      const loader = new THREE.GLTFLoader();
+      const draco = new THREE.DRACOLoader();
+      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+      loader.setDRACOLoader(draco);
+
+      loader.load('/assets/dog.drc.glb', (gltf) => {
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) {
+            const name = child.name.toLowerCase();
+            if (name.includes('eye')) {
+              const uvs = child.geometry.attributes.uv;
+              for (let i = 0; i < uvs.count; i++) {
+                const u = (uvs.getX(i) - 0.85396) / (0.98188 - 0.85396);
+                const v = (uvs.getY(i) - 0.64321) / (0.77113 - 0.64321);
+                uvs.setXY(i, u, v);
+              }
+              uvs.needsUpdate = true;
+              child.material = eyeMat;
+            } else if (name.includes('body')) {
+              child.material = bodyMat;
+            } else {
+              child.material = foliageMat;
+            }
+          }
+        });
+
+        window.wolf = new THREE.Group();
+        window.wolf.add(gltf.scene);
+        scene.add(window.wolf);
+
+        // Animation mixer
+        if (gltf.animations && gltf.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(gltf.scene);
+          mixer.clipAction(gltf.animations[0]).play();
+          window.mixer = mixer;
+        }
+
+        window.updatePose = ({ scale, x, y, z, rotX, rotY, rotZ }) => {
+          window.wolf.scale.set(scale, scale, scale);
+          window.wolf.position.set(x, y, z || 0);
+          if (rotX !== undefined) window.wolf.rotation.x = rotX * Math.PI / 180;
+          if (rotY !== undefined) window.wolf.rotation.y = rotY * Math.PI / 180;
+          if (rotZ !== undefined) window.wolf.rotation.z = rotZ * Math.PI / 180;
+          renderer.render(scene, camera);
+        };
+
+        window.ready = true;
+      });
+    };
+  </script>
+</body>
+</html>

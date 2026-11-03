@@ -188,7 +188,9 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const m = componentData.jsMotion || {};
       const model = PageSnap.motionIdentify && PageSnap.motionIdentify.getModel(currentModalElement);
       const parts = [];
-      if (model && model.supported) parts.push(`spring fitted (${model.quality} quality, ${model.series.length} animated values)`);
+      // plan-exempt — found on gsap.com: a fit with 0 animated values is not a spring, and time-driven JS motion is described but not replayed; say so. routing-override: skipped — user asked to fix what the compatibility test found.
+      if (model && model.supported && model.series && model.series.length) parts.push(`spring fitted (${model.quality} quality, ${model.series.length} animated values)`);
+      if (m.driver === 'time-loop' && (m.attributes || []).length) parts.push(`time-driven JS motion (${m.totalWrites || 0} writes) · described in AI Specs, not replayed`);
       if ((m.spatialMap || []).length > 1) parts.push(`pointer motion (${m.spatialMap.length} positions)`);
       if ((m.hoverMap || []).length) parts.push(`${m.hoverMap.length} hover zones`);
       if ((m.liftLayers || []).length) parts.push(`${m.liftLayers.length} lift layers`);
@@ -196,10 +198,13 @@ window.Web2MD = window.Web2MD || window.PageSnap;
       const keyframes = countOf(componentData.cssOnly, /@keyframes/g);
       if (keyframes) parts.push(`${keyframes} CSS @keyframes`);
       // plan-exempt — owner feedback 2026-10-30: the status line sits in the footer between the two export groups; the tooltip keeps the full text when it is cut short. routing-override: skipped — user asked for this change directly.
-      statusLine.textContent = parts.length
+      // plan-exempt — ps-007 part B: the footer also says what the export cannot carry (canvas, video, iframe). routing-override: skipped — user approved the canvas warning work in chat.
+      const surfaces = PageSnap.renderSurfaces ? PageSnap.renderSurfaces.describe(componentData.renderSurfaces) : '';
+      const motionText = parts.length
         ? 'Motion measured · ' + parts.join(' · ')
         : 'No motion detected · CSS transitions and hover rules are still exported.';
-      statusLine.title = statusLine.textContent;
+      statusLine.textContent = surfaces ? `⚠ Not exported: ${surfaces} · ${motionText}` : motionText;
+      statusLine.title = statusLine.textContent + (surfaces ? ' — AI-PROMPT.md lists what the page loaded so an agent can rebuild it.' : '');
     }
 
     function renderFileMenu() {

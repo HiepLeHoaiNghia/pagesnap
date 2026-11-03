@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dogstudio Master Assembly - Exact Ground Truth</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      background-color: #090a0f !important;
+      color: #fff;
+      overflow-x: hidden;
+    }
+    /* Fixed background image layer */
+    #bg-layer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #090a0f url('./assets/background-xl.png') no-repeat center top;
+      background-size: cover;
+      opacity: 0.85;
+      z-index: -3;
+      pointer-events: none;
+    }
+    /* Fixed 3D WebGL Canvas Layer (z-index: 1 matching dogstudio dog-scene-inner) */
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      pointer-events: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* Fixed Interactive Case Artwork Layer */
+    #case-art-layer { z-index: -2;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    #case-art-layer.is-visible {
+      opacity: 1;
+    }
+    /* DOM overlay (z-index: 2 on top of 3D canvas) */
+    #dom-wrapper {
+      position: relative;
+      z-index: 2;
+    }
+    .pagesnap-component-wrapper {
+      background: transparent !important;
+    }
+    .home-cases-list a {
+      transition: opacity 0.3s ease, color 0.3s ease;
+    }
+    body.is-case-hovered .home-cases-list a:not(.is-hovered) {
+      opacity: 0.18 !important;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+  <div id="bg-layer"></div>
+  <div id="case-art-layer"></div>
+  <div id="canvas-container"></div>
+  <div id="dom-wrapper"></div>
+
+  <script>
+    fetch('dom.html').then(r => r.text()).then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const wrapper = doc.querySelector('.pagesnap-component-wrapper') || doc.body;
+      document.getElementById('dom-wrapper').appendChild(wrapper);
+      setupCrossLayerHover();
+    });
+
+    let dogApp = null;
+    (async function initWebGL() {
+      const container = document.getElementById('canvas-container');
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+
+      // Atmospheric lights matching Dogstudio mood:
+      // Ambient light tuned to dark navy/cyan
+      scene.add(new THREE.AmbientLight(0x405575, 0.7));
+      // Key directional light: soft lavender/white
+      const dl = new THREE.DirectionalLight(0xa5b4fc, 0.9);
+      dl.position.set(5, 10, 7);
+      scene.add(dl);
+      // Rim light: electric cyan catching the wolf's spine and back
+      const rimLight = new THREE.DirectionalLight(0x0284c7, 1.4);
+      rimLight.position.set(-6, 3, -4);
+      scene.add(rimLight);
+
+      // Camera: close-up FOV 35 perfectly framed on wolf
+      const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 1000);
+      camera.position.set(0.15, 1.35, 16.5);
+      scene.add(camera);
+      camera.lookAt(new THREE.Vector3(0.95, 1.45, 0));
+
+      const textureLoader = new THREE.TextureLoader();
+      const loadTex = (url) => {
+        const t = textureLoader.load(url);
+        t.flipY = false;
+        return t;
+      };
+
+      const dogNormals = loadTex('assets/dog_normals.jpg');
+      const branchesNormals = loadTex('assets/branches_normals.dds');
+      const dogDiffusePng = textureLoader.load("assets/dog_diffuse.png"); dogDiffusePng.flipY = true;
+      const branchesDiffusePng = loadTex('assets/branches_diffuse.png');
+
+      // Crop Matcaps for color shifts:
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = 'assets/matcap-combined-resized.jpg';
+      await new Promise(r => { img.onload = r; });
+
+      const cellW = img.width / 10;
+      const cellH = img.height / 2;
+
+      function cropMatcap(idx) {
+        const cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        const ctx = cv.getContext('2d');
+        const col = idx % 10;
+        const row = Math.floor(idx / 10);
+        ctx.drawImage(img, col * cellW, row * cellH, cellW, cellH, 0, 0, 256, 256);
+        return new THREE.CanvasTexture(cv);
+      }
+
+      // Slot 11: Vibrant iridescent pink/purple (Louise's Phone)
+      const matcapLouise = cropMatcap(11);
+
+      // Eye Material: Dedicated material using authentic dog_diffuse eye
+      const eyeMaterial = new THREE.MeshBasicMaterial({
+        map: dogDiffusePng,
+        transparent: false
+      });
+
+      // Wolf Body Material: MeshStandardMaterial with deep midnight navy base color + diffuse fur map!
+      const wolfMaterial = new THREE.MeshStandardMaterial({
+        map: dogDiffusePng,
+        color: new THREE.Color(0x384c6c), // Deep navy indigo tone matching Image #1!
+        normalMap: dogNormals,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughness: 0.55,
+        metalness: 0.15,
+        skinning: true
+      });
+
+      const leafMaterial = new THREE.MeshStandardMaterial({
+        map: branchesDiffusePng,
+        normalMap: branchesNormals,
+        normalScale: new THREE.Vector2(0.5, 0.5),
+        roughness: 0.8,
+        metalness: 0.1,
+        skinning: true,
+        alphaTest: 0.2
+      });
+
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      const gltfLoader = new THREE.GLTFLoader();
+      gltfLoader.setDRACOLoader(dracoLoader);
+
+      let mixer = null;
+      const dogContainer = new THREE.Object3D();
+      scene.add(dogContainer);
+
+      let dogModel = null;
+
+      gltfLoader.load('assets/dog.drc.glb', (gltf) => {
+        dogModel = gltf.scene;
+        dogModel.scale.set(20, 20, 20);
+        dogModel.position.set(0.2 * 20, -0.5 * 20, 0.15 * 20);
+
+        dogModel.traverse((child) => {
+          if (child.isMesh) {
+            const name = child.name;
+            if (name.includes('Leye') || name.includes('Reye')) {
+              child.material = eyeMaterial;
+            } else if (name.includes('BRANCHS') || name.includes('leaf') || name.includes('branch')) {
+              child.material = leafMaterial;
+            } else {
+              child.material = wolfMaterial;
+            }
+          }
+        });
+
+        dogContainer.add(dogModel);
+        dogContainer.rotation.y = 0.62;
+        dogContainer.rotation.x = -0.15;
+        dogContainer.position.set(0.0, -0.2, 0);
+
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(dogModel);
+          const action = mixer.clipAction(gltf.animations[0]);
+          action.play();
+        }
+
+        window.__HERO_MATCH_READY__ = true;
+      });
+
+      const DEPTH_CURVE = [16.5, 24, 30, 36, 28, 22];
+      const V_ROT_CURVE = [35, 20, 30, 30, -50, -145];
+
+      function getSplineValue(arr, t) {
+        const p = t * (arr.length - 1);
+        const idx = Math.min(Math.floor(p), arr.length - 2);
+        const frac = p - idx;
+        const s = frac * frac * (3 - 2 * frac);
+        return arr[idx] * (1 - s) + arr[idx + 1] * s;
+      }
+
+      let mouseX = 0, mouseY = 0;
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      const clock = new THREE.Clock();
+      function render() {
+        requestAnimationFrame(render);
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
+
+        const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        const scrollT = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+
+        const curDepth = getSplineValue(DEPTH_CURVE, scrollT);
+        const curRotY = getSplineValue(V_ROT_CURVE, scrollT);
+
+        camera.position.z = curDepth;
+        if (dogContainer) {
+          dogContainer.rotation.y = THREE.MathUtils.degToRad(curRotY) + mouseX * 0.08;
+          dogContainer.rotation.x = -0.15 + mouseY * 0.05;
+        }
+
+        renderer.render(scene, camera);
+      }
+      render();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      dogApp = {
+        setMatcap(tintHex) {
+          gsap.to(wolfMaterial.color, {
+            r: new THREE.Color(tintHex).r,
+            g: new THREE.Color(tintHex).g,
+            b: new THREE.Color(tintHex).b,
+            duration: 0.6,
+            ease: "power2.out"
+          });
+        }
+      };
+    })();
+
+    function setupCrossLayerHover() {
+      const artLayer = document.getElementById('case-art-layer');
+      const links = document.querySelectorAll('.home-cases-list a, [data-matcap]');
+
+      links.forEach((link) => {
+        const text = link.innerText.toLowerCase();
+        link.addEventListener('mouseenter', () => {
+          if (!dogApp) return;
+
+          document.body.classList.add('is-case-hovered');
+          link.classList.add('is-hovered');
+
+          if (text.includes('louise')) {
+            artLayer.style.backgroundImage = "url('https://dogstudio.co/app/themes/portfolio-2018/static/assets/images/cases/this-was-louises-phone/background-1440.png')";
+            artLayer.classList.add('is-visible');
+            dogApp.setMatcap(0xf472b6); // Vibrant neon pink/purple!
+          } else {
+            artLayer.style.backgroundImage = "url('https://dogstudio.co/app/themes/portfolio-2018/static/assets/images/cases/tomorrowland/background-1440.png')";
+            artLayer.classList.add('is-visible');
+            dogApp.setMatcap(0x38bdf8); // Cyan blue
+          }
+        });
+
+        link.addEventListener('mouseleave', () => {
+          if (!dogApp) return;
+          document.body.classList.remove('is-case-hovered');
+          link.classList.remove('is-hovered');
+          artLayer.classList.remove('is-visible');
+          dogApp.setMatcap(0x384c6c); // Restore midnight navy
+        });
+      });
+    }
+  </script>
+</body>
+</html>

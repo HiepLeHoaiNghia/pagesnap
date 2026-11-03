@@ -28,9 +28,9 @@ if (!window.__web2md_content_initialized__) {
 
 // plan-exempt — send buildId in ping response for dynamic injection invalidation
 Web2MD.registerHandlers({
-// plan-exempt — bump buildId to 20261030-v10 so open tabs re-inject the extractor modules. routing-override: skipped — user asked to fix review findings.
+// plan-exempt — bump buildId to 20261031-v53 for solid background resolution. routing-override: skipped — user requested solid theme matching.
   ping: (request, sender, sendResponse) => {
-    sendResponse({ success: true, buildId: '20261030-v10' });
+    sendResponse({ success: true, buildId: '20261031-v53' });
     return true;
   }
 });
