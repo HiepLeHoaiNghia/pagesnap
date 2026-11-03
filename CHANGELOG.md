@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v1.0.0...pagesnap-extension-v1.1.0) (2026-11-03)
+
+
+### Features
+
+* **motion:** one-click hover sweep and automatic motion measurement for component export ([#18](https://github.com/HiepLeHoaiNghia/pagesnap/issues/18)) ([0322486](https://github.com/HiepLeHoaiNghia/pagesnap/commit/03224861fe82b3ea9908c1198607e29c1a956ab2))
+* **release:** nested keyframes, responsive authored css, dark/light auto-frame, and canvas detection ([#23](https://github.com/HiepLeHoaiNghia/pagesnap/issues/23)) ([0f0f532](https://github.com/HiepLeHoaiNghia/pagesnap/commit/0f0f5326f95655ec082560e14a815cfa38b9a0e8))
+* **studio:** redesigned dock and Studio, no-JS export, site-independent hover ([#19](https://github.com/HiepLeHoaiNghia/pagesnap/issues/19)) ([1d96a11](https://github.com/HiepLeHoaiNghia/pagesnap/commit/1d96a1197f2bedb3a5cf5dcb8ca0a56eac35df84))
+
 ## [1.0.0](https://github.com/HiepLeHoaiNghia/pagesnap/compare/pagesnap-extension-v0.5.0...pagesnap-extension-v1.0.0) (2026-10-26)
 
 
