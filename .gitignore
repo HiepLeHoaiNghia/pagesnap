@@ -3,6 +3,7 @@
 Thumbs.db
 
 # Dependencies & Build artifacts
+node_modules
 node_modules/
 dist/
 build/
@@ -32,3 +33,10 @@ test.md
 
 # Git worktrees (isolated task directories)
 .worktrees/
+
+# Internal research assets & plans (archived to MemoryGrid Vault)
+plans/*
+!plans/README.md
+*.glb
+*.drc.glb
+*.dds
