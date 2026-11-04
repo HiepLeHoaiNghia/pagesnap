@@ -29,3 +29,6 @@ logs/
 test.html
 test.md
 .gstack/
+
+# Git worktrees (isolated task directories)
+.worktrees/
