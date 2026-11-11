@@ -16,52 +16,64 @@ This document contains all pre-written copy, descriptions, and justification tex
 ## 📝 2. Descriptions
 
 ### Summary / Short Description (Max 132 chars)
-> Convert any web page to clean, AI-ready Markdown with one click. Strips ads, formats tables, estimates tokens, and preserves code.
+> Extract any live web component to clean Markdown, scoped offline HTML, or AI prompts with 1 click. Zero telemetry.
 
 ### Detailed Description
 ```markdown
-⚡ PageSnap — The Fastest, Zero-Build Web to Clean Markdown Clipper & Offline Snapshot
+⚡ PageSnap — The 1-Click Web Component Clipper & Live Studio for AI Developers
 
-Convert any webpage, technical documentation, or online article into clean, distraction-free Markdown ready for ChatGPT, Claude, Cursor, Obsidian, and Notion.
+Turn any live UI component, documentation page, or web article into clean, distraction-free Markdown, scoped offline HTML & CSS, or ready-to-use AI design prompts for Cursor, Claude Code, and v0.
 
-Unlike traditional web clippers that dump messy HTML or include unwanted ads, sidebars, and navigation links, PageSnap uses Mozilla's battle-tested Readability engine to isolate the core article content and turn it into clean GitHub-Flavored Markdown.
+Unlike traditional web clippers that dump messy HTML with global CSS leaks, ads, and broken scripts, PageSnap isolates exact component boundaries with computed layouts, scoped classes (.ps-el-*), and responsive authored CSS.
 
 ---
 
 🔥 KEY FEATURES
 
-1. ⚡ 1-Click Clean Markdown Extraction
-Extract clean article content instantly. PageSnap automatically removes popups, cookie banners, navigation menus, ads, and footers, leaving only the text, headings, and images you care about.
+1. 🎮 Floating Actions Dock with Smart Coachmark
+Click any element on any webpage to open the streamlined action dock:
+• 📋 Copy Markdown: Clean GitHub-Flavored Markdown with automatic frontmatter and table formatting.
+• 🌐 Copy HTML: Pure HTML and scoped CSS without JavaScript—runs cleanly offline anywhere.
+• 🎮 Smart Game HUD Coachmark: Intelligent onboarding callout for static selections with a 1-click "Don't show again" preference.
+• ••• More Menu: Quick access to ZIP packaging, AI Prompts, and experimental tools.
 
-2. 🤖 AI & LLM Ready (with Token Estimation)
-Get real-time character and estimated token counts (for GPT-4o / Claude 3.5 Sonnet context windows). Includes YAML Frontmatter metadata (title, author, url, date) so your AI prompts always have context.
+2. 🛠️ Interactive Component Studio Sandbox
+Inspect and customize components in an isolated live preview before copying:
+• Live Preview: Edit text directly on-screen and verify responsive behavior.
+• Multi-File Code Browser: Preview index.html, styles.css, Component.jsx, and tokens.json.
+• AI Specs Tab: Copy structured reverse-engineering blueprints designed for LLM prompts.
+• 1-Click Export: Download complete component ZIP bundles in one click.
 
-3. 🎯 Visual Region Selector
-Don't need the whole page? Activate the Visual Region Selector and hover over any container or table on the live website to extract only that specific element.
+3. 🤖 AI & LLM Ready (with Token Estimation)
+Built specifically for AI-assisted coding in Cursor, Claude, and ChatGPT:
+• Real-time token estimates for GPT-4o and Claude 3.5 Sonnet context windows.
+• Structured YAML frontmatter metadata (title, author, url, date).
+• Generates AI-PROMPT.md with full design tokens (colors, typography, spacing).
 
-4. 📊 High-Fidelity Tables & Syntax-Highlighted Code
-Complex data tables are converted cleanly into Markdown tables. Code blocks preserve language indentation and syntax without breaking formatting.
+4. 📦 Scoped HTML & Authored Responsive CSS
+• Zero global leaks: Every element gets scoped styles (.ps-el-N).
+• Responsive layout preservation: Keeps authored @media and layout rules so exports adapt to window resizing.
+• Complete offline independence with Base64 asset inlining.
 
-5. 📦 Clean Standalone HTML Snapshot
-Need an exact offline replica of the article? Export a self-contained single-file HTML package with inlined CSS and Base64 images without any external scripts or tracking.
-
-6. 🟣 Obsidian-Friendly Wikilinks
-Toggle Obsidian wikilink formatting (`[[link]]`) directly in the extension settings for seamless integration into your personal knowledge base.
+5. 🧪 Creative Web Lab (BETA)
+For rich media, canvas, and 3D web experiences:
+• ▶ Copy animated (JS) [BETA]: Offline player for pointer-driven animations and keyframes.
+• 🎬 Record 60fps Video [BETA]: Capture silky-smooth WebM loops of canvas animations.
+• 🎨 3D WebGL Packaging [BETA]: Automatically detect and download loaded 3D models (.glb), depth maps, and shaders.
 
 ---
 
 🔒 PRIVACY & ZERO TELEMETRY PROMISE
 
-- 100% Local Processing: All parsing happens directly in your browser.
-- Zero Data Collection: PageSnap does not track your browsing history, collect analytics, or send queries to external servers.
-- No Blanket Host Permissions: PageSnap only accesses the page when you explicitly click the extension or select a region.
+• 100% Local Processing: All DOM parsing and style computation happen directly inside your browser.
+• Zero Telemetry: PageSnap does not track your browsing, send analytics, or contact external servers.
+• On-Demand Access: PageSnap only activates when you explicitly click the extension or select a component.
 
 ---
 
 📖 OPEN SOURCE
 PageSnap is 100% open-source under the MIT License.
-Contribute or inspect the code on GitHub: https://github.com/HiepLeHoaiNghia/pagesnap
-```
+Inspect the code or contribute on GitHub: https://github.com/HiepLeHoaiNghia/pagesnap
 
 ---
 

@@ -5,7 +5,7 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Release-v1.2.0-8B5CF6?style=flat-square" alt="Latest Release" /></a>
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.0-8B5CF6?style=flat-square" alt="Latest Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=flat-square" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/Manifest-V3-7F52FF?style=flat-square" alt="Manifest V3" />
   <img src="https://img.shields.io/badge/Build-Zero_Build-16A34A?style=flat-square" alt="Zero Build" />
@@ -23,7 +23,10 @@
 </h3>
 
 <p align="center">
-  <img src="docs/images/popup-preview.png" alt="PageSnap popup interface extracting clean markdown and offline HTML snapshots" width="520" />
+  <img src="docs/images/dock-coachmark-preview.png" alt="PageSnap Floating Actions Dock with Smart Game HUD Coachmark" width="100%" />
+</p>
+<p align="center">
+  <img src="docs/images/studio-preview.png" alt="PageSnap Live Component Studio Sandbox" width="100%" />
 </p>
 
 ---
@@ -60,17 +63,25 @@ Export components with fully isolated, scoped styles (`.ps-el-N`).
 - Strips invasive JavaScript so the exported component is safe and lightweight.
 - Opens offline in any browser without broken dependencies.
 
+### 🎮 Floating Actions Dock & Smart Coachmark
+When hovering and clicking any live web element, PageSnap displays a compact, floating actions dock:
+- **📋 Copy Markdown:** Clean GitHub-flavored Markdown for technical notes or Obsidian.
+- **🌐 Copy HTML:** Scoped HTML & CSS without JavaScript (`.ps-el-N`).
+- **🎮 Smart Game HUD Coachmark:** Interactive onboarding tutorial callout for static selections, explaining clean code export with a 1-click "Don't show again" preference.
+- **••• More Actions:** Overflow menu with Download ZIP, AI Design Prompt, and Beta tools.
+
 ### 🛠️ Interactive Component Studio
-Inspect, tweak, and customize before copying.
-- **Preview Tab:** Interactive live sandbox showing the isolated component.
-- **Code Tab:** File browser (`index.html`, `styles.css`, `Component.jsx`, `tokens.json`).
-- **AI Specs Tab:** Copy ready-to-use reverse-engineering blueprints for AI agents.
+Inspect, tweak, and customize before copying:
+- **Preview Tab:** Interactive live sandbox showing the isolated component. Edit text directly on-screen!
+- **Code Tab:** Multi-file code browser (`index.html`, `styles.css`, `Component.jsx`, `tokens.json`).
+- **AI Specs Tab:** Copy ready-to-use reverse-engineering blueprints for AI agents (Cursor, Claude, v0).
+- **Footer Actions:** 1-click **Copy animated (BETA)** and **Download ZIP** bundle.
 
 ### 🧪 Experimental Lab (BETA)
 For rich media and creative web experiences:
-- **🎬 60fps Canvas Video Recording:** Record smooth WebM loops of canvas animations via `captureStream()`.
-- **🎨 3D WebGL Asset Packaging:** Discover and download loaded textures, depth maps, and 3D assets.
-
+- **▶ Copy animated (JS) [BETA]:** Replay pointer-driven SVG animations and CSS keyframes offline.
+- **🎬 60fps Canvas Video Recording [BETA]:** Record smooth WebM loops of canvas animations via `captureStream()`.
+- **🎨 3D WebGL Asset Packaging [BETA]:** Discover and bundle loaded 3D models (`.glb`), depth maps, and textures.
 ---
 
 ## 🚀 Quick Install (Load Unpacked in 60s)
