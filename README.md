@@ -166,6 +166,11 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
-## 📄 License
+## 📄 License &amp; Trademark Notice
 
-PageSnap is open-source software under the [MIT License](LICENSE).
+PageSnap code is open-source software licensed under the [MIT License](LICENSE).
+
+### ⚖️ Trademark &amp; Distribution Policy
+The name **"PageSnap"**, the official logo, icons, and branding assets are trademarks of the PageSnap maintainers.
+- You **MAY** fork, self-host, and inspect the codebase under the terms of the MIT license.
+- You **MAY NOT** redistribute, re-upload, or re-publish this extension (or close derivatives) to public browser extension stores (including the Chrome Web Store, Edge Add-ons, or Firefox Add-ons) using the name "PageSnap", the official branding, or misleading naming that implies official affiliation.
