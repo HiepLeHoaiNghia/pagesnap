@@ -1,71 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background Squircle Gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#18112e" />
-      <stop offset="50%" stop-color="#110d24" />
-      <stop offset="100%" stop-color="#0a0817" />
-    </linearGradient>
-
-    <!-- Outer Glow / Accent Ring -->
-    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#8b5cf6" />
-      <stop offset="100%" stop-color="#38bdf8" />
-    </linearGradient>
-
-    <!-- Bracket Neon Gradient -->
+    <!-- Cyan to Violet Gradient for Brackets -->
     <linearGradient id="bracketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="50%" stop-color="#818cf8" />
-      <stop offset="100%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#8b5cf6" />
     </linearGradient>
 
-    <!-- Lightning Bolt Gradient -->
+    <!-- Crisp White Bolt with subtle cool tint -->
     <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#e0e7ff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
     </linearGradient>
 
-    <!-- Neon Glow Filter -->
-    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#8b5cf6" flood-opacity="0.5" />
-      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#38bdf8" flood-opacity="0.4" />
-    </filter>
-
-    <!-- Subtle Card Shadow -->
-    <filter id="cardShadow" x="-10%" y="-10%" width="125%" height="125%">
-      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.6" />
+    <!-- Clean shadow to ensure high contrast on light backgrounds and glow on dark -->
+    <filter id="glyphShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#8b5cf6" flood-opacity="0.35" />
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.25" />
     </filter>
   </defs>
 
-  <!-- Squircle Base Canvas -->
-  <rect x="28" y="28" width="456" height="456" rx="112" fill="url(#bgGrad)" filter="url(#cardShadow)" />
-  <rect x="28" y="28" width="456" height="456" rx="112" fill="none" stroke="url(#ringGrad)" stroke-width="2.5" stroke-opacity="0.35" />
+  <!-- PURE TRANSPARENT BACKGROUND (NO BOX) -->
 
-  <!-- Inner Ambient Spotlight -->
-  <circle cx="256" cy="256" r="170" fill="#8b5cf6" opacity="0.12" filter="blur(30px)" />
-
-  <!-- Component Viewfinder Brackets -->
   <!-- Top-Left Bracket -->
-  <path d="M 108 206 L 108 140 A 32 32 0 0 1 140 108 L 206 108" 
+  <path d="M 64 220 L 64 100 A 36 36 0 0 1 100 64 L 220 64" 
         fill="none" 
         stroke="url(#bracketGrad)" 
-        stroke-width="32" 
+        stroke-width="48" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
-        filter="url(#neonGlow)" />
+        filter="url(#glyphShadow)" />
 
   <!-- Bottom-Right Bracket -->
-  <path d="M 404 306 L 404 372 A 32 32 0 0 1 372 404 L 306 404" 
+  <path d="M 448 292 L 448 412 A 36 36 0 0 1 412 448 L 292 448" 
         fill="none" 
         stroke="url(#bracketGrad)" 
-        stroke-width="32" 
+        stroke-width="48" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
-        filter="url(#neonGlow)" />
+        filter="url(#glyphShadow)" />
 
   <!-- Center Instant Snap Lightning Bolt -->
-  <polygon points="274,124 176,270 248,270 228,396 348,244 274,244" 
+  <polygon points="284,80 144,272 248,272 216,432 376,240 272,240" 
            fill="url(#boltGrad)" 
-           filter="url(#neonGlow)" />
+           filter="url(#glyphShadow)" />
 </svg>
