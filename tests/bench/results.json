@@ -1,0 +1,103 @@
+[
+  {
+    "id": "tilt-2axis",
+    "label": "Card tilt via inline transform (pointer X and Y, no spring)",
+    "kind": "pointer, two axes",
+    "expect": "partial",
+    "source": "local fixture",
+    "identifyMs": 6438,
+    "supported": true,
+    "reason": "",
+    "quality": "partial",
+    "animatedValues": 1,
+    "positions": 9,
+    "spring": "none",
+    "stateless": true,
+    "axisYPct": 52.03,
+    "holdoutMaxPct": 0.15,
+    "frame": "200x140",
+    "tokensCarryModel": true,
+    "originalReactsPct": 4.16,
+    "score": 50.9,
+    "restMatchPct": 99.4,
+    "motionEnergyPct": 1.43,
+    "perState": [
+      {
+        "at": "0.1,0.5",
+        "score": 12.7
+      },
+      {
+        "at": "0.3,0.5",
+        "score": 42
+      },
+      {
+        "at": "0.5,0.5",
+        "score": 56.7
+      },
+      {
+        "at": "0.7,0.5",
+        "score": 65.1
+      },
+      {
+        "at": "0.9,0.5",
+        "score": 70.4
+      },
+      {
+        "at": "0.5,0.2",
+        "score": 36.9
+      },
+      {
+        "at": "0.5,0.8",
+        "score": 39.3
+      }
+    ],
+    "verdict": "PASS (self-labelled partial)"
+  },
+  {
+    "id": "css-hover",
+    "label": "CSS :hover transition (no script writes; invisible to a DOM-attribute engine)",
+    "kind": "css only",
+    "expect": "reject",
+    "source": "local fixture",
+    "identifyMs": 1663,
+    "supported": false,
+    "reason": "pointer produced no DOM attribute changes (canvas/WebGL, CSS-only :hover, scroll- or time-driven)",
+    "frame": "422x302",
+    "tokensCarryModel": false,
+    "originalReactsPct": 12.68,
+    "score": 0,
+    "restMatchPct": 98.4,
+    "motionEnergyPct": 1.34,
+    "perState": [
+      {
+        "at": "0.1,0.5",
+        "score": 0
+      },
+      {
+        "at": "0.3,0.5",
+        "score": 0
+      },
+      {
+        "at": "0.5,0.5",
+        "score": 0
+      },
+      {
+        "at": "0.7,0.5",
+        "score": 0
+      },
+      {
+        "at": "0.9,0.5",
+        "score": 0
+      },
+      {
+        "at": "0.5,0.2",
+        "score": 0
+      },
+      {
+        "at": "0.5,0.8",
+        "score": 0
+      }
+    ],
+    "verdict": "PASS (declined honestly)"
+  }
+]

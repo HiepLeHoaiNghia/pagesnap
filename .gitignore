@@ -1,0 +1,42 @@
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Dependencies & Build artifacts
+node_modules
+node_modules/
+dist/
+build/
+*.zip
+*.crx
+
+# Temporary test profiles & reports
+tmp/
+test-results/
+playwright-report/
+blob-report/
+
+# Agent & Session logs
+.claude/*
+!.claude/rules/
+logs/
+*.log
+
+# Temporary gate sentinels & review artifacts
+.ck/
+.MemoryGrid/
+
+# Temporary user scratch files
+test.html
+test.md
+.gstack/
+
+# Git worktrees (isolated task directories)
+.worktrees/
+
+# Internal research assets & plans (archived to MemoryGrid Vault)
+plans/*
+!plans/README.md
+*.glb
+*.drc.glb
+*.dds

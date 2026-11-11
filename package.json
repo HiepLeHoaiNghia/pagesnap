@@ -1,0 +1,52 @@
+{
+  "name": "pagesnap-extension",
+  "version": "1.0.0",
+  "description": "Convert web pages to clean, AI-ready Markdown and standalone offline HTML snapshots with one click.",
+  "type": "module",
+  "scripts": {
+    "start": "./scripts/launch.sh",
+    "test": "node tests/static-checks.mjs && node tests/contract-integrity.test.mjs",
+    "commitlint": "commitlint --from origin/develop --to HEAD",
+    "test:e2e": "node tests/e2e/e2e-smoke.mjs",
+    "package": "node scripts/package.mjs",
+    "release": "./scripts/release/full-release.sh",
+    "test:e2e:download": "node tests/e2e/e2e-download.mjs",
+    "test:e2e:motion": "node tests/e2e/e2e-motion-export.mjs",
+    "test:e2e:ui": "node tests/e2e/e2e-ui-contract.mjs",
+    "test:e2e:hint": "node tests/e2e/e2e-smart-hint.mjs",
+    "test:e2e:responsive": "node tests/e2e/e2e-responsive-export.mjs",
+    "test:e2e:style": "node tests/e2e/e2e-style-fidelity.mjs",
+    "test:e2e:hover": "node tests/e2e/e2e-hover-export.mjs",
+    "test:e2e:surfaces": "node tests/e2e/e2e-render-surfaces.mjs",
+    "test:e2e:grounding": "node tests/e2e/e2e-visual-grounding.mjs",
+    "test:e2e:choreography": "node tests/e2e/e2e-scroll-choreography.mjs",
+    "test:e2e:multiframe": "node tests/e2e/e2e-multiframe-grounding.mjs",
+    "test:e2e:splines": "node tests/e2e/e2e-choreography-splines.mjs",
+    "test:e2e:crosslayer": "node tests/e2e/e2e-crosslayer-hover.mjs",
+    "test:e2e:solid": "node tests/e2e/e2e-solid-extraction.mjs",
+    "test:e2e:gpu": "node tests/e2e/e2e-v23-gpu-artwork.mjs",
+    "test:e2e:scaffold": "node tests/e2e/e2e-solid-extraction.mjs",
+    "test:e2e:recording": "node tests/e2e/e2e-interactive-recording.mjs",
+    "test:e2e:conflict": "node tests/e2e/e2e-state-conflict-redteam.mjs",
+    "test:e2e:guide": "node tests/e2e/e2e-walkthrough-guide.mjs",
+    "test:e2e:exact": "node tests/e2e/e2e-exact-shader-programs.mjs",
+    "test:e2e:tween": "node tests/e2e/e2e-wavefront-tween.mjs"
+  },
+  "keywords": [
+    "pagesnap",
+    "markdown",
+    "html-snapshot",
+    "single-file",
+    "chrome-extension",
+    "readability",
+    "ai",
+    "obsidian",
+    "llm-context"
+  ],
+  "author": "PageSnap Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4"
+  }
+}
