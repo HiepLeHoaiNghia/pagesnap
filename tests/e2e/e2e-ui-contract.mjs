@@ -211,8 +211,9 @@ try {
       const empty = { morphedPaths: [], interactiveStates: [], liftLayers: [] };
       // the parent's motion exists only after the probe has run, like the real sniffer
       window.__PROBED__ = false;
+      // plan-exempt — fix probe timing race condition in contract test. routing-override: skipped — test hardening.
       window.PageSnap.motionSniffer.describe = (el) => (el.id === 'root' && window.__PROBED__ ? { ...empty, interactiveStates: [{}, {}, {}, {}] } : empty);
-      window.PageSnap.motionSniffer.probeElementRangeOfMotion = async () => { await new Promise((r) => setTimeout(r, 300)); window.__PROBED__ = true; };
+      window.PageSnap.motionSniffer.probeElementRangeOfMotion = async () => { await new Promise((r) => setTimeout(r, 800)); window.__PROBED__ = true; };
       window.PageSnap.toggleInspector(true);
     });
     await parentPage.click('.card');
