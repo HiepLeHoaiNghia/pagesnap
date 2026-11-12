@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD013 MD033 MD045 -->
 
 <h1 align="center">
-  <a href="https://github.com/HiepLeHoaiNghia/pagesnap"><img src="docs/images/pagesnap-logo.svg" alt="PageSnap Logo" width="56" valign="middle" /></a> PageSnap
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap"><img src="docs/images/pagesnap-logo.svg?v=3" alt="PageSnap Logo" width="56" valign="middle" /></a> PageSnap
 </h1>
 
 <p align="center">
@@ -23,10 +23,10 @@
 </h3>
 
 <p align="center">
-  <img src="docs/images/dock-coachmark-preview.png" alt="PageSnap Floating Actions Dock with Smart Game HUD Coachmark" width="100%" />
+  <img src="docs/images/dock-coachmark-preview.png?v=2" alt="PageSnap Floating Actions Dock with Smart Game HUD Coachmark" width="100%" />
 </p>
 <p align="center">
-  <img src="docs/images/studio-preview.png" alt="PageSnap Live Component Studio Sandbox" width="100%" />
+  <img src="docs/images/studio-preview.png?v=2" alt="PageSnap Live Component Studio Sandbox" width="100%" />
 </p>
 
 ---
