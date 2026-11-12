@@ -19,7 +19,7 @@
 </p>
 
 <h3 align="center">
-  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><ins>Download PageSnap (Latest ZIP)</ins></a>
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest">⬇️ Download PageSnap (Latest ZIP)</a>
 </h3>
 
 <p align="center">
@@ -37,15 +37,15 @@ AI coding tools like **Cursor**, **Claude Code**, and **v0** build stunning inte
 
 PageSnap sits directly in your browser. With **1 click**, it extracts precisely the target component with computed layout, scoped styles, design tokens, and clean Markdown—ready to paste straight into your AI prompts.
 
-| Capability | PageSnap (Free &amp; Open Source) | DivMagic / Xtractly ($35 - $60) | SingleFile / Web Clippers |
+| Capability | PageSnap | Paid Proprietary Tools ($30 - $60+) | Traditional Web Clippers |
 | :--- | :--- | :--- | :--- |
-| **Pricing** | **100% Free &amp; Open Source (MIT)** | Paid license ($30 - $60+) | Free / Freemium |
-| **Clean Markdown** | ✅ **Built-in** (via Mozilla Readability) | ❌ HTML only | ⚠️ Whole page only |
-| **Scoped HTML + CSS** | ✅ **No global leaks** (`.ps-el-*`) | ✅ Scoped classes | ❌ Full page dump |
+| **License &amp; Pricing** | **100% Free &amp; Open Source (MIT)** | Paid license ($30 - $60+) | Free / Freemium |
+| **Clean AI Markdown** | ✅ **Built-in (Mozilla Readability)** | ❌ HTML only | ⚠️ Whole page dump |
+| **Scoped HTML + CSS** | ✅ **Isolated (`.ps-el-*`)** | ✅ Scoped classes | ❌ Full page CSS |
 | **AI Design Prompt** | ✅ **Structured `AI-PROMPT.md`** | ❌ None | ❌ None |
-| **Privacy &amp; Telemetry**| ✅ **100% Local in-browser** | ⚠️ Closed-source analytics | ⚠️ Third-party servers |
-| **Network Hooks** | ✅ **Strictly passive** (Zero interference)| ⚠️ Invasive injection | ⚠️ Variable |
-| **3D / Canvas Extraction**| 🧪 **Experimental (BETA)** | ❌ Unsupported | ❌ Static canvas only |
+| **Privacy &amp; Telemetry** | ✅ **100% Local (Zero Telemetry)** | ⚠️ Closed-source telemetry | ⚠️ Cloud servers |
+| **Network Footprint** | ✅ **Strictly passive (Zero injection)** | ⚠️ Active page modification | ⚠️ Variable |
+| **Canvas &amp; 3D Tools** | 🧪 **Experimental (BETA)** | ❌ Unsupported | ❌ None |
 
 ---
 
