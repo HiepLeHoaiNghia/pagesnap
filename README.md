@@ -98,7 +98,7 @@ PageSnap runs directly in any Chromium-based browser without terminal commands o
 3. In the top-right corner, toggle **Developer mode** to **ON**.
 
 <p align="center">
-  <img src="docs/images/step-developer-mode.png" alt="Switch Developer mode toggle to ON in Chrome extensions page" width="100%" />
+  <img src="docs/images/step-developer-mode.png?v=2" alt="Switch Developer mode toggle to ON in Chrome extensions page" width="100%" />
 </p>
 
 ### Step 3: Load Unpacked Extension
@@ -106,14 +106,14 @@ PageSnap runs directly in any Chromium-based browser without terminal commands o
 2. Select the unzipped folder containing `manifest.json`.
 
 <p align="center">
-  <img src="docs/images/step-load-unpacked.png" alt="Click Load unpacked button in Chrome toolbar" width="100%" />
+  <img src="docs/images/step-load-unpacked.png?v=2" alt="Click Load unpacked button in Chrome toolbar" width="100%" />
 </p>
 
 ### Step 4: Ready to Snap!
 Pin **PageSnap** (📌) to your browser toolbar for instant 1-click access anytime!
 
 <p align="center">
-  <img src="docs/images/step-extension-installed.png" alt="PageSnap extension card successfully loaded in Chrome" width="100%" />
+  <img src="docs/images/step-extension-installed.png?v=2" alt="PageSnap extension card successfully loaded in Chrome" width="100%" />
 </p>
 
 ---
