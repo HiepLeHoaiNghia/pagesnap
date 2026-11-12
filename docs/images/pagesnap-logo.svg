@@ -1,74 +1,70 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Bracket Neon Gradient (Cyan to Violet) -->
-    <linearGradient id="bracketNeon" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Individual Blade Gradients for Mechanical Depth -->
+    <linearGradient id="blade0" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="50%" stop-color="#818cf8" />
-      <stop offset="100%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="blade1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="blade2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="blade3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#4338ca" />
+    </linearGradient>
+    <linearGradient id="blade4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6b21a8" />
+    </linearGradient>
+    <linearGradient id="blade5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#7e22ce" />
     </linearGradient>
 
-    <!-- Amber Gold Glass Body Gradient -->
-    <linearGradient id="goldGlassBody" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fde047" stop-opacity="0.95" />
-      <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#d97706" stop-opacity="0.95" />
-    </linearGradient>
+    <!-- Core Aperture Glow -->
+    <radialGradient id="apertureGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </radialGradient>
 
-    <!-- Glossy Specular Highlight (The crystal glass sheen) -->
-    <linearGradient id="goldGlassSheen" x1="0%" y1="0%" x2="70%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
-      <stop offset="50%" stop-color="#fef08a" stop-opacity="0.35" />
-      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
-    </linearGradient>
-
-    <!-- Soft Ambient Shadow for depth on both White & Dark backgrounds -->
-    <filter id="glassShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.22" />
-      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#d97706" flood-opacity="0.28" />
+    <!-- High-Precision Shadow for White & Dark Contrast -->
+    <filter id="precisionShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.3" />
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#6366f1" flood-opacity="0.25" />
     </filter>
   </defs>
 
   <!-- PURE TRANSPARENT BACKGROUND (NO BOX) -->
 
-  <!-- Top-Left Bracket (Cyan to Violet) -->
-  <path d="M 64 220 L 64 100 A 36 36 0 0 1 100 64 L 220 64" 
-        fill="none" 
-        stroke="url(#bracketNeon)" 
-        stroke-width="50" 
-        stroke-linecap="round" 
-        stroke-linejoin="round" 
-        filter="url(#glassShadow)" />
+  <g filter="url(#precisionShadow)" transform="translate(256, 256)">
+    <!-- 6 Symmetrical Precision Shutter Blades -->
+    <!-- Blade 0 (Top-Right Cyan) -->
+    <path d="M 0 -204 L 126 -132 L 72 -38 L 0 -80 Z" fill="url(#blade0)" />
+    
+    <!-- Blade 1 (Right Sky Blue) -->
+    <path d="M 177 -102 L 177 42 L 80 16 L 92 -70 Z" fill="url(#blade1)" />
+    
+    <!-- Blade 2 (Bottom-Right Indigo) -->
+    <path d="M 177 102 L 51 174 L 8 96 L 88 58 Z" fill="url(#blade2)" />
+    
+    <!-- Blade 3 (Bottom-Left Violet) -->
+    <path d="M 0 204 L -126 132 L -72 38 L 0 80 Z" fill="url(#blade3)" />
+    
+    <!-- Blade 4 (Left Deep Purple) -->
+    <path d="M -177 102 L -177 -42 L -80 -16 L -92 70 Z" fill="url(#blade4)" />
+    
+    <!-- Blade 5 (Top-Left Neon Magenta) -->
+    <path d="M -177 -102 L -51 -174 L -8 -96 L -88 -58 Z" fill="url(#blade5)" />
 
-  <!-- Bottom-Right Bracket (Cyan to Violet) -->
-  <path d="M 448 292 L 448 412 A 36 36 0 0 1 412 448 L 292 448" 
-        fill="none" 
-        stroke="url(#bracketNeon)" 
-        stroke-width="50" 
-        stroke-linecap="round" 
-        stroke-linejoin="round" 
-        filter="url(#glassShadow)" />
-
-  <!-- Amber Gold Glass Lightning Bolt -->
-  <g filter="url(#glassShadow)">
-    <!-- Base Glass Body with Amber Refraction Rim -->
-    <polygon points="284,80 144,272 248,272 216,432 376,240 272,240" 
-             fill="url(#goldGlassBody)" 
-             stroke="#d97706" 
-             stroke-width="6" 
-             stroke-linejoin="round" />
-
-    <!-- Glossy Diagonal Specular Sheen -->
-    <polygon points="280,88 152,266 230,266 310,88" 
-             fill="url(#goldGlassSheen)" />
-
-    <!-- Crystal Facet Highlight Ridge -->
-    <line x1="280" y1="88" x2="216" y2="424" 
-          stroke="#ffffff" 
-          stroke-width="3.5" 
-          stroke-linecap="round" 
-          opacity="0.75" />
-
-    <!-- Sparkle Glint on Top Crest -->
-    <circle cx="282" cy="86" r="5" fill="#ffffff" />
+    <!-- Center Precision Aperture Lens Core -->
+    <circle cx="0" cy="0" r="30" fill="url(#apertureGlow)" stroke="#ffffff" stroke-width="2" />
+    <circle cx="0" cy="0" r="14" fill="#0f172a" opacity="0.85" />
+    <circle cx="0" cy="0" r="6" fill="#ffffff" />
   </g>
 </svg>
