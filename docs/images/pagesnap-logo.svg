@@ -1,46 +1,74 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Cyan to Violet Gradient for Brackets -->
-    <linearGradient id="bracketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Bracket Neon Gradient (Cyan to Violet) -->
+    <linearGradient id="bracketNeon" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#818cf8" />
       <stop offset="100%" stop-color="#8b5cf6" />
     </linearGradient>
 
-    <!-- Crisp White Bolt with subtle cool tint -->
-    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#f1f5f9" />
+    <!-- Amber Gold Glass Body Gradient -->
+    <linearGradient id="goldGlassBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.95" />
+      <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0.95" />
     </linearGradient>
 
-    <!-- Clean shadow to ensure high contrast on light backgrounds and glow on dark -->
-    <filter id="glyphShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#8b5cf6" flood-opacity="0.35" />
-      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.25" />
+    <!-- Glossy Specular Highlight (The crystal glass sheen) -->
+    <linearGradient id="goldGlassSheen" x1="0%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#fef08a" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Soft Ambient Shadow for depth on both White & Dark backgrounds -->
+    <filter id="glassShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.22" />
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#d97706" flood-opacity="0.28" />
     </filter>
   </defs>
 
   <!-- PURE TRANSPARENT BACKGROUND (NO BOX) -->
 
-  <!-- Top-Left Bracket -->
+  <!-- Top-Left Bracket (Cyan to Violet) -->
   <path d="M 64 220 L 64 100 A 36 36 0 0 1 100 64 L 220 64" 
         fill="none" 
-        stroke="url(#bracketGrad)" 
-        stroke-width="48" 
+        stroke="url(#bracketNeon)" 
+        stroke-width="50" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
-        filter="url(#glyphShadow)" />
+        filter="url(#glassShadow)" />
 
-  <!-- Bottom-Right Bracket -->
+  <!-- Bottom-Right Bracket (Cyan to Violet) -->
   <path d="M 448 292 L 448 412 A 36 36 0 0 1 412 448 L 292 448" 
         fill="none" 
-        stroke="url(#bracketGrad)" 
-        stroke-width="48" 
+        stroke="url(#bracketNeon)" 
+        stroke-width="50" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
-        filter="url(#glyphShadow)" />
+        filter="url(#glassShadow)" />
 
-  <!-- Center Instant Snap Lightning Bolt -->
-  <polygon points="284,80 144,272 248,272 216,432 376,240 272,240" 
-           fill="url(#boltGrad)" 
-           filter="url(#glyphShadow)" />
+  <!-- Amber Gold Glass Lightning Bolt -->
+  <g filter="url(#glassShadow)">
+    <!-- Base Glass Body with Amber Refraction Rim -->
+    <polygon points="284,80 144,272 248,272 216,432 376,240 272,240" 
+             fill="url(#goldGlassBody)" 
+             stroke="#d97706" 
+             stroke-width="6" 
+             stroke-linejoin="round" />
+
+    <!-- Glossy Diagonal Specular Sheen -->
+    <polygon points="280,88 152,266 230,266 310,88" 
+             fill="url(#goldGlassSheen)" />
+
+    <!-- Crystal Facet Highlight Ridge -->
+    <line x1="280" y1="88" x2="216" y2="424" 
+          stroke="#ffffff" 
+          stroke-width="3.5" 
+          stroke-linecap="round" 
+          opacity="0.75" />
+
+    <!-- Sparkle Glint on Top Crest -->
+    <circle cx="282" cy="86" r="5" fill="#ffffff" />
+  </g>
 </svg>
