@@ -18,9 +18,10 @@
   Extract any live UI component into clean, scoped HTML &amp; CSS, pure article Markdown, or an AI-ready design prompt package.
 </p>
 
-<h3 align="center">
-  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest">⬇️ Download PageSnap (Latest ZIP)</a>
-</h3>
+<p align="center">
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Chrome_Web_Store-Available_Soon-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
+  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Download_Extension-v1.0.0_ZIP-8B5CF6?style=for-the-badge&logo=github&logoColor=white" alt="Download Extension ZIP" /></a>
+</p>
 
 <p align="center">
   <img src="docs/images/dock-coachmark-preview.png?v=2" alt="PageSnap Floating Actions Dock with Smart Game HUD Coachmark" width="100%" />
@@ -29,6 +30,25 @@
   <img src="docs/images/studio-preview.png?v=2" alt="PageSnap Live Component Studio Sandbox" width="100%" />
 </p>
 
+---
+
+## 💡 How to Use with Cursor, Claude Code &amp; v0
+
+Stop feeding messy, 50-megabyte browser DOM trees to your AI. With PageSnap:
+
+1. **🎯 Clip Component:** Hover over any live web element and click **`🌐 Copy HTML`** (or **`🤖 Copy AI Prompt`**).
+2. **💬 Prompt Your AI:** Open **Cursor Composer** (`Cmd+I`), **Claude Code**, or **v0**, and paste:
+   > *"Recreate this UI component using React and Tailwind CSS:*  
+   > *[PASTE COPIED HTML/PROMPT HERE]"*
+3. **✨ Pixel-Perfect Generation:** Because PageSnap extracted scoped styles (`.ps-el-*`), computed flex/grid layouts, and design tokens, your AI produces exact, bug-free components without style hallucinations!
+
+---
+
+## ⚡ 3-Step Instant Workflow
+
+* **Step 1: 🎯 Inspect (`F2`):** Click the toolbar icon or press `F2` to highlight any container, hero section, or button on the live page.
+* **Step 2: 🛠️ Live Studio Sandbox:** Preview the isolated component, test responsive window resizing, and edit text on-screen before exporting.
+* **Step 3: 📦 Export in 1 Click:** Copy clean Markdown, scoped HTML &amp; CSS without JavaScript, or download a production-ready ZIP bundle (`Component.jsx`, `tokens.json`, `styles.css`).
 ---
 
 ## ⚡ Why PageSnap?
@@ -84,37 +104,28 @@ For rich media and creative web experiences:
 - **🎨 3D WebGL Asset Packaging [BETA]:** Discover and bundle loaded 3D models (`.glb`), depth maps, and textures.
 ---
 
-## 🚀 Quick Install (Load Unpacked in 60s)
+## 🚀 Quick Install
 
-PageSnap runs directly in any Chromium-based browser without terminal commands or build tools:
+### Method 1: Chrome Web Store (Recommended)
+> *Official store listing currently in review. Link will be posted here upon approval.*
 
-### Step 1: Download &amp; Unzip
+### Method 2: Manual Install (Load Unpacked in 60s)
+<details>
+<summary><b>Click to expand step-by-step local installation guide</b></summary>
+<br/>
+
 1. Download [**`pagesnap-store-ready.zip`**](https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest) from the latest release.
-2. Unzip into a permanent folder on your computer (e.g., `Documents/pagesnap`).
-
-### Step 2: Enable Developer Mode
-1. Open Google Chrome, Microsoft Edge, or Brave.
-2. Go to `chrome://extensions` in your address bar.
-3. In the top-right corner, toggle **Developer mode** to **ON**.
-
-<p align="center">
-  <img src="docs/images/step-developer-mode.png?v=2" alt="Switch Developer mode toggle to ON in Chrome extensions page" width="100%" />
-</p>
-
-### Step 3: Load Unpacked Extension
-1. In the top-left toolbar, click **Load unpacked**.
-2. Select the unzipped folder containing `manifest.json`.
+2. Unzip into a permanent folder on your machine (e.g. `Documents/pagesnap`).
+3. Open Chrome/Edge/Brave and navigate to `chrome://extensions`.
+4. In the top-right corner, toggle **Developer mode** to **ON**.
+5. In the top-left toolbar, click **Load unpacked** and select the unzipped `pagesnap` folder.
+6. Pin **PageSnap** (📌) to your browser toolbar for instant 1-click access anytime!
 
 <p align="center">
-  <img src="docs/images/step-load-unpacked.png?v=2" alt="Click Load unpacked button in Chrome toolbar" width="100%" />
+  <img src="docs/images/step-extension-installed.png?v=2" alt="PageSnap extension card successfully loaded in Chrome" width="85%" />
 </p>
 
-### Step 4: Ready to Snap!
-Pin **PageSnap** (📌) to your browser toolbar for instant 1-click access anytime!
-
-<p align="center">
-  <img src="docs/images/step-extension-installed.png?v=2" alt="PageSnap extension card successfully loaded in Chrome" width="100%" />
-</p>
+</details>
 
 ---
 
