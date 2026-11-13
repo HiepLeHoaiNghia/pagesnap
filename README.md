@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Chrome_Web_Store-Available_Soon-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
+  <a href="https://chromewebstore.google.com/detail/pagesnap-—-web-to-markdow/npfkcjfemkkonkkhceammjhfkpkbnkke"><img src="https://img.shields.io/badge/Chrome_Web_Store-Add_to_Chrome-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Add to Chrome" /></a>
   <a href="https://github.com/HiepLeHoaiNghia/pagesnap/releases/latest"><img src="https://img.shields.io/badge/Download_Extension-v1.0.0_ZIP-8B5CF6?style=for-the-badge&logo=github&logoColor=white" alt="Download Extension ZIP" /></a>
 </p>
 
@@ -107,8 +107,9 @@ For rich media and creative web experiences:
 ## 🚀 Quick Install
 
 ### Method 1: Chrome Web Store (Recommended)
-> *Official store listing currently in review. Link will be posted here upon approval.*
+Install directly from the official Google Chrome Web Store with 1 click:
 
+👉 [**Add PageSnap to Chrome (Official Web Store)**](https://chromewebstore.google.com/detail/pagesnap-—-web-to-markdow/npfkcjfemkkonkkhceammjhfkpkbnkke)
 ### Method 2: Manual Install (Load Unpacked in 60s)
 <details>
 <summary><b>Click to expand step-by-step local installation guide</b></summary>
